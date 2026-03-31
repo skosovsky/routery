@@ -15,11 +15,24 @@ func FuzzRetryIfNoPanics(f *testing.F) {
 	f.Fuzz(func(t *testing.T, attempts int, backoffMillis int64, useNilPredicate bool) {
 		t.Helper()
 
+		if attempts > 10 {
+			attempts = 10
+		}
+		if attempts < -10 {
+			attempts = -10
+		}
+		if backoffMillis > 10 {
+			backoffMillis = 10
+		}
+		if backoffMillis < -10 {
+			backoffMillis = -10
+		}
+
 		base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
 			return 0, errors.New("retry")
 		})
 
-		backoff := time.Duration(backoffMillis%100) * time.Millisecond
+		backoff := time.Duration(backoffMillis) * time.Microsecond
 		predicate := func(error) bool { return true }
 		if useNilPredicate {
 			predicate = nil

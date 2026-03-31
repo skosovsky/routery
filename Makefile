@@ -34,9 +34,10 @@ fuzz:
 		echo "fuzz - $$dir"; \
 		(cd "$$dir" && \
 			for pkg in $$($(GO) list -tags=fuzz ./...); do \
-				if $(GO) test -tags=fuzz -list . "$$pkg" 2>/dev/null | grep -q '^Fuzz'; then \
-					$(GO) test -tags=fuzz -fuzz=. -fuzztime=30s "$$pkg" || exit 1; \
-				fi; \
+				fuzz_targets=$$($(GO) test -tags=fuzz -list . "$$pkg" 2>/dev/null | grep '^Fuzz' || true); \
+				for fuzz_target in $$fuzz_targets; do \
+					$(GO) test -tags=fuzz -fuzz="^$$fuzz_target$$" -fuzztime=30s "$$pkg" || exit 1; \
+				done; \
 			done \
 		) || exit 1; \
 	done
