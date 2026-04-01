@@ -60,6 +60,24 @@ Retry policy behavior:
 - Intermediate retryable responses are closed before the next attempt.
 - On final exhaustion, the last `*http.Response` is returned with open body so callers can inspect it.
 
+## SQL Adapter (`ext/sql`)
+
+`ext/sql` is a separate module and keeps root `routery` generic.
+
+It provides extractor-based executors for both `*sql.DB` and `*sql.Tx`:
+
+- `NewDBQueryExecutor`, `NewDBExecExecutor`
+- `NewTxQueryExecutor`, `NewTxExecExecutor`
+- `DefaultRetryPolicy(error) bool`
+
+SQL adapter behavior:
+
+- Request mapping is BYOT via `StatementExtractor[Req]`.
+- Query executors return `*sql.Rows`; callers must always close rows with `defer rows.Close()`.
+- `DefaultRetryPolicy` never retries `context.Canceled` or `context.DeadlineExceeded`.
+- `DefaultRetryPolicy` retries only non-transactional `driver.ErrBadConn`.
+- Statement-level retries inside an existing `*sql.Tx` are intentionally not enabled by default.
+
 ## Quality Gates
 
 - `make lint`
