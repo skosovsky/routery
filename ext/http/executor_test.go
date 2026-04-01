@@ -130,8 +130,9 @@ func TestDefaultRetryPolicyRetryableStatusClosesBody(t *testing.T) {
 	t.Parallel()
 
 	closeCounter := &trackingReadCloser{}
+	req := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	statusErr := &StatusError{
-		Request: httptest.NewRequest(stdhttp.MethodGet, "/", nil),
+		Request: req,
 		Response: &stdhttp.Response{
 			StatusCode: stdhttp.StatusServiceUnavailable,
 			Body:       closeCounter,
@@ -139,7 +140,7 @@ func TestDefaultRetryPolicyRetryableStatusClosesBody(t *testing.T) {
 		Code: stdhttp.StatusServiceUnavailable,
 	}
 
-	retry := DefaultRetryPolicy(statusErr)
+	retry := DefaultRetryPolicy(context.Background(), req, statusErr)
 	if !retry {
 		t.Fatal("expected retry for retryable status")
 	}
@@ -152,8 +153,9 @@ func TestDefaultRetryPolicyNonRetryableStatusDoesNotCloseBody(t *testing.T) {
 	t.Parallel()
 
 	closeCounter := &trackingReadCloser{}
+	req := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 	statusErr := &StatusError{
-		Request: httptest.NewRequest(stdhttp.MethodGet, "/", nil),
+		Request: req,
 		Response: &stdhttp.Response{
 			StatusCode: stdhttp.StatusBadRequest,
 			Body:       closeCounter,
@@ -161,7 +163,7 @@ func TestDefaultRetryPolicyNonRetryableStatusDoesNotCloseBody(t *testing.T) {
 		Code: stdhttp.StatusBadRequest,
 	}
 
-	retry := DefaultRetryPolicy(statusErr)
+	retry := DefaultRetryPolicy(context.Background(), req, statusErr)
 	if retry {
 		t.Fatal("expected no retry for non-retryable status")
 	}
@@ -173,11 +175,12 @@ func TestDefaultRetryPolicyNonRetryableStatusDoesNotCloseBody(t *testing.T) {
 func TestDefaultRetryPolicyRequiresReplayableBody(t *testing.T) {
 	t.Parallel()
 
+	req := &stdhttp.Request{
+		Method: stdhttp.MethodGet,
+		Body:   io.NopCloser(strings.NewReader("payload")),
+	}
 	statusErr := &StatusError{
-		Request: &stdhttp.Request{
-			Method: stdhttp.MethodGet,
-			Body:   io.NopCloser(strings.NewReader("payload")),
-		},
+		Request: req,
 		Response: &stdhttp.Response{
 			StatusCode: stdhttp.StatusServiceUnavailable,
 			Body:       io.NopCloser(strings.NewReader("response")),
@@ -185,7 +188,7 @@ func TestDefaultRetryPolicyRequiresReplayableBody(t *testing.T) {
 		Code: stdhttp.StatusServiceUnavailable,
 	}
 
-	retry := DefaultRetryPolicy(statusErr)
+	retry := DefaultRetryPolicy(context.Background(), req, statusErr)
 	if retry {
 		t.Fatal("expected no retry for non-replayable body")
 	}
@@ -208,11 +211,7 @@ func TestDefaultRetryPolicyTransportRules(t *testing.T) {
 			t.Parallel()
 
 			request := httptest.NewRequest(tc.method, "/", nil)
-			err := &requestError{
-				request: request,
-				err:     io.ErrUnexpectedEOF,
-			}
-			got := DefaultRetryPolicy(err)
+			got := DefaultRetryPolicy(context.Background(), request, io.ErrUnexpectedEOF)
 			if got != tc.wantRetry {
 				t.Fatalf("unexpected retry decision: got %v, want %v", got, tc.wantRetry)
 			}

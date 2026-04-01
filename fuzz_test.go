@@ -3,6 +3,7 @@ package routery
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 )
@@ -33,13 +34,27 @@ func FuzzRetryIfNoPanics(f *testing.F) {
 		})
 
 		backoff := time.Duration(backoffMillis) * time.Microsecond
-		predicate := func(error) bool { return true }
+		predicate := func(context.Context, int, error) bool { return true }
 		if useNilPredicate {
 			predicate = nil
 		}
 
 		executor := RetryIf[int, int](attempts, backoff, predicate)(base)
 		_, _ = executor.Execute(context.Background(), 0)
+	})
+}
+
+func FuzzGrowBackoffNoPanics(f *testing.F) {
+	f.Add(int64(0))
+	f.Add(int64(-1))
+	f.Add(int64(1))
+	f.Add(int64(math.MaxInt64 / 4))
+
+	f.Fuzz(func(t *testing.T, nanos int64) {
+		t.Helper()
+
+		d := time.Duration(nanos)
+		_ = growBackoff(d)
 	})
 }
 

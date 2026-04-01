@@ -22,11 +22,20 @@ func (f ExecutorFunc[Req, Res]) Execute(ctx context.Context, req Req) (Res, erro
 // Middleware decorates an executor.
 type Middleware[Req any, Res any] func(Executor[Req, Res]) Executor[Req, Res]
 
+// RetryPredicate decides whether a failed execution should be retried.
+type RetryPredicate[Req any] func(ctx context.Context, req Req, err error) bool
+
 // ErrNoExecutors indicates that no executors were provided.
 var ErrNoExecutors = errors.New("routery: no executors provided")
 
 // ErrInvalidConfig indicates invalid router or middleware configuration.
 var ErrInvalidConfig = errors.New("routery: invalid configuration")
+
+// ErrCircuitOpen indicates that a circuit breaker is open and requests are failing fast.
+var ErrCircuitOpen = errors.New("routery: circuit breaker open")
+
+// ErrTooManyRequests indicates that a bulkhead semaphore has no capacity left.
+var ErrTooManyRequests = errors.New("routery: too many concurrent requests")
 
 func zeroValue[T any]() T {
 	var zero T

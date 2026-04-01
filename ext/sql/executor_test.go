@@ -335,7 +335,7 @@ func TestContextCancellationIsNotRetriedByDefaultPolicy(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context cancellation, got %v", err)
 	}
-	if DefaultRetryPolicy(err) {
+	if DefaultRetryPolicy[statementRequest](context.Background(), statementRequest{}, err) {
 		t.Fatalf("expected no retry for canceled context, got retry=true")
 	}
 }
@@ -448,7 +448,12 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := DefaultRetryPolicy(tc.err); got != tc.wantRetry {
+			got := DefaultRetryPolicy[statementRequest](
+				context.Background(),
+				statementRequest{},
+				tc.err,
+			)
+			if got != tc.wantRetry {
 				t.Fatalf("unexpected retry decision: got %v, want %v", got, tc.wantRetry)
 			}
 		})

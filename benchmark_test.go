@@ -14,7 +14,7 @@ func BenchmarkApplyExecute(b *testing.B) {
 	executor := Apply(
 		base,
 		Timeout[int, int](0),
-		RetryIf[int, int](1, 0, func(error) bool { return false }),
+		RetryIf[int, int](1, 0, func(context.Context, int, error) bool { return false }),
 	)
 
 	b.ReportAllocs()
@@ -32,7 +32,7 @@ func BenchmarkRetryIfNoRetry(b *testing.B) {
 	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
 		return 0, errors.New("stop")
 	})
-	executor := RetryIf[int, int](3, 0, func(error) bool { return false })(base)
+	executor := RetryIf[int, int](3, 0, func(context.Context, int, error) bool { return false })(base)
 
 	b.ReportAllocs()
 	b.ResetTimer()

@@ -23,7 +23,7 @@ func ExampleApply() {
 
 	executor := routery.Apply(
 		base,
-		routery.RetryIf[int, string](2, 0, func(err error) bool {
+		routery.RetryIf[int, string](2, 0, func(_ context.Context, _ int, err error) bool {
 			return errors.Is(err, retryErr)
 		}),
 	)
@@ -84,7 +84,7 @@ func ExampleApply_middlewareOrder() {
 
 	perAttempt := routery.Apply(
 		perAttemptBase,
-		routery.RetryIf[int, string](attempts, backoff, func(err error) bool {
+		routery.RetryIf[int, string](attempts, backoff, func(_ context.Context, _ int, err error) bool {
 			return errors.Is(err, retryErr)
 		}),
 		routery.Timeout[int, string](timeout),
@@ -102,7 +102,7 @@ func ExampleApply_middlewareOrder() {
 	global := routery.Apply(
 		globalBase,
 		routery.Timeout[int, string](timeout),
-		routery.RetryIf[int, string](attempts, backoff, func(err error) bool {
+		routery.RetryIf[int, string](attempts, backoff, func(_ context.Context, _ int, err error) bool {
 			return errors.Is(err, retryErr)
 		}),
 	)
@@ -112,4 +112,36 @@ func ExampleApply_middlewareOrder() {
 	// Output:
 	// 3 true
 	// 1 true
+}
+
+func ExampleCircuitBreaker() {
+	fail := errors.New("fail")
+	base := routery.ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+		return 0, fail
+	})
+
+	executor := routery.Apply(
+		base,
+		routery.CircuitBreaker[int, int](1, time.Hour, nil),
+	)
+
+	_, err1 := executor.Execute(context.Background(), 0)
+	_, err2 := executor.Execute(context.Background(), 0)
+	fmt.Println(errors.Is(err1, fail), errors.Is(err2, routery.ErrCircuitOpen))
+	// Output: true true
+}
+
+func ExampleBulkhead() {
+	base := routery.ExecutorFunc[string, int](func(context.Context, string) (int, error) {
+		return 7, nil
+	})
+
+	executor := routery.Apply(
+		base,
+		routery.Bulkhead[string, int](2),
+	)
+
+	res, err := executor.Execute(context.Background(), "req")
+	fmt.Println(res, err == nil)
+	// Output: 7 true
 }

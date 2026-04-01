@@ -16,10 +16,10 @@ func FuzzDefaultRetryPolicyNoPanics(f *testing.F) {
 		t.Helper()
 
 		if !useExecutionError {
-			_ = DefaultRetryPolicy(errors.New("unknown"))
-			_ = DefaultRetryPolicy(context.Canceled)
-			_ = DefaultRetryPolicy(context.DeadlineExceeded)
-			_ = DefaultRetryPolicy(nil)
+			_ = DefaultRetryPolicy[struct{}](context.Background(), struct{}{}, errors.New("unknown"))
+			_ = DefaultRetryPolicy[struct{}](context.Background(), struct{}{}, context.Canceled)
+			_ = DefaultRetryPolicy[struct{}](context.Background(), struct{}{}, context.DeadlineExceeded)
+			_ = DefaultRetryPolicy[struct{}](context.Background(), struct{}{}, nil)
 			return
 		}
 
@@ -28,7 +28,7 @@ func FuzzDefaultRetryPolicyNoPanics(f *testing.F) {
 			innerErr = driver.ErrBadConn
 		}
 
-		_ = DefaultRetryPolicy(&ExecutionError{
+		_ = DefaultRetryPolicy[struct{}](context.Background(), struct{}{}, &ExecutionError{
 			Operation:     Operation(operation),
 			InTransaction: inTransaction,
 			Err:           innerErr,

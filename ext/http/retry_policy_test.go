@@ -51,23 +51,6 @@ func TestStatusErrorError(t *testing.T) {
 	})
 }
 
-func TestRequestErrorWrapsOriginal(t *testing.T) {
-	t.Parallel()
-
-	innerErr := context.DeadlineExceeded
-	requestErr := &requestError{
-		request: httptest.NewRequest(stdhttp.MethodGet, "/", nil),
-		err:     innerErr,
-	}
-
-	if got := requestErr.Error(); got != innerErr.Error() {
-		t.Fatalf("unexpected error string: %q", got)
-	}
-	if !errors.Is(requestErr, context.DeadlineExceeded) {
-		t.Fatalf("expected wrapped context deadline exceeded, got %v", requestErr)
-	}
-}
-
 func TestDefaultRetryPolicyGuards(t *testing.T) {
 	t.Parallel()
 
@@ -85,7 +68,7 @@ func TestDefaultRetryPolicyGuards(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if DefaultRetryPolicy(tc.err) {
+			if DefaultRetryPolicy(context.Background(), nil, tc.err) {
 				t.Fatalf("expected no retry for %s", tc.name)
 			}
 		})
@@ -161,7 +144,7 @@ func TestDefaultRetryPolicyStatusMethodMatrix(t *testing.T) {
 				Code: tc.statusCode,
 			}
 
-			gotRetry := DefaultRetryPolicy(statusErr)
+			gotRetry := DefaultRetryPolicy(context.Background(), request, statusErr)
 			if gotRetry != tc.wantRetry {
 				t.Fatalf("unexpected retry decision: got %v, want %v", gotRetry, tc.wantRetry)
 			}
@@ -247,12 +230,8 @@ func TestDefaultRetryPolicyTransportMatrix(t *testing.T) {
 			t.Parallel()
 
 			request := replayableRequest(t, tc.method, tc.replayable)
-			err := &requestError{
-				request: request,
-				err:     tc.innerErr,
-			}
 
-			gotRetry := DefaultRetryPolicy(err)
+			gotRetry := DefaultRetryPolicy(context.Background(), request, tc.innerErr)
 			if gotRetry != tc.wantRetry {
 				t.Fatalf("unexpected retry decision: got %v, want %v", gotRetry, tc.wantRetry)
 			}

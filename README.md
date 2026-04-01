@@ -16,18 +16,23 @@ database calls, HTTP calls, internal service calls, tools, or custom workloads.
 - `Executor[Req, Res]`: generic execution contract.
 - `Middleware[Req, Res]`: composable decorator for executors.
 - `Apply(base, mws...)`: middleware composition helper.
+- `RetryPredicate[Req]`: `func(ctx context.Context, req Req, err error) bool` for use with `RetryIf`.
 
 Core resiliency and routing primitives:
 
 - `Fallback`
-- `RetryIf`
+- `RetryIf` (context- and request-aware predicate; exponential backoff with equal jitter)
 - `RoundRobin`
 - `Timeout`
+- `CircuitBreaker` (closed / open / half-open; `ErrCircuitOpen`)
+- `Bulkhead` (non-blocking concurrency limit; `ErrTooManyRequests`)
 - `PredicateFallback`
 - `FirstCompleted`
 - `WeightBasedRouter`
 
 Observability primitives are provided in `routery/observability` via callback-based middleware.
+
+Optional OpenTelemetry tracing lives in `ext/otel` (separate module, separate `go.mod`).
 
 ## Middleware Order
 
@@ -51,7 +56,7 @@ It provides:
 
 - `NewExecutor(*http.Client)` to adapt `net/http` to `Executor[*http.Request, *http.Response]`.
 - `StatusError` for non-2xx responses.
-- `DefaultRetryPolicy(error) bool` for use with `RetryIf`.
+- `DefaultRetryPolicy(ctx, req *http.Request, err error) bool` for use with `RetryIf`.
 
 Retry policy behavior:
 
@@ -68,7 +73,7 @@ It provides extractor-based executors for both `*sql.DB` and `*sql.Tx`:
 
 - `NewDBQueryExecutor`, `NewDBExecExecutor`
 - `NewTxQueryExecutor`, `NewTxExecExecutor`
-- `DefaultRetryPolicy(error) bool`
+- `DefaultRetryPolicy[Req any](ctx context.Context, req Req, err error) bool`
 
 SQL adapter behavior:
 
@@ -77,6 +82,11 @@ SQL adapter behavior:
 - `DefaultRetryPolicy` never retries `context.Canceled` or `context.DeadlineExceeded`.
 - `DefaultRetryPolicy` retries only non-transactional `driver.ErrBadConn`.
 - Statement-level retries inside an existing `*sql.Tx` are intentionally not enabled by default.
+
+## OpenTelemetry (`ext/otel`)
+
+`ext/otel` provides `Tracing[Req, Res](tracer trace.Tracer, spanName string) routery.Middleware[Req, Res]`
+with `span.RecordError` and error status on failure. Core `routery` stays dependency-free.
 
 ## Quality Gates
 

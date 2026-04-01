@@ -2,6 +2,8 @@ package routery
 
 import (
 	"context"
+	"math"
+	"math/rand/v2"
 	"sync/atomic"
 	"time"
 )
@@ -23,7 +25,11 @@ func Fallback[Req any, Res any](primary Executor[Req, Res], secondary Executor[R
 }
 
 // RetryIf retries execution when predicate returns true for an error.
-func RetryIf[Req any, Res any](attempts int, backoff time.Duration, predicate func(error) bool) Middleware[Req, Res] {
+func RetryIf[Req any, Res any](
+	attempts int,
+	backoff time.Duration,
+	predicate RetryPredicate[Req],
+) Middleware[Req, Res] {
 	normalizedAttempts := max(attempts, 1)
 	normalizedBackoff := max(backoff, time.Duration(0))
 	if predicate == nil {
@@ -98,7 +104,7 @@ func executeWithRetry[Req any, Res any](
 	next Executor[Req, Res],
 	attempts int,
 	backoff time.Duration,
-	predicate func(error) bool,
+	predicate RetryPredicate[Req],
 ) (Res, error) {
 	wait := backoff
 	var (
@@ -113,7 +119,7 @@ func executeWithRetry[Req any, Res any](
 		}
 
 		isFinalAttempt := attemptIndex == attempts-1
-		if isFinalAttempt || !predicate(lastErr) {
+		if isFinalAttempt || !predicate(ctx, req, lastErr) {
 			return result, lastErr
 		}
 
@@ -129,9 +135,33 @@ func executeWithRetry[Req any, Res any](
 }
 
 func growBackoff(current time.Duration) time.Duration {
-	doubled := current * 2
-	if doubled < current {
-		return current
+	doubled := safeDoubleBackoff(current)
+	if doubled <= 0 {
+		return doubled
+	}
+
+	// Equal jitter on [0, doubled]: result = doubled/2 + random(0, doubled/2).
+	// rand.Int64N panics if n <= 0; guard cap (half-window) accordingly.
+	capHalf := doubled / 2
+	if capHalf <= 0 {
+		return doubled
+	}
+
+	jitter := rand.Int64N(int64(capHalf)) //nolint:gosec // G404: backoff jitter; crypto/rand is unnecessary.
+	return capHalf + time.Duration(jitter)
+}
+
+func safeDoubleBackoff(d time.Duration) time.Duration {
+	if d <= 0 {
+		return 0
+	}
+	maxHalf := time.Duration(math.MaxInt64 / 2)
+	if d > maxHalf {
+		return time.Duration(math.MaxInt64)
+	}
+	doubled := d * 2
+	if doubled < d {
+		return time.Duration(math.MaxInt64)
 	}
 	return doubled
 }

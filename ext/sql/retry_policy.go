@@ -10,7 +10,13 @@ import (
 //
 // It retries only non-transactional execution failures that unwrap to
 // [driver.ErrBadConn]. Transaction failures are not retried by default.
-func DefaultRetryPolicy(err error) bool {
+//
+// Req is unused but generic so the function can be passed directly to
+// [github.com/skosovsky/routery.RetryIf] for any request type.
+func DefaultRetryPolicy[Req any](ctx context.Context, req Req, err error) bool {
+	_ = ctx
+	_ = req
+
 	if err == nil {
 		return false
 	}

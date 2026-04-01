@@ -41,18 +41,12 @@ func FuzzDefaultRetryPolicyNoPanics(f *testing.F) {
 				},
 				Code: statusCode,
 			}
-			_ = DefaultRetryPolicy(statusErr)
+			_ = DefaultRetryPolicy(context.Background(), request, statusErr)
 			return
 		}
 
-		_ = DefaultRetryPolicy(&requestError{
-			request: request,
-			err:     io.ErrUnexpectedEOF,
-		})
-		_ = DefaultRetryPolicy(&requestError{
-			request: request,
-			err:     errors.New("transport failure"),
-		})
+		_ = DefaultRetryPolicy(context.Background(), request, io.ErrUnexpectedEOF)
+		_ = DefaultRetryPolicy(context.Background(), request, errors.New("transport failure"))
 	})
 }
 

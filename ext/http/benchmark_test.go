@@ -53,7 +53,7 @@ func BenchmarkDefaultRetryPolicyStatus503(b *testing.B) {
 			},
 			Code: stdhttp.StatusServiceUnavailable,
 		}
-		_ = DefaultRetryPolicy(err)
+		_ = DefaultRetryPolicy(context.Background(), request, err)
 	}
 }
 

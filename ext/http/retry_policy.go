@@ -10,19 +10,6 @@ import (
 	"strings"
 )
 
-type requestError struct {
-	request *stdhttp.Request
-	err     error
-}
-
-func (err *requestError) Error() string {
-	return err.err.Error()
-}
-
-func (err *requestError) Unwrap() error {
-	return err.err
-}
-
 // IsRetryableStatus reports whether code is retryable by the default policy.
 func IsRetryableStatus(code int) bool {
 	switch code {
@@ -39,8 +26,10 @@ func IsRetryableStatus(code int) bool {
 // DefaultRetryPolicy is a conservative retry policy for HTTP execution.
 //
 // It retries transport failures and selected HTTP status codes while keeping
-// request-method and request-body replay safety checks.
-func DefaultRetryPolicy(err error) bool {
+// request-method and request-body replay safety checks. The original request
+// passed to the executor must be supplied as req (the same value RetryIf forwards).
+func DefaultRetryPolicy(ctx context.Context, req *stdhttp.Request, err error) bool {
+	_ = ctx
 	if err == nil {
 		return false
 	}
@@ -50,22 +39,23 @@ func DefaultRetryPolicy(err error) bool {
 
 	var statusErr *StatusError
 	if errors.As(err, &statusErr) {
-		return shouldRetryStatus(statusErr)
+		return shouldRetryStatus(req, statusErr)
 	}
 
-	var reqErr *requestError
-	if errors.As(err, &reqErr) {
-		return shouldRetryTransport(reqErr)
-	}
-
-	return false
+	return shouldRetryTransport(req, err)
 }
 
-func shouldRetryStatus(err *StatusError) bool {
+func shouldRetryStatus(req *stdhttp.Request, err *StatusError) bool {
 	if err == nil || !IsRetryableStatus(err.Code) {
 		return false
 	}
-	if !isStatusMethodRetryable(err.Request, err.Code) || !isReplayableRequest(err.Request) {
+
+	effective := req
+	if err.Request != nil {
+		effective = err.Request
+	}
+
+	if !isStatusMethodRetryable(effective, err.Code) || !isReplayableRequest(effective) {
 		return false
 	}
 
@@ -76,18 +66,18 @@ func shouldRetryStatus(err *StatusError) bool {
 	return true
 }
 
-func shouldRetryTransport(err *requestError) bool {
+func shouldRetryTransport(req *stdhttp.Request, err error) bool {
 	if err == nil {
 		return false
 	}
-	if !isIdempotentMethod(normalizeMethod(err.request)) {
+	if !isIdempotentMethod(normalizeMethod(req)) {
 		return false
 	}
-	if !isReplayableRequest(err.request) {
+	if !isReplayableRequest(req) {
 		return false
 	}
 
-	return isRetryableTransportError(err.err)
+	return isRetryableTransportError(err)
 }
 
 func isRetryableTransportError(err error) bool {

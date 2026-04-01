@@ -4,7 +4,8 @@
 // For non-2xx responses it returns both the response and *StatusError so callers
 // can inspect the body while still using routery.RetryIf with DefaultRetryPolicy.
 //
-// DefaultRetryPolicy closes only intermediate retryable response bodies before
-// the next attempt. On exhausted retries, the final response body remains open
-// for the caller.
+// DefaultRetryPolicy(ctx, req, err) closes only intermediate retryable response
+// bodies before the next attempt. On exhausted retries, the final response body
+// remains open for the caller. Transport failures are returned as plain errors;
+// the original request passed to the executor must be forwarded as req.
 package routeryhttp

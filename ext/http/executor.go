@@ -53,10 +53,7 @@ func NewExecutor(client *stdhttp.Client) routery.Executor[*stdhttp.Request, *std
 					_ = response.Body.Close()
 				}
 
-				return nil, &requestError{
-					request: request,
-					err:     executeErr,
-				}
+				return nil, executeErr
 			}
 
 			if response.StatusCode < stdhttp.StatusOK || response.StatusCode >= stdhttp.StatusMultipleChoices {

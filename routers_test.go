@@ -83,7 +83,7 @@ func TestRetryIfRetriesWhenPredicateMatches(t *testing.T) {
 		return 1, nil
 	})
 
-	executor := RetryIf[int, int](attemptsCount, 0, func(err error) bool {
+	executor := RetryIf[int, int](attemptsCount, 0, func(_ context.Context, _ int, err error) bool {
 		return errors.Is(err, retryErr)
 	})(base)
 
@@ -109,7 +109,7 @@ func TestRetryIfStopsWhenPredicateMisses(t *testing.T) {
 		return 0, baseErr
 	})
 
-	executor := RetryIf[int, int](2+1, 0, func(error) bool {
+	executor := RetryIf[int, int](2+1, 0, func(context.Context, int, error) bool {
 		return false
 	})(base)
 
@@ -132,7 +132,7 @@ func TestRetryIfNormalizesAttemptsToOne(t *testing.T) {
 		return 0, baseErr
 	})
 
-	executor := RetryIf[int, int](0, 0, func(error) bool {
+	executor := RetryIf[int, int](0, 0, func(context.Context, int, error) bool {
 		return true
 	})(base)
 
@@ -159,6 +159,36 @@ func TestRetryIfReturnsConfigErrorForNilPredicate(t *testing.T) {
 	}
 }
 
+func TestGrowBackoffEqualJitterWithinWindow(t *testing.T) {
+	t.Parallel()
+
+	const base = 50 * time.Millisecond
+	for range 500 {
+		next := growBackoff(base)
+		doubled := safeDoubleBackoff(base)
+		half := doubled / 2
+		if half <= 0 {
+			if next != doubled {
+				t.Fatalf("expected next=%v for tiny half, got %v", doubled, next)
+			}
+			continue
+		}
+		if next < half || next >= doubled {
+			t.Fatalf("growBackoff(%v)=%v want [%v,%v)", base, next, half, doubled)
+		}
+	}
+}
+
+func TestGrowBackoffNoOverflowRegression(t *testing.T) {
+	t.Parallel()
+
+	huge := time.Duration(1 << 62)
+	next := growBackoff(huge)
+	if next <= 0 {
+		t.Fatalf("expected positive duration, got %v", next)
+	}
+}
+
 func TestRetryIfHonorsContextCancellationDuringBackoff(t *testing.T) {
 	t.Parallel()
 
@@ -175,7 +205,7 @@ func TestRetryIfHonorsContextCancellationDuringBackoff(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	_, err := RetryIf[int, int](2+1, backoff, func(error) bool {
+	_, err := RetryIf[int, int](2+1, backoff, func(context.Context, int, error) bool {
 		return true
 	})(base).Execute(ctx, 0)
 	elapsed := time.Since(start)

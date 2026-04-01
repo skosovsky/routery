@@ -76,7 +76,7 @@ func BenchmarkDefaultRetryPolicyBadConn(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		_ = DefaultRetryPolicy(err)
+		_ = DefaultRetryPolicy[statementRequest](context.Background(), statementRequest{}, err)
 	}
 }
 
@@ -89,7 +89,7 @@ func BenchmarkRetryIfWithDBExecutor(b *testing.B) {
 				return req.Query, req.Args, nil
 			},
 		),
-		routery.RetryIf[statementRequest, sql.Result](2, 0, DefaultRetryPolicy),
+		routery.RetryIf[statementRequest, sql.Result](2, 0, DefaultRetryPolicy[statementRequest]),
 	)
 
 	request := statementRequest{
