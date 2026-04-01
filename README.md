@@ -88,6 +88,18 @@ SQL adapter behavior:
 `ext/otel` provides `Tracing[Req, Res](tracer trace.Tracer, spanName string) routery.Middleware[Req, Res]`
 with `span.RecordError` and error status on failure. Core `routery` stays dependency-free.
 
+## More adapters (`ext/grpc`, `ext/redis`, `ext/kafka`, `ext/mongo`, `ext/s3`)
+
+Each of these is a **separate Go module** under `ext/<name>/` with `replace github.com/skosovsky/routery => ../..`, same as `ext/http` and `ext/sql`.
+
+- **`ext/grpc`**: `NewUnaryExecutor`, `RetryUnaryInterceptor` / `RetryStreamInterceptor`, `DefaultRetryPolicy` over gRPC status codes; idempotent retries for `DeadlineExceeded` via `GRPCIdempotent()`.
+- **`ext/redis`**: `NewExecutor` / `NewStringExecutor` with `CommandExtractor` + `ScanResult`, `DefaultRetryPolicy` (never retries `redis.Nil`).
+- **`ext/kafka`**: `NewProducerExecutor` around `kafka-go` writers, `DefaultRetryPolicy` for broker errors; document idempotent producers in package docs.
+- **`ext/mongo`**: `NewFindExecutor`, `NewInsertOneExecutor`, `NewUpdateOneExecutor`, `NewDeleteOneExecutor` over collection interfaces; `DefaultRetryPolicy` skips retries in transactions (`SessionFromContext` / `TransactionalRequest`).
+- **`ext/s3`**: `NewPutObjectExecutor` / `NewGetObjectExecutor` for AWS SDK v2 S3 clients; `DefaultRetryPolicy` for throttling and 5xx.
+
+A root **`go.work`** includes the core module and all `ext/*` adapters for local development (`go work sync`).
+
 ## Quality Gates
 
 - `make lint`

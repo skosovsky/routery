@@ -1,0 +1,13 @@
+go 1.26.1
+
+use (
+	.
+	./ext/grpc
+	./ext/http
+	./ext/kafka
+	./ext/mongo
+	./ext/otel
+	./ext/redis
+	./ext/s3
+	./ext/sql
+)
