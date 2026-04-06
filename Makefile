@@ -1,7 +1,7 @@
 GO      := go
 MODULES := $(shell find . -type d \( -name ".*" -not -name "." -o -name "vendor" \) -prune -o -type f -name "go.mod" -exec dirname {} \;)
 
-.PHONY: lint fix test bench bench-hotpath fuzz cover
+.PHONY: lint fix test bench bench-hotpath fuzz cover release-patch release-break
 
 lint:
 	@for dir in $(MODULES); do \
@@ -34,10 +34,9 @@ fuzz:
 		echo "fuzz - $$dir"; \
 		(cd "$$dir" && \
 			for pkg in $$($(GO) list -tags=fuzz ./...); do \
-				fuzz_targets=$$($(GO) test -tags=fuzz -list . "$$pkg" 2>/dev/null | grep '^Fuzz' || true); \
-				for fuzz_target in $$fuzz_targets; do \
-					$(GO) test -tags=fuzz -fuzz="^$$fuzz_target$$" -fuzztime=30s "$$pkg" || exit 1; \
-				done; \
+				if $(GO) test -tags=fuzz -list . "$$pkg" 2>/dev/null | grep -q '^Fuzz'; then \
+					$(GO) test -tags=fuzz -fuzz=. -fuzztime=30s "$$pkg" || exit 1; \
+				fi; \
 			done \
 		) || exit 1; \
 	done
@@ -47,3 +46,11 @@ cover:
 		echo "cover - $$dir"; \
 		(cd "$$dir" && $(GO) test -coverprofile=coverage.out ./... && $(GO) tool cover -func=coverage.out) || exit 1; \
 	done
+
+release-patch: lint test ## v0.5.0 -> v0.5.1
+	@chmod +x ./scripts/release.sh
+	@./scripts/release.sh patch "$(MODULES)"
+
+release-break: lint test ## v0.5.1 -> v0.6.0
+	@chmod +x ./scripts/release.sh
+	@./scripts/release.sh break "$(MODULES)"
