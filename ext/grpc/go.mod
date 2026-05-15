@@ -3,7 +3,7 @@ module github.com/skosovsky/routery/ext/grpc
 go 1.26.1
 
 require (
-	github.com/skosovsky/routery v0.0.0
+	github.com/skosovsky/routery v0.1.2
 	google.golang.org/grpc v1.69.4
 )
 
@@ -17,5 +17,3 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53 // indirect
 	google.golang.org/protobuf v1.35.1 // indirect
 )
-
-replace github.com/skosovsky/routery => ../..

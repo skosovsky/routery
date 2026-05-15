@@ -4,7 +4,7 @@ go 1.26.1
 
 require (
 	github.com/segmentio/kafka-go v0.4.47
-	github.com/skosovsky/routery v0.0.0
+	github.com/skosovsky/routery v0.1.2
 )
 
 require (
@@ -13,5 +13,3 @@ require (
 	github.com/stretchr/testify v1.11.1 // indirect
 	golang.org/x/net v0.30.0 // indirect
 )
-
-replace github.com/skosovsky/routery => ../..

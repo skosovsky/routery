@@ -3,7 +3,7 @@ module github.com/skosovsky/routery/ext/mongo
 go 1.26.1
 
 require (
-	github.com/skosovsky/routery v0.0.0
+	github.com/skosovsky/routery v0.1.2
 	go.mongodb.org/mongo-driver v1.17.2
 )
 
@@ -20,5 +20,3 @@ require (
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/text v0.19.0 // indirect
 )
-
-replace github.com/skosovsky/routery => ../..

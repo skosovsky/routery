@@ -3,7 +3,7 @@ module github.com/skosovsky/routery/ext/otel
 go 1.26.1
 
 require (
-	github.com/skosovsky/routery v0.0.0
+	github.com/skosovsky/routery v0.1.2
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/sdk v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
@@ -18,5 +18,3 @@ require (
 	go.opentelemetry.io/otel/metric v1.39.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 )
-
-replace github.com/skosovsky/routery => ../..
