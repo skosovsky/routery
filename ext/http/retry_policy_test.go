@@ -243,7 +243,7 @@ func TestCloneForAttemptWithoutBody(t *testing.T) {
 	t.Parallel()
 
 	request := mustNewRequest(t, stdhttp.MethodGet, nil)
-	cloned, err := cloneForAttempt(context.Background(), request)
+	cloned, err := cloneForAttempt(context.Background(), request, defaultMaxReplayBodyBytes)
 	if err != nil {
 		t.Fatalf("cloneForAttempt returned error: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestCloneForAttemptNoBodySentinel(t *testing.T) {
 	request := mustNewRequest(t, stdhttp.MethodGet, nil)
 	request.Body = stdhttp.NoBody
 
-	cloned, err := cloneForAttempt(context.Background(), request)
+	cloned, err := cloneForAttempt(context.Background(), request, defaultMaxReplayBodyBytes)
 	if err != nil {
 		t.Fatalf("cloneForAttempt returned error: %v", err)
 	}
@@ -276,13 +276,24 @@ func TestCloneForAttemptBodyWithoutGetBody(t *testing.T) {
 	request := mustNewRequest(t, stdhttp.MethodPost, strings.NewReader("payload"))
 	request.GetBody = nil
 
-	cloned, err := cloneForAttempt(context.Background(), request)
+	cloned, err := cloneForAttempt(context.Background(), request, defaultMaxReplayBodyBytes)
 	if err != nil {
 		t.Fatalf("cloneForAttempt returned error: %v", err)
 	}
-	if cloned.Body != request.Body {
-		t.Fatal("expected body reuse without get body")
+	if request.GetBody == nil {
+		t.Fatal("expected original request to become replayable")
 	}
+	if cloned.Body == request.Body {
+		t.Fatal("expected cloned body to use a fresh reader")
+	}
+	body, readErr := io.ReadAll(cloned.Body)
+	if readErr != nil {
+		t.Fatalf("failed to read cloned body: %v", readErr)
+	}
+	if string(body) != "payload" {
+		t.Fatalf("unexpected cloned body: %q", string(body))
+	}
+	_ = cloned.Body.Close()
 }
 
 func TestCloneForAttemptBodyWithGetBody(t *testing.T) {
@@ -295,12 +306,15 @@ func TestCloneForAttemptBodyWithGetBody(t *testing.T) {
 		return io.NopCloser(strings.NewReader("payload")), nil
 	}
 
-	cloned, err := cloneForAttempt(context.Background(), request)
+	cloned, err := cloneForAttempt(context.Background(), request, defaultMaxReplayBodyBytes)
 	if err != nil {
 		t.Fatalf("cloneForAttempt returned error: %v", err)
 	}
 	if cloned.Body == request.Body {
 		t.Fatal("expected body from GetBody, got original body")
+	}
+	if cloned.GetBody == nil {
+		t.Fatal("expected cloned GetBody to be set")
 	}
 	if bodyCalls.Load() != 1 {
 		t.Fatalf("unexpected get body calls: got %d, want 1", bodyCalls.Load())
@@ -316,7 +330,7 @@ func TestCloneForAttemptGetBodyError(t *testing.T) {
 		return nil, errors.New("get body failed")
 	}
 
-	_, err := cloneForAttempt(context.Background(), request)
+	_, err := cloneForAttempt(context.Background(), request, defaultMaxReplayBodyBytes)
 	if err == nil {
 		t.Fatal("expected cloneForAttempt error")
 	}

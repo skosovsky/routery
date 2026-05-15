@@ -67,7 +67,7 @@ func BenchmarkCloneForAttemptWithGetBody(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		cloned, err := cloneForAttempt(context.Background(), request)
+		cloned, err := cloneForAttempt(context.Background(), request, defaultMaxReplayBodyBytes)
 		if err != nil {
 			b.Fatalf("unexpected clone error: %v", err)
 		}
