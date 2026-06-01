@@ -91,7 +91,7 @@ func TestMetricsCallsHooks(t *testing.T) {
 	if gotReasonCode != "not_found" {
 		t.Fatalf("unexpected reason code: got %q, want not_found", gotReasonCode)
 	}
-	if gotPayloadMeta.Shape != "empty" {
+	if gotPayloadMeta.Shape != shapeEmpty {
 		t.Fatalf("unexpected payload shape: got %q, want empty", gotPayloadMeta.Shape)
 	}
 }

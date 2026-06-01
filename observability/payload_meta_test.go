@@ -23,7 +23,7 @@ func TestDefaultPayloadMetaEmptyForIgnored(t *testing.T) {
 	t.Parallel()
 
 	meta := DefaultPayloadMeta(context.Background(), routery.Ignored[int]("skip"))
-	if meta.Shape != "empty" {
+	if meta.Shape != shapeEmpty {
 		t.Fatalf("got shape=%q, want empty", meta.Shape)
 	}
 }
@@ -32,7 +32,7 @@ func TestDefaultPayloadMetaNilTypedPointerPayload(t *testing.T) {
 	t.Parallel()
 
 	meta := DefaultPayloadMeta(context.Background(), routery.Handled[*int](nil))
-	if meta.Shape != "nil" {
+	if meta.Shape != shapeNil {
 		t.Fatalf("got shape=%q, want nil", meta.Shape)
 	}
 }
@@ -44,7 +44,7 @@ func TestDefaultPayloadMetaNilInterfacePayload(t *testing.T) {
 		Status:  routery.StatusHandled,
 		Payload: nil,
 	})
-	if meta.Shape != "nil" {
+	if meta.Shape != shapeNil {
 		t.Fatalf("got shape=%q, want nil", meta.Shape)
 	}
 }

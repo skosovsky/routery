@@ -8,6 +8,11 @@ import (
 	"github.com/skosovsky/routery"
 )
 
+const (
+	shapeEmpty = "empty"
+	shapeNil   = "nil"
+)
+
 // PayloadMeta is a serializable summary of RouteResult.Payload for telemetry.
 type PayloadMeta struct {
 	Shape       string
@@ -22,10 +27,10 @@ type PayloadMetaFunc[Res any] func(ctx context.Context, result routery.RouteResu
 // DefaultPayloadMeta returns shape-only metadata without reading payload contents.
 func DefaultPayloadMeta[Res any](_ context.Context, result routery.RouteResult[Res]) PayloadMeta {
 	if result.Status == routery.StatusIgnored || result.Status == routery.StatusNext {
-		return PayloadMeta{Shape: "empty", Fingerprint: ""}
+		return PayloadMeta{Shape: shapeEmpty, Fingerprint: ""}
 	}
 
-	shape := "nil"
+	shape := shapeNil
 	if !isNilValue(result.Payload) {
 		shape = fmt.Sprintf("%T", result.Payload)
 	}
