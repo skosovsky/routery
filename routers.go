@@ -8,112 +8,116 @@ import (
 	"time"
 )
 
-// Fallback executes primary first and uses secondary when primary fails.
-func Fallback[Req any, Res any](primary Executor[Req, Res], secondary Executor[Req, Res]) Executor[Req, Res] {
+// Fallback executes primary first and uses secondary when primary returns an error.
+//
+// Business route statuses from primary are returned as-is when err is nil.
+func Fallback[TReq any, TRes any](primary Handler[TReq, TRes], secondary Handler[TReq, TRes]) Handler[TReq, TRes] {
 	if primary == nil || secondary == nil {
-		return invalidExecutor[Req, Res](configError("fallback requires non-nil primary and secondary executors"))
+		return invalidHandler[TReq, TRes](configError("fallback requires non-nil primary and secondary handlers"))
 	}
 
-	return ExecutorFunc[Req, Res](func(ctx context.Context, req Req) (Res, error) {
-		response, err := primary.Execute(ctx, req)
+	return HandlerFunc[TReq, TRes](func(ctx context.Context, req TReq) (RouteResult[TRes], error) {
+		result, err := primary.Handle(ctx, req)
 		if err == nil {
-			return response, nil
+			return result, nil
 		}
 
-		return secondary.Execute(ctx, req)
+		return secondary.Handle(ctx, req)
 	})
 }
 
-// RetryIf retries execution when predicate returns true for an error.
-func RetryIf[Req any, Res any](
+// RetryIf retries execution when predicate returns true for a system error.
+//
+// StatusNext, StatusIgnored, StatusHandled, and StatusAsync never trigger retries.
+func RetryIf[TReq any, TRes any](
 	attempts int,
 	backoff time.Duration,
-	predicate RetryPredicate[Req],
-) Middleware[Req, Res] {
+	predicate RetryPredicate[TReq],
+) HandlerMiddleware[TReq, TRes] {
 	normalizedAttempts := max(attempts, 1)
 	normalizedBackoff := max(backoff, time.Duration(0))
 	if predicate == nil {
-		return func(Executor[Req, Res]) Executor[Req, Res] {
-			return invalidExecutor[Req, Res](configError("retry predicate is nil"))
+		return func(Handler[TReq, TRes]) Handler[TReq, TRes] {
+			return invalidHandler[TReq, TRes](configError("retry predicate is nil"))
 		}
 	}
 
-	return func(next Executor[Req, Res]) Executor[Req, Res] {
+	return func(next Handler[TReq, TRes]) Handler[TReq, TRes] {
 		if next == nil {
-			return invalidExecutor[Req, Res](configError("retry middleware requires non-nil next executor"))
+			return invalidHandler[TReq, TRes](configError("retry middleware requires non-nil next handler"))
 		}
 
-		return ExecutorFunc[Req, Res](func(ctx context.Context, req Req) (Res, error) {
+		return HandlerFunc[TReq, TRes](func(ctx context.Context, req TReq) (RouteResult[TRes], error) {
 			return executeWithRetry(ctx, req, next, normalizedAttempts, normalizedBackoff, predicate)
 		})
 	}
 }
 
-// RoundRobin distributes requests among executors sequentially.
-func RoundRobin[Req any, Res any](executors ...Executor[Req, Res]) Executor[Req, Res] {
-	validated, err := validateExecutors(executors, "round robin")
+// RoundRobin distributes requests among handlers sequentially.
+func RoundRobin[TReq any, TRes any](handlers ...Handler[TReq, TRes]) Handler[TReq, TRes] {
+	validated, err := validateHandlers(handlers, "round robin")
 	if err != nil {
-		return invalidExecutor[Req, Res](err)
+		return invalidHandler[TReq, TRes](err)
 	}
 
-	return &roundRobinExecutor[Req, Res]{
-		executors: validated,
-		next:      atomic.Uint64{},
+	return &roundRobinHandler[TReq, TRes]{
+		handlers: validated,
+		next:     atomic.Uint64{},
 	}
 }
 
-// Timeout limits execution time for the wrapped executor.
-func Timeout[Req any, Res any](timeout time.Duration) Middleware[Req, Res] {
+// Timeout limits execution time for the wrapped handler.
+func Timeout[TReq any, TRes any](timeout time.Duration) HandlerMiddleware[TReq, TRes] {
 	if timeout <= 0 {
-		return func(next Executor[Req, Res]) Executor[Req, Res] {
+		return func(next Handler[TReq, TRes]) Handler[TReq, TRes] {
 			if next == nil {
-				return invalidExecutor[Req, Res](configError("timeout middleware requires non-nil next executor"))
+				return invalidHandler[TReq, TRes](configError("timeout middleware requires non-nil next handler"))
 			}
 			return next
 		}
 	}
 
-	return func(next Executor[Req, Res]) Executor[Req, Res] {
+	return func(next Handler[TReq, TRes]) Handler[TReq, TRes] {
 		if next == nil {
-			return invalidExecutor[Req, Res](configError("timeout middleware requires non-nil next executor"))
+			return invalidHandler[TReq, TRes](configError("timeout middleware requires non-nil next handler"))
 		}
 
-		return ExecutorFunc[Req, Res](func(ctx context.Context, req Req) (Res, error) {
+		return HandlerFunc[TReq, TRes](func(ctx context.Context, req TReq) (RouteResult[TRes], error) {
 			timedCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 
-			return next.Execute(timedCtx, req)
+			return next.Handle(timedCtx, req)
 		})
 	}
 }
 
-type roundRobinExecutor[Req any, Res any] struct {
-	executors []Executor[Req, Res]
-	next      atomic.Uint64
+type roundRobinHandler[TReq any, TRes any] struct {
+	handlers []Handler[TReq, TRes]
+	next     atomic.Uint64
 }
 
-func (executor *roundRobinExecutor[Req, Res]) Execute(ctx context.Context, req Req) (Res, error) {
-	executorCount := uint64(len(executor.executors))
-	index := (executor.next.Add(1) - 1) % executorCount
-	return executor.executors[index].Execute(ctx, req)
+func (handler *roundRobinHandler[TReq, TRes]) Handle(ctx context.Context, req TReq) (RouteResult[TRes], error) {
+	handlerCount := uint64(len(handler.handlers))
+	index := (handler.next.Add(1) - 1) % handlerCount
+	return handler.handlers[index].Handle(ctx, req)
 }
 
-func executeWithRetry[Req any, Res any](
+func executeWithRetry[TReq any, TRes any](
 	ctx context.Context,
-	req Req,
-	next Executor[Req, Res],
+	req TReq,
+	next Handler[TReq, TRes],
 	attempts int,
 	backoff time.Duration,
-	predicate RetryPredicate[Req],
-) (Res, error) {
+	predicate RetryPredicate[TReq],
+) (RouteResult[TRes], error) {
 	wait := backoff
 	var (
 		lastErr error
-		result  Res
+		result  RouteResult[TRes]
 	)
 
 	for attemptIndex := range attempts {
-		result, lastErr = next.Execute(ctx, req)
+		result, lastErr = next.Handle(ctx, req)
 		if lastErr == nil {
 			return result, nil
 		}
@@ -125,7 +129,7 @@ func executeWithRetry[Req any, Res any](
 
 		if wait > 0 {
 			if err := sleepWithContext(ctx, wait); err != nil {
-				return zeroValue[Res](), err
+				return zeroRouteResult[TRes](), err
 			}
 			wait = growBackoff(wait)
 		}
@@ -140,8 +144,6 @@ func growBackoff(current time.Duration) time.Duration {
 		return doubled
 	}
 
-	// Equal jitter on [0, doubled]: result = doubled/2 + random(0, doubled/2).
-	// rand.Int64N panics if n <= 0; guard cap (half-window) accordingly.
 	capHalf := doubled / 2
 	if capHalf <= 0 {
 		return doubled

@@ -12,7 +12,7 @@ import (
 	routeryhttp "github.com/skosovsky/routery/ext/http"
 )
 
-func ExampleNewExecutor_withRetryIf() {
+func ExampleNewHandler_withRetryIf() {
 	attempts := 0
 	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
 		attempts++
@@ -30,22 +30,22 @@ func ExampleNewExecutor_withRetryIf() {
 	request, _ := stdhttp.NewRequestWithContext(context.Background(), stdhttp.MethodGet, server.URL, nil)
 
 	executor := routery.Apply(
-		routeryhttp.NewExecutor(server.Client()),
+		routeryhttp.NewHandler(server.Client()),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, routeryhttp.DefaultRetryPolicy),
 	)
 
-	response, err := executor.Execute(context.Background(), request)
+	result, err := executor.Handle(context.Background(), request)
 	if err != nil {
 		fmt.Println("unexpected", err)
 		return
 	}
-	defer response.Body.Close()
+	defer result.Payload.Body.Close()
 
-	fmt.Println(response.StatusCode, attempts)
+	fmt.Println(result.Payload.StatusCode, attempts)
 	// Output: 200 2
 }
 
-func ExampleNewExecutor_retryExhausted() {
+func ExampleNewHandler_retryExhausted() {
 	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
 		w.WriteHeader(stdhttp.StatusServiceUnavailable)
 		_, _ = w.Write([]byte("still failing"))
@@ -55,19 +55,24 @@ func ExampleNewExecutor_retryExhausted() {
 	request, _ := stdhttp.NewRequestWithContext(context.Background(), stdhttp.MethodGet, server.URL, nil)
 
 	executor := routery.Apply(
-		routeryhttp.NewExecutor(server.Client()),
+		routeryhttp.NewHandler(server.Client()),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, routeryhttp.DefaultRetryPolicy),
 	)
 
-	response, err := executor.Execute(context.Background(), request)
-	if response == nil {
-		fmt.Println("unexpected nil response")
+	result, err := executor.Handle(context.Background(), request)
+	if result.Payload != nil {
+		fmt.Println("unexpected route result payload")
 		return
 	}
-	defer response.Body.Close()
 
 	var statusErr *routeryhttp.StatusError
-	fmt.Println(errors.As(err, &statusErr), response.StatusCode)
+	if !errors.As(err, &statusErr) || statusErr.Response == nil {
+		fmt.Println("unexpected error shape")
+		return
+	}
+	defer statusErr.Response.Body.Close()
+
+	fmt.Println(errors.As(err, &statusErr), statusErr.Response.StatusCode)
 	// Output: true 503
 }
 
@@ -89,18 +94,18 @@ func ExampleTimeout_withRetryIf() {
 	request, _ := stdhttp.NewRequestWithContext(context.Background(), stdhttp.MethodGet, server.URL, nil)
 
 	executor := routery.Apply(
-		routeryhttp.NewExecutor(server.Client()),
+		routeryhttp.NewHandler(server.Client()),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, routeryhttp.DefaultRetryPolicy),
 		routeryhttp.Timeout(500*time.Millisecond),
 	)
 
-	response, err := executor.Execute(context.Background(), request)
+	result, err := executor.Handle(context.Background(), request)
 	if err != nil {
 		fmt.Println("unexpected", err)
 		return
 	}
-	defer response.Body.Close()
+	defer result.Payload.Body.Close()
 
-	fmt.Println(response.StatusCode, attempts)
+	fmt.Println(result.Payload.StatusCode, attempts)
 	// Output: 200 2
 }

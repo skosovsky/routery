@@ -14,22 +14,22 @@ func TestCircuitBreakerOpensAfterFailures(t *testing.T) {
 
 	fail := errors.New("fail")
 	calls := atomic.Int32{}
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
 		calls.Add(1)
-		return 0, fail
+		return zeroRouteResult[int](), fail
 	})
 
 	executor := Apply(base, CircuitBreaker[int, int](2, time.Hour, nil))
 
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, fail) {
 		t.Fatalf("first call: want %v, got %v", fail, err)
 	}
-	_, err = executor.Execute(context.Background(), 0)
+	_, err = executor.Handle(context.Background(), 0)
 	if !errors.Is(err, fail) {
 		t.Fatalf("second call: want %v, got %v", fail, err)
 	}
-	_, err = executor.Execute(context.Background(), 0)
+	_, err = executor.Handle(context.Background(), 0)
 	if !errors.Is(err, ErrCircuitOpen) {
 		t.Fatalf("third call: want ErrCircuitOpen, got %v", err)
 	}
@@ -43,26 +43,26 @@ func TestCircuitBreakerSuccessResetsFailures(t *testing.T) {
 
 	fail := errors.New("fail")
 	attempt := atomic.Int32{}
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
 		if attempt.Add(1) == 1 {
-			return 0, fail
+			return zeroRouteResult[int](), fail
 		}
-		return 1, nil
+		return Handled(1), nil
 	})
 
 	executor := Apply(base, CircuitBreaker[int, int](2, time.Hour, nil))
 
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, fail) {
 		t.Fatalf("first: %v", err)
 	}
-	res, err := executor.Execute(context.Background(), 0)
-	if err != nil || res != 1 {
-		t.Fatalf("second: res=%d err=%v", res, err)
+	res, err := executor.Handle(context.Background(), 0)
+	if err != nil || res.Payload != 1 {
+		t.Fatalf("second: res=%d err=%v", res.Payload, err)
 	}
-	res, err = executor.Execute(context.Background(), 0)
-	if err != nil || res != 1 {
-		t.Fatalf("third: res=%d err=%v", res, err)
+	res, err = executor.Handle(context.Background(), 0)
+	if err != nil || res.Payload != 1 {
+		t.Fatalf("third: res=%d err=%v", res.Payload, err)
 	}
 }
 
@@ -73,34 +73,34 @@ func TestCircuitBreakerHalfOpenCanceledProbeAllowsNextProbe(t *testing.T) {
 	calls := atomic.Int32{}
 	probeCtx, cancelProbe := context.WithCancel(context.Background())
 
-	base := ExecutorFunc[int, int](func(ctx context.Context, _ int) (int, error) {
+	base := HandlerFunc[int, int](func(ctx context.Context, _ int) (RouteResult[int], error) {
 		n := calls.Add(1)
 		switch n {
 		case 1:
-			return 0, fail
+			return zeroRouteResult[int](), fail
 		case 2:
 			cancelProbe()
 			<-ctx.Done()
-			return 0, ctx.Err()
+			return zeroRouteResult[int](), ctx.Err()
 		default:
-			return 42, nil
+			return Handled(42), nil
 		}
 	})
 
 	executor := Apply(base, CircuitBreaker[int, int](1, 10*time.Millisecond, nil))
 
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, fail) {
 		t.Fatalf("first: want %v, got %v", fail, err)
 	}
-	_, err = executor.Execute(context.Background(), 0)
+	_, err = executor.Handle(context.Background(), 0)
 	if !errors.Is(err, ErrCircuitOpen) {
 		t.Fatalf("while open: want ErrCircuitOpen, got %v", err)
 	}
 
 	time.Sleep(12 * time.Millisecond)
 
-	_, err = executor.Execute(probeCtx, 0)
+	_, err = executor.Handle(probeCtx, 0)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled probe: want context.Canceled, got %v", err)
 	}
@@ -108,9 +108,9 @@ func TestCircuitBreakerHalfOpenCanceledProbeAllowsNextProbe(t *testing.T) {
 		t.Fatalf("after canceled probe: want 2 base calls, got %d", calls.Load())
 	}
 
-	res, err := executor.Execute(context.Background(), 0)
-	if err != nil || res != 42 {
-		t.Fatalf("second probe after cancel: res=%d err=%v (want HalfOpen → new probe)", res, err)
+	res, err := executor.Handle(context.Background(), 0)
+	if err != nil || res.Payload != 42 {
+		t.Fatalf("second probe after cancel: res=%d err=%v (want HalfOpen → new probe)", res.Payload, err)
 	}
 	if calls.Load() != 3 {
 		t.Fatalf("want 3 base calls, got %d", calls.Load())
@@ -127,26 +127,26 @@ func TestCircuitBreakerHalfOpenParallelWhileProbeInFlightErrCircuitOpen(t *testi
 
 	probeCtx, cancelProbe := context.WithCancel(context.Background())
 
-	base := ExecutorFunc[int, int](func(ctx context.Context, _ int) (int, error) {
+	base := HandlerFunc[int, int](func(ctx context.Context, _ int) (RouteResult[int], error) {
 		n := calls.Add(1)
 		switch n {
 		case 1:
-			return 0, fail
+			return zeroRouteResult[int](), fail
 		case 2:
 			close(probeStarted)
 			cancelProbe()
 			<-probeMayFinish
 			<-ctx.Done()
-			return 0, ctx.Err()
+			return zeroRouteResult[int](), ctx.Err()
 		default:
-			return 0, errors.New("unexpected base call")
+			return zeroRouteResult[int](), errors.New("unexpected base call")
 		}
 	})
 
 	executor := Apply(base, CircuitBreaker[int, int](1, 10*time.Millisecond, nil))
 
-	_, _ = executor.Execute(context.Background(), 0)
-	_, err := executor.Execute(context.Background(), 0)
+	_, _ = executor.Handle(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, ErrCircuitOpen) {
 		t.Fatalf("while open: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestCircuitBreakerHalfOpenParallelWhileProbeInFlightErrCircuitOpen(t *testi
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		_, err := executor.Execute(probeCtx, 0)
+		_, err := executor.Handle(probeCtx, 0)
 		if !errors.Is(err, context.Canceled) {
 			t.Errorf("probe: want context.Canceled, got %v", err)
 		}
@@ -164,7 +164,7 @@ func TestCircuitBreakerHalfOpenParallelWhileProbeInFlightErrCircuitOpen(t *testi
 
 	errCh := make(chan error, 1)
 	wg.Go(func() {
-		_, e := executor.Execute(context.Background(), 0)
+		_, e := executor.Handle(context.Background(), 0)
 		errCh <- e
 	})
 
@@ -190,33 +190,33 @@ func TestCircuitBreakerHalfOpenSuccessCloses(t *testing.T) {
 
 	fail := errors.New("fail")
 	calls := atomic.Int32{}
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
 		c := calls.Add(1)
 		if c <= 2 {
-			return 0, fail
+			return zeroRouteResult[int](), fail
 		}
-		return 42, nil
+		return Handled(42), nil
 	})
 
 	executor := Apply(base, CircuitBreaker[int, int](2, 10*time.Millisecond, nil))
 
-	_, _ = executor.Execute(context.Background(), 0)
-	_, _ = executor.Execute(context.Background(), 0)
-	_, err := executor.Execute(context.Background(), 0)
+	_, _ = executor.Handle(context.Background(), 0)
+	_, _ = executor.Handle(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, ErrCircuitOpen) {
 		t.Fatalf("expected open: %v", err)
 	}
 
 	time.Sleep(12 * time.Millisecond)
 
-	res, err := executor.Execute(context.Background(), 0)
-	if err != nil || res != 42 {
-		t.Fatalf("probe: res=%d err=%v", res, err)
+	res, err := executor.Handle(context.Background(), 0)
+	if err != nil || res.Payload != 42 {
+		t.Fatalf("probe: res=%d err=%v", res.Payload, err)
 	}
 
-	res, err = executor.Execute(context.Background(), 0)
-	if err != nil || res != 42 {
-		t.Fatalf("after close: res=%d err=%v", res, err)
+	res, err = executor.Handle(context.Background(), 0)
+	if err != nil || res.Payload != 42 {
+		t.Fatalf("after close: res=%d err=%v", res.Payload, err)
 	}
 }
 
@@ -227,23 +227,23 @@ func TestCircuitBreakerHalfOpenOnlyOneProbeConcurrent(t *testing.T) {
 	releaseProbe := make(chan struct{})
 	calls := atomic.Int32{}
 
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
 		c := calls.Add(1)
 		if c == 1 {
-			return 0, fail
+			return zeroRouteResult[int](), fail
 		}
 		<-releaseProbe
-		return 1, nil
+		return Handled(1), nil
 	})
 
 	executor := Apply(base, CircuitBreaker[int, int](1, time.Millisecond, func(error) bool { return true }))
 
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, fail) {
 		t.Fatalf("expected first failure, got %v", err)
 	}
 
-	_, err = executor.Execute(context.Background(), 0)
+	_, err = executor.Handle(context.Background(), 0)
 	if !errors.Is(err, ErrCircuitOpen) {
 		t.Fatalf("expected open before reset, got %v", err)
 	}
@@ -255,7 +255,7 @@ func TestCircuitBreakerHalfOpenOnlyOneProbeConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			_, e := executor.Execute(context.Background(), 0)
+			_, e := executor.Handle(context.Background(), 0)
 			errCh <- e
 		})
 	}
@@ -297,8 +297,8 @@ func TestCircuitBreakerConcurrentClosed(t *testing.T) {
 	)
 
 	fail := errors.New("fail")
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 0, fail
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+		return zeroRouteResult[int](), fail
 	})
 
 	executor := Apply(base, CircuitBreaker[int, int](10, time.Hour, nil))
@@ -308,7 +308,7 @@ func TestCircuitBreakerConcurrentClosed(t *testing.T) {
 	for range workers {
 		wg.Go(func() {
 			for range calls {
-				_, err := executor.Execute(context.Background(), 0)
+				_, err := executor.Handle(context.Background(), 0)
 				if err != nil && !errors.Is(err, fail) && !errors.Is(err, ErrCircuitOpen) {
 					errs <- err
 				}
@@ -325,8 +325,8 @@ func TestCircuitBreakerConcurrentClosed(t *testing.T) {
 func TestCircuitBreakerInvalidThreshold(t *testing.T) {
 	t.Parallel()
 
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) { return 0, nil })
-	_, err := CircuitBreaker[int, int](0, time.Second, nil)(base).Execute(context.Background(), 0)
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(0), nil })
+	_, err := CircuitBreaker[int, int](0, time.Second, nil)(base).Handle(context.Background(), 0)
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
@@ -335,8 +335,8 @@ func TestCircuitBreakerInvalidThreshold(t *testing.T) {
 func TestCircuitBreakerNegativeResetTimeout(t *testing.T) {
 	t.Parallel()
 
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) { return 0, nil })
-	_, err := CircuitBreaker[int, int](1, -time.Second, nil)(base).Execute(context.Background(), 0)
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(0), nil })
+	_, err := CircuitBreaker[int, int](1, -time.Second, nil)(base).Handle(context.Background(), 0)
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
@@ -345,7 +345,7 @@ func TestCircuitBreakerNegativeResetTimeout(t *testing.T) {
 func TestCircuitBreakerNilNext(t *testing.T) {
 	t.Parallel()
 
-	_, err := CircuitBreaker[int, int](1, time.Second, nil)(nil).Execute(context.Background(), 0)
+	_, err := CircuitBreaker[int, int](1, time.Second, nil)(nil).Handle(context.Background(), 0)
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
@@ -356,20 +356,20 @@ func TestCircuitBreakerIsFailureSkipsWhenPredicateReturnsFalse(t *testing.T) {
 
 	noise := errors.New("noise")
 	calls := atomic.Int32{}
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
 		calls.Add(1)
-		return 0, noise
+		return zeroRouteResult[int](), noise
 	})
 
 	executor := Apply(base, CircuitBreaker[int, int](2, time.Hour, func(error) bool { return false }))
 
 	for range 5 {
-		_, err := executor.Execute(context.Background(), 0)
+		_, err := executor.Handle(context.Background(), 0)
 		if !errors.Is(err, noise) {
 			t.Fatalf("expected noise error, got %v", err)
 		}
 	}
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, noise) {
 		t.Fatalf("circuit should stay closed: %v", err)
 	}
@@ -384,33 +384,74 @@ func TestCircuitBreakerIsFailurePredicate(t *testing.T) {
 	benign := errors.New("benign")
 	fatal := errors.New("fatal")
 	calls := atomic.Int32{}
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
 		c := calls.Add(1)
 		if c == 1 {
-			return 0, benign
+			return zeroRouteResult[int](), benign
 		}
-		return 0, fatal
+		return zeroRouteResult[int](), fatal
 	})
 
 	executor := Apply(base, CircuitBreaker[int, int](2, time.Hour, func(e error) bool {
 		return errors.Is(e, fatal)
 	}))
 
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, benign) {
 		t.Fatalf("first: %v", err)
 	}
-	_, err = executor.Execute(context.Background(), 0)
+	_, err = executor.Handle(context.Background(), 0)
 	if !errors.Is(err, fatal) {
 		t.Fatalf("second: %v", err)
 	}
-	_, err = executor.Execute(context.Background(), 0)
+	_, err = executor.Handle(context.Background(), 0)
 	if !errors.Is(err, fatal) {
 		t.Fatalf("third: %v", err)
 	}
-	_, err = executor.Execute(context.Background(), 0)
+	_, err = executor.Handle(context.Background(), 0)
 	if !errors.Is(err, ErrCircuitOpen) {
 		t.Fatalf("fourth: %v", err)
+	}
+}
+
+func TestCircuitBreakerIgnoresRouteStatusNextAndIgnored(t *testing.T) {
+	t.Parallel()
+
+	fail := errors.New("fail")
+	calls := atomic.Int32{}
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+		c := calls.Add(1)
+		if c <= 2 {
+			return Next[int]("delegate"), nil
+		}
+		if c == 3 {
+			return Ignored[int]("skip"), nil
+		}
+		return zeroRouteResult[int](), fail
+	})
+
+	executor := Apply(base, CircuitBreaker[int, int](1, time.Hour, nil))
+
+	for range 3 {
+		result, err := executor.Handle(context.Background(), 0)
+		if err != nil {
+			t.Fatalf("business status should not error: %v", err)
+		}
+		if result.Status != StatusNext && result.Status != StatusIgnored {
+			t.Fatalf("unexpected status: %s", result.Status)
+		}
+	}
+
+	_, err := executor.Handle(context.Background(), 0)
+	if !errors.Is(err, fail) {
+		t.Fatalf("fourth call: want %v, got %v", fail, err)
+	}
+	_, err = executor.Handle(context.Background(), 0)
+	if !errors.Is(err, ErrCircuitOpen) {
+		t.Fatalf("fifth call: want ErrCircuitOpen, got %v", err)
+	}
+	if calls.Load() != 4 {
+		t.Fatalf("unexpected call count: got %d, want 4", calls.Load())
 	}
 }
 
@@ -425,18 +466,18 @@ func FuzzCircuitBreakerStateMachine(f *testing.F) {
 		reset := time.Duration(max(0, resetMillis%20)) * time.Millisecond
 
 		var idx atomic.Int32
-		base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+		base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
 			i := idx.Add(1) - 1
 			bit := (pattern >> (i % 8)) & 1
 			if bit == 0 {
-				return 1, nil
+				return Handled(1), nil
 			}
-			return 0, errors.New("fail")
+			return zeroRouteResult[int](), errors.New("fail")
 		})
 
 		executor := Apply(base, CircuitBreaker[int, int](th, reset, nil))
 		for range 20 {
-			_, _ = executor.Execute(context.Background(), 0)
+			_, _ = executor.Handle(context.Background(), 0)
 		}
 	})
 }

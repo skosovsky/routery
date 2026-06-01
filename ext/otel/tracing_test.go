@@ -18,8 +18,8 @@ func TestTracingRecordsSpanAndStatus(t *testing.T) {
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
 	tracer := tp.Tracer("test")
 
-	base := routery.ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 0, errors.New("boom")
+	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
+		return routery.RouteResult[int]{}, errors.New("boom")
 	})
 
 	executor := routery.Apply(
@@ -27,7 +27,7 @@ func TestTracingRecordsSpanAndStatus(t *testing.T) {
 		Tracing[int, int](tracer, "op"),
 	)
 
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -50,15 +50,15 @@ func TestTracingSuccess(t *testing.T) {
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
 	tracer := tp.Tracer("test")
 
-	base := routery.ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 42, nil
+	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
+		return routery.Handled(42), nil
 	})
 
 	executor := routery.Apply(base, Tracing[int, int](tracer, "ok"))
 
-	res, err := executor.Execute(context.Background(), 0)
-	if err != nil || res != 42 {
-		t.Fatalf("res=%d err=%v", res, err)
+	res, err := executor.Handle(context.Background(), 0)
+	if err != nil || res.Payload != 42 {
+		t.Fatalf("res=%d err=%v", res.Payload, err)
 	}
 	if len(exporter.spans) != 1 {
 		t.Fatalf("expected 1 span, got %d", len(exporter.spans))
@@ -71,10 +71,10 @@ func TestTracingSuccess(t *testing.T) {
 func TestTracingNilTracer(t *testing.T) {
 	t.Parallel()
 
-	base := routery.ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 0, nil
+	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
+		return routery.Handled(0), nil
 	})
-	_, err := Tracing[int, int](nil, "x")(base).Execute(context.Background(), 0)
+	_, err := Tracing[int, int](nil, "x")(base).Handle(context.Background(), 0)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
@@ -87,7 +87,7 @@ func TestTracingNilNext(t *testing.T) {
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
 	tracer := tp.Tracer("test")
 
-	_, err := Tracing[int, int](tracer, "x")(nil).Execute(context.Background(), 0)
+	_, err := Tracing[int, int](tracer, "x")(nil).Handle(context.Background(), 0)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
@@ -100,11 +100,11 @@ func TestTracingDefaultSpanName(t *testing.T) {
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
 	tracer := tp.Tracer("test")
 
-	base := routery.ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 0, nil
+	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
+		return routery.Handled(0), nil
 	})
-	_, _ = routery.Apply(base, Tracing[int, int](tracer, "")).Execute(context.Background(), 0)
-	if len(exporter.spans) != 1 || exporter.spans[0].name != "routery.execute" {
+	_, _ = routery.Apply(base, Tracing[int, int](tracer, "")).Handle(context.Background(), 0)
+	if len(exporter.spans) != 1 || exporter.spans[0].name != "routery.handle" {
 		t.Fatalf("unexpected span: %+v", exporter.spans)
 	}
 }

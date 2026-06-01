@@ -13,17 +13,17 @@ func TestBulkheadRejectsWhenFull(t *testing.T) {
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
 		close(entered)
 		<-release
-		return 1, nil
+		return Handled(1), nil
 	})
 
 	executor := Apply(base, Bulkhead[int, int](1))
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		_, err := executor.Execute(context.Background(), 0)
+		_, err := executor.Handle(context.Background(), 0)
 		if err != nil {
 			t.Errorf("first call: %v", err)
 		}
@@ -31,7 +31,7 @@ func TestBulkheadRejectsWhenFull(t *testing.T) {
 
 	<-entered
 
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, ErrTooManyRequests) {
 		t.Fatalf("want ErrTooManyRequests, got %v", err)
 	}
@@ -45,17 +45,17 @@ func TestBulkheadContextWinsRace(t *testing.T) {
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
 		close(entered)
 		<-release
-		return 1, nil
+		return Handled(1), nil
 	})
 
 	executor := Apply(base, Bulkhead[int, int](1))
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		_, err := executor.Execute(context.Background(), 0)
+		_, err := executor.Handle(context.Background(), 0)
 		if err != nil {
 			t.Errorf("first: %v", err)
 		}
@@ -66,7 +66,7 @@ func TestBulkheadContextWinsRace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := executor.Execute(ctx, 0)
+	_, err := executor.Handle(ctx, 0)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("want canceled, got %v", err)
 	}
@@ -78,8 +78,8 @@ func TestBulkheadContextWinsRace(t *testing.T) {
 func TestBulkheadInvalidLimit(t *testing.T) {
 	t.Parallel()
 
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) { return 0, nil })
-	_, err := Bulkhead[int, int](0)(base).Execute(context.Background(), 0)
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(0), nil })
+	_, err := Bulkhead[int, int](0)(base).Handle(context.Background(), 0)
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
@@ -88,7 +88,7 @@ func TestBulkheadInvalidLimit(t *testing.T) {
 func TestBulkheadNilNext(t *testing.T) {
 	t.Parallel()
 
-	_, err := Bulkhead[int, int](1)(nil).Execute(context.Background(), 0)
+	_, err := Bulkhead[int, int](1)(nil).Handle(context.Background(), 0)
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
@@ -103,8 +103,8 @@ func TestBulkheadSupportsConcurrentCalls(t *testing.T) {
 		limit   = 4
 	)
 
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 1, nil
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+		return Handled(1), nil
 	})
 
 	executor := Apply(base, Bulkhead[int, int](limit))
@@ -114,7 +114,7 @@ func TestBulkheadSupportsConcurrentCalls(t *testing.T) {
 	for range workers {
 		wg.Go(func() {
 			for range calls {
-				_, err := executor.Execute(context.Background(), 0)
+				_, err := executor.Handle(context.Background(), 0)
 				if err != nil && !errors.Is(err, ErrTooManyRequests) {
 					errs <- err
 				}
@@ -131,12 +131,12 @@ func TestBulkheadSupportsConcurrentCalls(t *testing.T) {
 func TestBulkheadAcquireAndExecute(t *testing.T) {
 	t.Parallel()
 
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 42, nil
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+		return Handled(42), nil
 	})
-	res, err := Apply(base, Bulkhead[int, int](2)).Execute(context.Background(), 0)
-	if err != nil || res != 42 {
-		t.Fatalf("res=%d err=%v", res, err)
+	res, err := Apply(base, Bulkhead[int, int](2)).Handle(context.Background(), 0)
+	if err != nil || res.Payload != 42 {
+		t.Fatalf("res=%d err=%v", res.Payload, err)
 	}
 }
 
@@ -145,16 +145,16 @@ func TestBulkheadTimeoutWaitingNotUsed(t *testing.T) {
 
 	// Semaphore is non-blocking on full: slow holder should not block second call.
 	block := make(chan struct{})
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
 		<-block
-		return 0, nil
+		return Handled(0), nil
 	})
 
 	executor := Apply(base, Bulkhead[int, int](1))
 
 	done := make(chan struct{})
 	go func() {
-		_, _ = executor.Execute(context.Background(), 0)
+		_, _ = executor.Handle(context.Background(), 0)
 		close(done)
 	}()
 
@@ -163,7 +163,7 @@ func TestBulkheadTimeoutWaitingNotUsed(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	_, err := executor.Execute(ctx, 0)
+	_, err := executor.Handle(ctx, 0)
 	if !errors.Is(err, ErrTooManyRequests) {
 		t.Fatalf("want ErrTooManyRequests, got %v", err)
 	}

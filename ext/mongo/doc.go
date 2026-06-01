@@ -1,4 +1,4 @@
-// Package routerymongo wraps MongoDB collection operations as [github.com/skosovsky/routery.Executor]
+// Package routerymongo wraps MongoDB collection operations as [github.com/skosovsky/routery.Handler]
 // values with a shared [DefaultRetryPolicy].
 //
 // Retries are disabled when the context carries an active multi-document transaction (see

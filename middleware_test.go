@@ -12,31 +12,31 @@ func TestApplyAppliesMiddlewaresInReverseOrder(t *testing.T) {
 
 	callOrder := make([]string, 0, 2+2)
 
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
 		callOrder = append(callOrder, "base")
-		return 1, nil
+		return Handled(1), nil
 	})
 
-	first := func(next Executor[int, int]) Executor[int, int] {
-		return ExecutorFunc[int, int](func(ctx context.Context, req int) (int, error) {
+	first := func(next Handler[int, int]) Handler[int, int] {
+		return HandlerFunc[int, int](func(ctx context.Context, req int) (RouteResult[int], error) {
 			callOrder = append(callOrder, "first-before")
-			res, err := next.Execute(ctx, req)
+			res, err := next.Handle(ctx, req)
 			callOrder = append(callOrder, "first-after")
 			return res, err
 		})
 	}
 
-	second := func(next Executor[int, int]) Executor[int, int] {
-		return ExecutorFunc[int, int](func(ctx context.Context, req int) (int, error) {
+	second := func(next Handler[int, int]) Handler[int, int] {
+		return HandlerFunc[int, int](func(ctx context.Context, req int) (RouteResult[int], error) {
 			callOrder = append(callOrder, "second-before")
-			res, err := next.Execute(ctx, req)
+			res, err := next.Handle(ctx, req)
 			callOrder = append(callOrder, "second-after")
 			return res, err
 		})
 	}
 
 	executor := Apply(base, first, second)
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
@@ -52,19 +52,19 @@ func TestApplySkipsNilMiddlewares(t *testing.T) {
 
 	called := false
 
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 1, nil
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+		return Handled(1), nil
 	})
 
-	observed := func(next Executor[int, int]) Executor[int, int] {
-		return ExecutorFunc[int, int](func(ctx context.Context, req int) (int, error) {
+	observed := func(next Handler[int, int]) Handler[int, int] {
+		return HandlerFunc[int, int](func(ctx context.Context, req int) (RouteResult[int], error) {
 			called = true
-			return next.Execute(ctx, req)
+			return next.Handle(ctx, req)
 		})
 	}
 
 	executor := Apply(base, nil, observed, nil)
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestApplyReturnsConfigErrorForNilBase(t *testing.T) {
 	t.Parallel()
 
 	executor := Apply[int, int](nil)
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
@@ -86,16 +86,16 @@ func TestApplyReturnsConfigErrorForNilBase(t *testing.T) {
 func TestApplyReturnsConfigErrorWhenMiddlewareReturnsNil(t *testing.T) {
 	t.Parallel()
 
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 1, nil
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+		return Handled(1), nil
 	})
 
-	broken := func(Executor[int, int]) Executor[int, int] {
+	broken := func(Handler[int, int]) Handler[int, int] {
 		return nil
 	}
 
 	executor := Apply(base, broken)
-	_, err := executor.Execute(context.Background(), 0)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}

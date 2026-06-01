@@ -15,17 +15,17 @@ func TestLoggingNoOpWhenHandlerIsNil(t *testing.T) {
 	t.Parallel()
 
 	calls := 0
-	base := routery.ExecutorFunc[int, int](func(context.Context, int) (int, error) {
+	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
 		calls++
-		return 1, nil
+		return routery.Handled(1), nil
 	})
 
-	result, err := Logging[int, int]("operation", nil)(base).Execute(context.Background(), 0)
+	result, err := Logging[int, int]("operation", nil, nil)(base).Handle(context.Background(), 0)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result != 1 {
-		t.Fatalf("unexpected result: got %d, want 1", result)
+	if result.Payload != 1 {
+		t.Fatalf("unexpected result: got %d, want 1", result.Payload)
 	}
 	if calls != 1 {
 		t.Fatalf("unexpected call count: got %d, want 1", calls)
@@ -36,52 +36,64 @@ func TestLoggingEmitsEvent(t *testing.T) {
 	t.Parallel()
 
 	eventChan := make(chan Event[int, int], 1)
-	base := routery.ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 2, nil
+	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
+		return routery.Handled(2), nil
 	})
 
 	executor := Logging[int, int]("primary", func(_ context.Context, event Event[int, int]) {
 		eventChan <- event
-	})(base)
+	}, nil)(base)
 
-	result, err := executor.Execute(context.Background(), 1)
+	result, err := executor.Handle(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result != 2 {
-		t.Fatalf("unexpected result: got %d, want 2", result)
+	if result.Payload != 2 {
+		t.Fatalf("unexpected result: got %d, want 2", result.Payload)
 	}
 
 	select {
 	case event := <-eventChan:
-		if event.Name != "primary" {
-			t.Fatalf("unexpected name: got %q, want %q", event.Name, "primary")
-		}
-		if event.Request != 1 {
-			t.Fatalf("unexpected request: got %d, want 1", event.Request)
-		}
-		if event.Response != 2 {
-			t.Fatalf("unexpected response: got %d, want 2", event.Response)
-		}
-		if event.Err != nil {
-			t.Fatalf("unexpected event error: %v", event.Err)
-		}
-		if event.StartTime.IsZero() {
-			t.Fatal("expected non-zero start time")
-		}
-		if event.Duration < 0 {
-			t.Fatalf("expected non-negative duration, got %v", event.Duration)
-		}
+		assertLoggingEvent(t, event)
 	case <-time.After(16 * time.Millisecond):
 		t.Fatal("expected one logging event")
+	}
+}
+
+func assertLoggingEvent(t *testing.T, event Event[int, int]) {
+	t.Helper()
+
+	if event.Name != "primary" {
+		t.Fatalf("unexpected name: got %q, want %q", event.Name, "primary")
+	}
+	if event.Request != 1 {
+		t.Fatalf("unexpected request: got %d, want 1", event.Request)
+	}
+	if event.Result.Payload != 2 {
+		t.Fatalf("unexpected response: got %d, want 2", event.Result.Payload)
+	}
+	if event.Result.Status != routery.StatusHandled {
+		t.Fatalf("unexpected status: got %q, want handled", event.Result.Status)
+	}
+	if event.PayloadMeta.Shape != "int" {
+		t.Fatalf("unexpected payload shape: got %q, want int", event.PayloadMeta.Shape)
+	}
+	if event.Err != nil {
+		t.Fatalf("unexpected event error: %v", event.Err)
+	}
+	if event.StartTime.IsZero() {
+		t.Fatal("expected non-zero start time")
+	}
+	if event.Duration < 0 {
+		t.Fatalf("expected non-negative duration, got %v", event.Duration)
 	}
 }
 
 func TestLoggingReturnsConfigErrorWhenNextExecutorIsNil(t *testing.T) {
 	t.Parallel()
 
-	executor := Logging[int, int]("primary", func(context.Context, Event[int, int]) {})(nil)
-	_, err := executor.Execute(context.Background(), 0)
+	executor := Logging[int, int]("primary", func(context.Context, Event[int, int]) {}, nil)(nil)
+	_, err := executor.Handle(context.Background(), 0)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
@@ -93,16 +105,19 @@ func TestLoggingDoesNotConsumeStreamLikeValues(t *testing.T) {
 	request := &readCounter{}
 	response := &readCounter{}
 
-	base := routery.ExecutorFunc[*readCounter, *readCounter](func(context.Context, *readCounter) (*readCounter, error) {
-		return response, nil
-	})
+	base := routery.HandlerFunc[*readCounter, *readCounter](
+		func(context.Context, *readCounter) (routery.RouteResult[*readCounter], error) {
+			return routery.Handled(response), nil
+		},
+	)
 
 	executor := Logging[*readCounter, *readCounter](
 		"stream",
 		func(context.Context, Event[*readCounter, *readCounter]) {},
+		nil,
 	)(base)
 
-	_, err := executor.Execute(context.Background(), request)
+	_, err := executor.Handle(context.Background(), request)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}

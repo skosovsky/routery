@@ -10,62 +10,65 @@ import (
 type ErrorPredicate func(error) bool
 
 // WeightExtractor computes request weight for WeightBasedRouter.
-type WeightExtractor[Req any] func(ctx context.Context, req Req) (int, error)
+type WeightExtractor[TReq any] func(ctx context.Context, req TReq) (int, error)
 
-// PredicateFallback executes secondary only when shouldFallback returns true.
-func PredicateFallback[Req any, Res any](
-	primary Executor[Req, Res],
-	secondary Executor[Req, Res],
+// PredicateFallback executes secondary only when shouldFallback returns true for a system error.
+func PredicateFallback[TReq any, TRes any](
+	primary Handler[TReq, TRes],
+	secondary Handler[TReq, TRes],
 	shouldFallback ErrorPredicate,
-) Executor[Req, Res] {
+) Handler[TReq, TRes] {
 	if primary == nil || secondary == nil {
-		return invalidExecutor[Req, Res](
-			configError("predicate fallback requires non-nil primary and secondary executors"),
+		return invalidHandler[TReq, TRes](
+			configError("predicate fallback requires non-nil primary and secondary handlers"),
 		)
 	}
 	if shouldFallback == nil {
-		return invalidExecutor[Req, Res](configError("predicate fallback requires a non-nil predicate"))
+		return invalidHandler[TReq, TRes](configError("predicate fallback requires a non-nil predicate"))
 	}
 
-	return ExecutorFunc[Req, Res](func(ctx context.Context, req Req) (Res, error) {
-		response, err := primary.Execute(ctx, req)
+	return HandlerFunc[TReq, TRes](func(ctx context.Context, req TReq) (RouteResult[TRes], error) {
+		result, err := primary.Handle(ctx, req)
 		if err == nil {
-			return response, nil
+			return result, nil
 		}
 		if !shouldFallback(err) {
-			return response, err
+			return result, err
 		}
 
-		return secondary.Execute(ctx, req)
+		return secondary.Handle(ctx, req)
 	})
 }
 
-// FirstCompleted runs executors in parallel and returns the first successful response.
-func FirstCompleted[Req any, Res any](executors ...Executor[Req, Res]) Executor[Req, Res] {
-	validated, err := validateExecutors(executors, "first completed")
+// FirstCompleted runs handlers in parallel and returns the first successful result.
+//
+// A handler is considered successful when Handle returns a nil error, regardless
+// of the business route status in RouteResult.
+func FirstCompleted[TReq any, TRes any](handlers ...Handler[TReq, TRes]) Handler[TReq, TRes] {
+	validated, err := validateHandlers(handlers, "first completed")
 	if err != nil {
-		return invalidExecutor[Req, Res](err)
+		return invalidHandler[TReq, TRes](err)
 	}
 
-	return ExecutorFunc[Req, Res](func(ctx context.Context, req Req) (Res, error) {
+	return HandlerFunc[TReq, TRes](func(ctx context.Context, req TReq) (RouteResult[TRes], error) {
 		derivedCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
-		results := make(chan firstCompletedResult[Res], len(validated))
+		results := make(chan firstCompletedResult[TRes], len(validated))
 		var group sync.WaitGroup
 
-		for index, executor := range validated {
+		for index, handler := range validated {
 			group.Add(1)
-			go func(executorIndex int, current Executor[Req, Res]) {
+			go func(handlerIndex int, current Handler[TReq, TRes]) {
 				defer group.Done()
 
-				response, executeErr := current.Execute(derivedCtx, req)
-				results <- firstCompletedResult[Res]{
-					index:    executorIndex,
-					response: response,
-					err:      executeErr,
+				result, handleErr := current.Handle(derivedCtx, req)
+				results <- firstCompletedResult[TRes]{
+					index:  handlerIndex,
+					result: result,
+					err:    handleErr,
 				}
-			}(index, executor)
+			}(index, handler)
 		}
 
 		go func() {
@@ -78,46 +81,46 @@ func FirstCompleted[Req any, Res any](executors ...Executor[Req, Res]) Executor[
 		for result := range results {
 			if result.err == nil {
 				cancel()
-				return result.response, nil
+				return result.result, nil
 			}
 			allErrors[result.index] = result.err
 		}
 
-		return zeroValue[Res](), errors.Join(allErrors...)
+		return zeroRouteResult[TRes](), errors.Join(allErrors...)
 	})
 }
 
 // WeightBasedRouter routes requests using user-provided weight extraction.
-func WeightBasedRouter[Req any, Res any](
-	extractor WeightExtractor[Req],
+func WeightBasedRouter[TReq any, TRes any](
+	extractor WeightExtractor[TReq],
 	threshold int,
-	lightweight Executor[Req, Res],
-	heavyweight Executor[Req, Res],
-) Executor[Req, Res] {
+	lightweight Handler[TReq, TRes],
+	heavyweight Handler[TReq, TRes],
+) Handler[TReq, TRes] {
 	if extractor == nil {
-		return invalidExecutor[Req, Res](configError("weight router requires a non-nil extractor"))
+		return invalidHandler[TReq, TRes](configError("weight router requires a non-nil extractor"))
 	}
 	if lightweight == nil || heavyweight == nil {
-		return invalidExecutor[Req, Res](
-			configError("weight router requires non-nil lightweight and heavyweight executors"),
+		return invalidHandler[TReq, TRes](
+			configError("weight router requires non-nil lightweight and heavyweight handlers"),
 		)
 	}
 
-	return ExecutorFunc[Req, Res](func(ctx context.Context, req Req) (Res, error) {
+	return HandlerFunc[TReq, TRes](func(ctx context.Context, req TReq) (RouteResult[TRes], error) {
 		weight, err := extractor(ctx, req)
 		if err != nil {
-			return zeroValue[Res](), err
+			return zeroRouteResult[TRes](), err
 		}
 		if weight < threshold {
-			return lightweight.Execute(ctx, req)
+			return lightweight.Handle(ctx, req)
 		}
 
-		return heavyweight.Execute(ctx, req)
+		return heavyweight.Handle(ctx, req)
 	})
 }
 
-type firstCompletedResult[Res any] struct {
-	index    int
-	response Res
-	err      error
+type firstCompletedResult[TRes any] struct {
+	index  int
+	result RouteResult[TRes]
+	err    error
 }

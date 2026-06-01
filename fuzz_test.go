@@ -29,8 +29,8 @@ func FuzzRetryIfNoPanics(f *testing.F) {
 			backoffMillis = -10
 		}
 
-		base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-			return 0, errors.New("retry")
+		base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+			return zeroRouteResult[int](), errors.New("retry")
 		})
 
 		backoff := time.Duration(backoffMillis) * time.Microsecond
@@ -40,7 +40,7 @@ func FuzzRetryIfNoPanics(f *testing.F) {
 		}
 
 		executor := RetryIf[int, int](attempts, backoff, predicate)(base)
-		_, _ = executor.Execute(context.Background(), 0)
+		_, _ = executor.Handle(context.Background(), 0)
 	})
 }
 
@@ -65,14 +65,18 @@ func FuzzConstructorsNoPanics(f *testing.F) {
 	f.Fuzz(func(t *testing.T, primaryNil bool, secondaryNil bool, predicateNil bool, threshold int) {
 		t.Helper()
 
-		var primary Executor[int, int]
-		var secondary Executor[int, int]
+		var primary Handler[int, int]
+		var secondary Handler[int, int]
 
 		if !primaryNil {
-			primary = ExecutorFunc[int, int](func(context.Context, int) (int, error) { return 1, nil })
+			primary = HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+				return Handled(1), nil
+			})
 		}
 		if !secondaryNil {
-			secondary = ExecutorFunc[int, int](func(context.Context, int) (int, error) { return 2, nil })
+			secondary = HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+				return Handled(2), nil
+			})
 		}
 
 		predicate := ErrorPredicate(func(error) bool { return true })
@@ -80,15 +84,15 @@ func FuzzConstructorsNoPanics(f *testing.F) {
 			predicate = nil
 		}
 
-		_, _ = Fallback(primary, secondary).Execute(context.Background(), 0)
-		_, _ = PredicateFallback(primary, secondary, predicate).Execute(context.Background(), 0)
-		_, _ = RoundRobin(primary, secondary).Execute(context.Background(), 0)
-		_, _ = FirstCompleted(primary, secondary).Execute(context.Background(), 0)
+		_, _ = Fallback(primary, secondary).Handle(context.Background(), 0)
+		_, _ = PredicateFallback(primary, secondary, predicate).Handle(context.Background(), 0)
+		_, _ = RoundRobin(primary, secondary).Handle(context.Background(), 0)
+		_, _ = FirstCompleted(primary, secondary).Handle(context.Background(), 0)
 		_, _ = WeightBasedRouter(
 			func(context.Context, int) (int, error) { return 1, nil },
 			threshold,
 			primary,
 			secondary,
-		).Execute(context.Background(), 0)
+		).Handle(context.Background(), 0)
 	})
 }

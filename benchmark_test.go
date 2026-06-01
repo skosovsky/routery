@@ -7,8 +7,8 @@ import (
 )
 
 func BenchmarkApplyExecute(b *testing.B) {
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 1, nil
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+		return Handled(1), nil
 	})
 
 	executor := Apply(
@@ -21,7 +21,7 @@ func BenchmarkApplyExecute(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		_, err := executor.Execute(context.Background(), 0)
+		_, err := executor.Handle(context.Background(), 0)
 		if err != nil {
 			b.Fatalf("execute returned error: %v", err)
 		}
@@ -29,8 +29,8 @@ func BenchmarkApplyExecute(b *testing.B) {
 }
 
 func BenchmarkRetryIfNoRetry(b *testing.B) {
-	base := ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 0, errors.New("stop")
+	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+		return zeroRouteResult[int](), errors.New("stop")
 	})
 	executor := RetryIf[int, int](3, 0, func(context.Context, int, error) bool { return false })(base)
 
@@ -38,7 +38,7 @@ func BenchmarkRetryIfNoRetry(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		_, err := executor.Execute(context.Background(), 0)
+		_, err := executor.Handle(context.Background(), 0)
 		if err == nil {
 			b.Fatal("expected error")
 		}
@@ -47,15 +47,15 @@ func BenchmarkRetryIfNoRetry(b *testing.B) {
 
 func BenchmarkRoundRobinExecute(b *testing.B) {
 	executor := RoundRobin(
-		ExecutorFunc[int, int](func(context.Context, int) (int, error) { return 1, nil }),
-		ExecutorFunc[int, int](func(context.Context, int) (int, error) { return 2, nil }),
+		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(1), nil }),
+		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(2), nil }),
 	)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for range b.N {
-		_, err := executor.Execute(context.Background(), 0)
+		_, err := executor.Handle(context.Background(), 0)
 		if err != nil {
 			b.Fatalf("execute returned error: %v", err)
 		}
@@ -64,11 +64,11 @@ func BenchmarkRoundRobinExecute(b *testing.B) {
 
 func BenchmarkFirstCompleted(b *testing.B) {
 	executor := FirstCompleted(
-		ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-			return 1, nil
+		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+			return Handled(1), nil
 		}),
-		ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-			return 2, nil
+		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+			return Handled(2), nil
 		}),
 	)
 
@@ -76,7 +76,7 @@ func BenchmarkFirstCompleted(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		_, err := executor.Execute(context.Background(), 0)
+		_, err := executor.Handle(context.Background(), 0)
 		if err != nil {
 			b.Fatalf("execute returned error: %v", err)
 		}
@@ -87,15 +87,15 @@ func BenchmarkWeightBasedRouter(b *testing.B) {
 	executor := WeightBasedRouter(
 		func(context.Context, int) (int, error) { return 1, nil },
 		2,
-		ExecutorFunc[int, int](func(context.Context, int) (int, error) { return 1, nil }),
-		ExecutorFunc[int, int](func(context.Context, int) (int, error) { return 2, nil }),
+		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(1), nil }),
+		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(2), nil }),
 	)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for range b.N {
-		_, err := executor.Execute(context.Background(), 0)
+		_, err := executor.Handle(context.Background(), 0)
 		if err != nil {
 			b.Fatalf("execute returned error: %v", err)
 		}

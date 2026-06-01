@@ -12,9 +12,9 @@ package routery
 //	Apply(base, Timeout(...), RetryIf(...))
 //
 // produces Timeout(RetryIf(base)).
-func Apply[Req any, Res any](base Executor[Req, Res], mws ...Middleware[Req, Res]) Executor[Req, Res] {
+func Apply[TReq any, TRes any](base Handler[TReq, TRes], mws ...HandlerMiddleware[TReq, TRes]) Handler[TReq, TRes] {
 	if base == nil {
-		return invalidExecutor[Req, Res](configError("base executor is nil"))
+		return invalidHandler[TReq, TRes](configError("base handler is nil"))
 	}
 
 	for index := len(mws) - 1; index >= 0; index-- {
@@ -25,7 +25,7 @@ func Apply[Req any, Res any](base Executor[Req, Res], mws ...Middleware[Req, Res
 
 		base = middleware(base)
 		if base == nil {
-			return invalidExecutor[Req, Res](configError("middleware returned nil executor"))
+			return invalidHandler[TReq, TRes](configError("middleware returned nil handler"))
 		}
 	}
 

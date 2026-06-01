@@ -21,8 +21,8 @@ func (noopFind) Find(ctx context.Context, filter any, opts ...*options.FindOptio
 	return nil, errors.New("noop")
 }
 
-func ExampleNewFindExecutor_withRetryIf() {
-	base := routerymongo.NewFindExecutor(noopFind{})
+func ExampleNewFindHandler_withRetryIf() {
+	base := routerymongo.NewFindHandler(noopFind{})
 	executor := routery.Apply(
 		base,
 		routery.RetryIf[routerymongo.FindRequest, *mongo.Cursor](
@@ -31,7 +31,7 @@ func ExampleNewFindExecutor_withRetryIf() {
 			routerymongo.DefaultRetryPolicy[routerymongo.FindRequest],
 		),
 	)
-	_, err := executor.Execute(context.Background(), routerymongo.FindRequest{Filter: map[string]any{}})
+	_, err := executor.Handle(context.Background(), routerymongo.FindRequest{Filter: map[string]any{}})
 	fmt.Println(err != nil)
 	// Output: true
 }

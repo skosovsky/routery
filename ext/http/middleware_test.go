@@ -37,19 +37,19 @@ func TestTimeoutBodyReadableAfterReturn(t *testing.T) {
 	}
 
 	executor := routery.Apply(
-		NewExecutor(server.Client()),
+		NewHandler(server.Client()),
 		Timeout(time.Second),
 	)
 
-	response, executeErr := executor.Execute(context.Background(), request)
+	result, executeErr := executor.Handle(context.Background(), request)
 	if executeErr != nil {
 		t.Fatalf("execute returned unexpected error: %v", executeErr)
 	}
 	t.Cleanup(func() {
-		_ = response.Body.Close()
+		_ = result.Payload.Body.Close()
 	})
 
-	body, readErr := io.ReadAll(response.Body)
+	body, readErr := io.ReadAll(result.Payload.Body)
 	if readErr != nil {
 		t.Fatalf("failed to read response body: %v", readErr)
 	}
@@ -62,28 +62,28 @@ func TestTimeoutCancelOnBodyClose(t *testing.T) {
 	t.Parallel()
 
 	done := make(chan struct{})
-	base := routery.ExecutorFunc[*stdhttp.Request, *stdhttp.Response](
-		func(ctx context.Context, _ *stdhttp.Request) (*stdhttp.Response, error) {
+	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
+		func(ctx context.Context, _ *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
 			go func() {
 				<-ctx.Done()
 				close(done)
 			}()
 
-			return &stdhttp.Response{
+			return routery.Handled(&stdhttp.Response{
 				StatusCode: stdhttp.StatusOK,
 				Body:       io.NopCloser(strings.NewReader("body")),
-			}, nil
+			}), nil
 		},
 	)
 
-	response, err := Timeout(time.Second)(base).Execute(
+	result, err := Timeout(time.Second)(base).Handle(
 		context.Background(),
 		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
 	)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if closeErr := response.Body.Close(); closeErr != nil {
+	if closeErr := result.Payload.Body.Close(); closeErr != nil {
 		t.Fatalf("close returned unexpected error: %v", closeErr)
 	}
 
@@ -95,18 +95,18 @@ func TestTimeoutCancelOnError(t *testing.T) {
 
 	done := make(chan struct{})
 	wantErr := errors.New("network failed")
-	base := routery.ExecutorFunc[*stdhttp.Request, *stdhttp.Response](
-		func(ctx context.Context, _ *stdhttp.Request) (*stdhttp.Response, error) {
+	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
+		func(ctx context.Context, _ *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
 			go func() {
 				<-ctx.Done()
 				close(done)
 			}()
 
-			return nil, wantErr
+			return routery.RouteResult[*stdhttp.Response]{}, wantErr
 		},
 	)
 
-	_, err := Timeout(time.Second)(base).Execute(
+	_, err := Timeout(time.Second)(base).Handle(
 		context.Background(),
 		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
 	)
@@ -121,28 +121,28 @@ func TestTimeoutNoBodyResponseCancelsImmediately(t *testing.T) {
 	t.Parallel()
 
 	done := make(chan struct{})
-	base := routery.ExecutorFunc[*stdhttp.Request, *stdhttp.Response](
-		func(ctx context.Context, _ *stdhttp.Request) (*stdhttp.Response, error) {
+	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
+		func(ctx context.Context, _ *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
 			go func() {
 				<-ctx.Done()
 				close(done)
 			}()
 
-			return &stdhttp.Response{
+			return routery.Handled(&stdhttp.Response{
 				StatusCode: stdhttp.StatusNoContent,
 				Body:       stdhttp.NoBody,
-			}, nil
+			}), nil
 		},
 	)
 
-	response, err := Timeout(time.Second)(base).Execute(
+	result, err := Timeout(time.Second)(base).Handle(
 		context.Background(),
 		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
 	)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if response.Body != stdhttp.NoBody {
+	if result.Payload.Body != stdhttp.NoBody {
 		t.Fatal("expected no body sentinel")
 	}
 
@@ -152,26 +152,26 @@ func TestTimeoutNoBodyResponseCancelsImmediately(t *testing.T) {
 func TestTimeoutDoubleCloseSafe(t *testing.T) {
 	t.Parallel()
 
-	base := routery.ExecutorFunc[*stdhttp.Request, *stdhttp.Response](
-		func(context.Context, *stdhttp.Request) (*stdhttp.Response, error) {
-			return &stdhttp.Response{
+	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
+		func(context.Context, *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
+			return routery.Handled(&stdhttp.Response{
 				StatusCode: stdhttp.StatusOK,
 				Body:       io.NopCloser(strings.NewReader("body")),
-			}, nil
+			}), nil
 		},
 	)
 
-	response, err := Timeout(time.Second)(base).Execute(
+	result, err := Timeout(time.Second)(base).Handle(
 		context.Background(),
 		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
 	)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if closeErr := response.Body.Close(); closeErr != nil {
+	if closeErr := result.Payload.Body.Close(); closeErr != nil {
 		t.Fatalf("first close returned unexpected error: %v", closeErr)
 	}
-	if closeErr := response.Body.Close(); closeErr != nil {
+	if closeErr := result.Payload.Body.Close(); closeErr != nil {
 		t.Fatalf("second close returned unexpected error: %v", closeErr)
 	}
 }
@@ -205,8 +205,8 @@ func TestTimeoutCancelOnPanicInNext(t *testing.T) {
 	const panicValue = "boom"
 
 	done := make(chan struct{})
-	base := routery.ExecutorFunc[*stdhttp.Request, *stdhttp.Response](
-		func(ctx context.Context, _ *stdhttp.Request) (*stdhttp.Response, error) {
+	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
+		func(ctx context.Context, _ *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
 			go func() {
 				<-ctx.Done()
 				close(done)
@@ -225,7 +225,7 @@ func TestTimeoutCancelOnPanicInNext(t *testing.T) {
 		assertClosed(t, done)
 	}()
 
-	_, _ = Timeout(time.Second)(base).Execute(
+	_, _ = Timeout(time.Second)(base).Handle(
 		context.Background(),
 		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
 	)
@@ -235,10 +235,10 @@ func TestTimeoutCancelOnPanicInNext(t *testing.T) {
 func TestTimeoutZeroPassesThrough(t *testing.T) {
 	t.Parallel()
 
-	base := &recordingExecutor{}
+	base := &recordingHandler{}
 	wrapped := Timeout(0)(base)
 	if wrapped != base {
-		t.Fatal("expected zero timeout to return the original executor")
+		t.Fatal("expected zero timeout to return the original handler")
 	}
 }
 
@@ -246,24 +246,24 @@ func TestTimeoutDoesNotCloneRequestShadowGuard(t *testing.T) {
 	t.Parallel()
 
 	request := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
-	base := routery.ExecutorFunc[*stdhttp.Request, *stdhttp.Response](
-		func(_ context.Context, got *stdhttp.Request) (*stdhttp.Response, error) {
+	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
+		func(_ context.Context, got *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
 			if got != request {
 				t.Fatal("timeout middleware cloned the request")
 			}
 
-			return &stdhttp.Response{
+			return routery.Handled(&stdhttp.Response{
 				StatusCode: stdhttp.StatusNoContent,
 				Body:       stdhttp.NoBody,
-			}, nil
+			}), nil
 		},
 	)
 
-	response, err := Timeout(time.Second)(base).Execute(context.Background(), request)
+	result, err := Timeout(time.Second)(base).Handle(context.Background(), request)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if response.Body != stdhttp.NoBody {
+	if result.Payload.Body != stdhttp.NoBody {
 		t.Fatal("expected no body sentinel")
 	}
 }
@@ -306,20 +306,20 @@ func TestTimeoutWithRetryIfPost503NoGetBodyBodyReplayed(t *testing.T) {
 	request.GetBody = nil
 
 	executor := routery.Apply(
-		NewExecutor(server.Client()),
+		NewHandler(server.Client()),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
 		Timeout(time.Second),
 	)
 
-	response, executeErr := executor.Execute(context.Background(), request)
+	result, executeErr := executor.Handle(context.Background(), request)
 	if executeErr != nil {
 		t.Fatalf("execute returned unexpected error: %v", executeErr)
 	}
 	t.Cleanup(func() {
-		_ = response.Body.Close()
+		_ = result.Payload.Body.Close()
 	})
 
-	body, readErr := io.ReadAll(response.Body)
+	body, readErr := io.ReadAll(result.Payload.Body)
 	if readErr != nil {
 		t.Fatalf("failed to read response body: %v", readErr)
 	}
@@ -347,14 +347,14 @@ func assertClosed(t *testing.T, done <-chan struct{}) {
 	}
 }
 
-type recordingExecutor struct{}
+type recordingHandler struct{}
 
-func (executor *recordingExecutor) Execute(
-	context.Context,
-	*stdhttp.Request,
-) (*stdhttp.Response, error) {
-	return &stdhttp.Response{
+func (handler *recordingHandler) Handle(
+	_ context.Context,
+	_ *stdhttp.Request,
+) (routery.RouteResult[*stdhttp.Response], error) {
+	return routery.Handled(&stdhttp.Response{
 		StatusCode: stdhttp.StatusOK,
 		Body:       io.NopCloser(strings.NewReader("ok")),
-	}, nil
+	}), nil
 }

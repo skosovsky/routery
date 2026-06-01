@@ -67,52 +67,52 @@ func (err *ExecutionError) Unwrap() error {
 	return err.Err
 }
 
-// NewDBQueryExecutor adapts a [sql.DB] query operation to a routery executor.
-func NewDBQueryExecutor[Req any](
+// NewDBQueryHandler adapts a [sql.DB] query operation to a routery handler.
+func NewDBQueryHandler[Req any](
 	db *sql.DB,
 	extractor StatementExtractor[Req],
-) routery.Executor[Req, *sql.Rows] {
+) routery.Handler[Req, *sql.Rows] {
 	if db == nil {
-		return invalidExecutor[Req, *sql.Rows](configError("db is nil"))
+		return invalidHandler[Req, *sql.Rows](configError("db is nil"))
 	}
 
-	return newQueryExecutor[Req](db, false, extractor)
+	return newQueryHandler[Req](db, false, extractor)
 }
 
-// NewDBExecExecutor adapts a [sql.DB] exec operation to a routery executor.
-func NewDBExecExecutor[Req any](
+// NewDBExecHandler adapts a [sql.DB] exec operation to a routery handler.
+func NewDBExecHandler[Req any](
 	db *sql.DB,
 	extractor StatementExtractor[Req],
-) routery.Executor[Req, sql.Result] {
+) routery.Handler[Req, sql.Result] {
 	if db == nil {
-		return invalidExecutor[Req, sql.Result](configError("db is nil"))
+		return invalidHandler[Req, sql.Result](configError("db is nil"))
 	}
 
-	return newExecExecutor[Req](db, false, extractor)
+	return newExecHandler[Req](db, false, extractor)
 }
 
-// NewTxQueryExecutor adapts a [sql.Tx] query operation to a routery executor.
-func NewTxQueryExecutor[Req any](
+// NewTxQueryHandler adapts a [sql.Tx] query operation to a routery handler.
+func NewTxQueryHandler[Req any](
 	tx *sql.Tx,
 	extractor StatementExtractor[Req],
-) routery.Executor[Req, *sql.Rows] {
+) routery.Handler[Req, *sql.Rows] {
 	if tx == nil {
-		return invalidExecutor[Req, *sql.Rows](configError("tx is nil"))
+		return invalidHandler[Req, *sql.Rows](configError("tx is nil"))
 	}
 
-	return newQueryExecutor[Req](tx, true, extractor)
+	return newQueryHandler[Req](tx, true, extractor)
 }
 
-// NewTxExecExecutor adapts a [sql.Tx] exec operation to a routery executor.
-func NewTxExecExecutor[Req any](
+// NewTxExecHandler adapts a [sql.Tx] exec operation to a routery handler.
+func NewTxExecHandler[Req any](
 	tx *sql.Tx,
 	extractor StatementExtractor[Req],
-) routery.Executor[Req, sql.Result] {
+) routery.Handler[Req, sql.Result] {
 	if tx == nil {
-		return invalidExecutor[Req, sql.Result](configError("tx is nil"))
+		return invalidHandler[Req, sql.Result](configError("tx is nil"))
 	}
 
-	return newExecExecutor[Req](tx, true, extractor)
+	return newExecHandler[Req](tx, true, extractor)
 }
 
 type queryRunner interface {
@@ -123,62 +123,62 @@ type execRunner interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
-func newQueryExecutor[Req any](
+func newQueryHandler[Req any](
 	runner queryRunner,
 	inTransaction bool,
 	extractor StatementExtractor[Req],
-) routery.Executor[Req, *sql.Rows] {
+) routery.Handler[Req, *sql.Rows] {
 	if extractor == nil {
-		return invalidExecutor[Req, *sql.Rows](configError("statement extractor is nil"))
+		return invalidHandler[Req, *sql.Rows](configError("statement extractor is nil"))
 	}
 
-	return routery.ExecutorFunc[Req, *sql.Rows](
-		func(ctx context.Context, req Req) (*sql.Rows, error) {
+	return routery.HandlerFunc[Req, *sql.Rows](
+		func(ctx context.Context, req Req) (routery.RouteResult[*sql.Rows], error) {
 			query, args, err := extractor(ctx, req)
 			if err != nil {
-				return nil, err
+				return routery.RouteResult[*sql.Rows]{}, err
 			}
 
 			rows, queryErr := runner.QueryContext(ctx, query, args...)
 			if queryErr != nil {
-				return nil, &ExecutionError{
+				return routery.RouteResult[*sql.Rows]{}, &ExecutionError{
 					Operation:     OperationQuery,
 					InTransaction: inTransaction,
 					Err:           queryErr,
 				}
 			}
 
-			return rows, nil
+			return routery.Handled(rows), nil
 		},
 	)
 }
 
-func newExecExecutor[Req any](
+func newExecHandler[Req any](
 	runner execRunner,
 	inTransaction bool,
 	extractor StatementExtractor[Req],
-) routery.Executor[Req, sql.Result] {
+) routery.Handler[Req, sql.Result] {
 	if extractor == nil {
-		return invalidExecutor[Req, sql.Result](configError("statement extractor is nil"))
+		return invalidHandler[Req, sql.Result](configError("statement extractor is nil"))
 	}
 
-	return routery.ExecutorFunc[Req, sql.Result](
-		func(ctx context.Context, req Req) (sql.Result, error) {
+	return routery.HandlerFunc[Req, sql.Result](
+		func(ctx context.Context, req Req) (routery.RouteResult[sql.Result], error) {
 			query, args, err := extractor(ctx, req)
 			if err != nil {
-				return nil, err
+				return routery.RouteResult[sql.Result]{}, err
 			}
 
 			result, execErr := runner.ExecContext(ctx, query, args...)
 			if execErr != nil {
-				return nil, &ExecutionError{
+				return routery.RouteResult[sql.Result]{}, &ExecutionError{
 					Operation:     OperationExec,
 					InTransaction: inTransaction,
 					Err:           execErr,
 				}
 			}
 
-			return result, nil
+			return routery.Handled(result), nil
 		},
 	)
 }
@@ -187,9 +187,8 @@ func configError(detail string) error {
 	return fmt.Errorf("%w: %s", routery.ErrInvalidConfig, detail)
 }
 
-func invalidExecutor[Req any, Res any](err error) routery.Executor[Req, Res] {
-	return routery.ExecutorFunc[Req, Res](func(context.Context, Req) (Res, error) {
-		var zero Res
-		return zero, err
+func invalidHandler[Req any, Res any](err error) routery.Handler[Req, Res] {
+	return routery.HandlerFunc[Req, Res](func(context.Context, Req) (routery.RouteResult[Res], error) {
+		return routery.RouteResult[Res]{}, err
 	})
 }

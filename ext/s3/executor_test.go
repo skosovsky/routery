@@ -30,23 +30,23 @@ func (f *fakePut) PutObject(
 	return f.out, f.err
 }
 
-func TestNewPutObjectExecutorNil(t *testing.T) {
+func TestNewPutObjectHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewPutObjectExecutor(nil)
-	_, err := ex.Execute(context.Background(), &s3.PutObjectInput{})
+	ex := NewPutObjectHandler(nil)
+	_, err := ex.Handle(context.Background(), &s3.PutObjectInput{})
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
 }
 
-func TestNewPutObjectExecutorOK(t *testing.T) {
+func TestNewPutObjectHandlerOK(t *testing.T) {
 	t.Parallel()
 	fp := &fakePut{out: &s3.PutObjectOutput{}}
-	ex := NewPutObjectExecutor(fp)
+	ex := NewPutObjectHandler(fp)
 	b, k := "b", "k"
-	out, err := ex.Execute(context.Background(), &s3.PutObjectInput{Bucket: &b, Key: &k})
-	if err != nil || out != fp.out {
-		t.Fatalf("out=%v err=%v", out, err)
+	outResult, err := ex.Handle(context.Background(), &s3.PutObjectInput{Bucket: &b, Key: &k})
+	if err != nil || outResult.Payload != fp.out {
+		t.Fatalf("out=%v err=%v", outResult.Payload, err)
 	}
 	if fp.calls.Load() != 1 {
 		t.Fatalf("calls=%d", fp.calls.Load())
@@ -71,35 +71,35 @@ func (f *fakeGet) GetObject(
 	return f.out, f.err
 }
 
-func TestNewGetObjectExecutorNil(t *testing.T) {
+func TestNewGetObjectHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewGetObjectExecutor(nil)
-	_, err := ex.Execute(context.Background(), &s3.GetObjectInput{})
+	ex := NewGetObjectHandler(nil)
+	_, err := ex.Handle(context.Background(), &s3.GetObjectInput{})
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
 }
 
-func TestNewGetObjectExecutorOK(t *testing.T) {
+func TestNewGetObjectHandlerOK(t *testing.T) {
 	t.Parallel()
 	fg := &fakeGet{out: &s3.GetObjectOutput{}}
-	ex := NewGetObjectExecutor(fg)
+	ex := NewGetObjectHandler(fg)
 	b, k := "b", "k"
-	out, err := ex.Execute(context.Background(), &s3.GetObjectInput{Bucket: &b, Key: &k})
-	if err != nil || out != fg.out {
-		t.Fatalf("out=%v err=%v", out, err)
+	outResult, err := ex.Handle(context.Background(), &s3.GetObjectInput{Bucket: &b, Key: &k})
+	if err != nil || outResult.Payload != fg.out {
+		t.Fatalf("out=%v err=%v", outResult.Payload, err)
 	}
 }
 
 func TestPutExecutorConcurrent(t *testing.T) {
 	t.Parallel()
 	fp := &fakePut{out: &s3.PutObjectOutput{}}
-	ex := NewPutObjectExecutor(fp)
+	ex := NewPutObjectHandler(fp)
 	const workers = 128
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			_, e := ex.Execute(context.Background(), &s3.PutObjectInput{})
+			_, e := ex.Handle(context.Background(), &s3.PutObjectInput{})
 			if e != nil {
 				t.Error(e)
 			}

@@ -9,8 +9,8 @@ import (
 	routerygrpc "github.com/skosovsky/routery/ext/grpc"
 )
 
-func ExampleNewUnaryExecutor_withRetryIf() {
-	base := routerygrpc.NewUnaryExecutor(func(_ context.Context, x int) (int, error) {
+func ExampleNewUnaryHandler_withRetryIf() {
+	base := routerygrpc.NewUnaryHandler(func(_ context.Context, x int) (int, error) {
 		if x < 0 {
 			return 0, errors.New("negative")
 		}
@@ -22,11 +22,11 @@ func ExampleNewUnaryExecutor_withRetryIf() {
 		routery.RetryIf[int, int](2, 0, func(context.Context, int, error) bool { return false }),
 	)
 
-	v, err := executor.Execute(context.Background(), 21)
+	vResult, err := executor.Handle(context.Background(), 21)
 	if err != nil {
 		fmt.Println("err", err)
 		return
 	}
-	fmt.Println(v)
+	fmt.Println(vResult.Payload)
 	// Output: 42
 }

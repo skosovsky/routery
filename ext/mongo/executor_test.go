@@ -26,23 +26,23 @@ func (f *fakeFind) Find(ctx context.Context, filter any, opts ...*options.FindOp
 	return nil, f.err
 }
 
-func TestNewFindExecutorNil(t *testing.T) {
+func TestNewFindHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewFindExecutor(nil)
-	_, err := ex.Execute(context.Background(), FindRequest{Filter: map[string]any{}})
+	ex := NewFindHandler(nil)
+	_, err := ex.Handle(context.Background(), FindRequest{Filter: map[string]any{}})
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
 }
 
-func TestNewFindExecutorDelegates(t *testing.T) {
+func TestNewFindHandlerDelegates(t *testing.T) {
 	t.Parallel()
 	ff := &fakeFind{}
-	ex := NewFindExecutor(ff)
+	ex := NewFindHandler(ff)
 	want := errors.New("boom")
 	ff.err = want
 	opts := options.Find().SetBatchSize(2)
-	_, err := ex.Execute(context.Background(), FindRequest{Filter: map[string]any{"a": 1}, Options: opts})
+	_, err := ex.Handle(context.Background(), FindRequest{Filter: map[string]any{"a": 1}, Options: opts})
 	if !errors.Is(err, want) {
 		t.Fatalf("got %v", err)
 	}
@@ -51,14 +51,14 @@ func TestNewFindExecutorDelegates(t *testing.T) {
 	}
 }
 
-func TestNewInsertOneExecutorDelegates(t *testing.T) {
+func TestNewInsertOneHandlerDelegates(t *testing.T) {
 	t.Parallel()
 	fi := &fakeInsert{}
-	ex := NewInsertOneExecutor(fi)
+	ex := NewInsertOneHandler(fi)
 	want := errors.New("ins")
 	fi.err = want
 	opt := options.InsertOne().SetComment("c")
-	_, err := ex.Execute(context.Background(), InsertOneRequest{Document: map[string]int{"x": 1}, Options: opt})
+	_, err := ex.Handle(context.Background(), InsertOneRequest{Document: map[string]int{"x": 1}, Options: opt})
 	if !errors.Is(err, want) {
 		t.Fatalf("got %v", err)
 	}
@@ -67,14 +67,14 @@ func TestNewInsertOneExecutorDelegates(t *testing.T) {
 	}
 }
 
-func TestNewUpdateOneExecutorDelegates(t *testing.T) {
+func TestNewUpdateOneHandlerDelegates(t *testing.T) {
 	t.Parallel()
 	fu := &fakeUpdate{}
-	ex := NewUpdateOneExecutor(fu)
+	ex := NewUpdateOneHandler(fu)
 	want := errors.New("up")
 	fu.err = want
 	opt := options.Update().SetUpsert(true)
-	_, err := ex.Execute(context.Background(), UpdateOneRequest{
+	_, err := ex.Handle(context.Background(), UpdateOneRequest{
 		Filter:  map[string]any{},
 		Update:  map[string]any{"$set": map[string]int{"a": 1}},
 		Options: opt,
@@ -87,14 +87,14 @@ func TestNewUpdateOneExecutorDelegates(t *testing.T) {
 	}
 }
 
-func TestNewDeleteOneExecutorDelegates(t *testing.T) {
+func TestNewDeleteOneHandlerDelegates(t *testing.T) {
 	t.Parallel()
 	fd := &fakeDelete{}
-	ex := NewDeleteOneExecutor(fd)
+	ex := NewDeleteOneHandler(fd)
 	want := errors.New("del")
 	fd.err = want
 	opt := options.Delete().SetComment("d")
-	_, err := ex.Execute(context.Background(), DeleteOneRequest{Filter: map[string]any{}, Options: opt})
+	_, err := ex.Handle(context.Background(), DeleteOneRequest{Filter: map[string]any{}, Options: opt})
 	if !errors.Is(err, want) {
 		t.Fatalf("got %v", err)
 	}
@@ -121,10 +121,10 @@ func (f *fakeInsert) InsertOne(
 	return f.res, f.err
 }
 
-func TestNewInsertOneExecutorNil(t *testing.T) {
+func TestNewInsertOneHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewInsertOneExecutor(nil)
-	_, err := ex.Execute(context.Background(), InsertOneRequest{Document: map[string]any{}})
+	ex := NewInsertOneHandler(nil)
+	_, err := ex.Handle(context.Background(), InsertOneRequest{Document: map[string]any{}})
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
@@ -150,10 +150,10 @@ func (f *fakeUpdate) UpdateOne(
 	return f.res, f.err
 }
 
-func TestNewUpdateOneExecutorNil(t *testing.T) {
+func TestNewUpdateOneHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewUpdateOneExecutor(nil)
-	_, err := ex.Execute(context.Background(), UpdateOneRequest{})
+	ex := NewUpdateOneHandler(nil)
+	_, err := ex.Handle(context.Background(), UpdateOneRequest{})
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
@@ -177,10 +177,10 @@ func (f *fakeDelete) DeleteOne(
 	return f.res, f.err
 }
 
-func TestNewDeleteOneExecutorNil(t *testing.T) {
+func TestNewDeleteOneHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewDeleteOneExecutor(nil)
-	_, err := ex.Execute(context.Background(), DeleteOneRequest{})
+	ex := NewDeleteOneHandler(nil)
+	_, err := ex.Handle(context.Background(), DeleteOneRequest{})
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
@@ -189,12 +189,12 @@ func TestNewDeleteOneExecutorNil(t *testing.T) {
 func TestFindExecutorConcurrent(t *testing.T) {
 	t.Parallel()
 	ff := &fakeFind{}
-	ex := NewFindExecutor(ff)
+	ex := NewFindHandler(ff)
 	const workers = 128
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			_, _ = ex.Execute(context.Background(), FindRequest{Filter: map[string]any{}})
+			_, _ = ex.Handle(context.Background(), FindRequest{Filter: map[string]any{}})
 		})
 	}
 	wg.Wait()

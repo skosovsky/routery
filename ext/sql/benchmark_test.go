@@ -11,7 +11,7 @@ import (
 
 func BenchmarkDBQueryExecutor(b *testing.B) {
 	db, _ := openTestDB(b, testDriverConfig{})
-	executor := NewDBQueryExecutor(
+	executor := NewDBQueryHandler(
 		db,
 		func(_ context.Context, req statementRequest) (string, []any, error) {
 			return req.Query, req.Args, nil
@@ -27,11 +27,11 @@ func BenchmarkDBQueryExecutor(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		rows, err := executor.Execute(context.Background(), request)
+		rowsResult, err := executor.Handle(context.Background(), request)
 		if err != nil {
 			b.Fatalf("unexpected query error: %v", err)
 		}
-		if rowsErr := drainRows(rows); rowsErr != nil {
+		if rowsErr := drainRows(rowsResult.Payload); rowsErr != nil {
 			b.Fatalf("unexpected rows error: %v", rowsErr)
 		}
 	}
@@ -39,7 +39,7 @@ func BenchmarkDBQueryExecutor(b *testing.B) {
 
 func BenchmarkDBExecExecutor(b *testing.B) {
 	db, _ := openTestDB(b, testDriverConfig{})
-	executor := NewDBExecExecutor(
+	executor := NewDBExecHandler(
 		db,
 		func(_ context.Context, req statementRequest) (string, []any, error) {
 			return req.Query, req.Args, nil
@@ -55,12 +55,12 @@ func BenchmarkDBExecExecutor(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		result, err := executor.Execute(context.Background(), request)
+		execResult, err := executor.Handle(context.Background(), request)
 		if err != nil {
 			b.Fatalf("unexpected exec error: %v", err)
 		}
 
-		if _, rowsErr := result.RowsAffected(); rowsErr != nil {
+		if _, rowsErr := execResult.Payload.RowsAffected(); rowsErr != nil {
 			b.Fatalf("unexpected rows affected error: %v", rowsErr)
 		}
 	}
@@ -83,7 +83,7 @@ func BenchmarkDefaultRetryPolicyBadConn(b *testing.B) {
 func BenchmarkRetryIfWithDBExecutor(b *testing.B) {
 	db, _ := openTestDB(b, testDriverConfig{execErr: driver.ErrBadConn})
 	executor := routery.Apply(
-		NewDBExecExecutor(
+		NewDBExecHandler(
 			db,
 			func(_ context.Context, req statementRequest) (string, []any, error) {
 				return req.Query, req.Args, nil
@@ -101,7 +101,7 @@ func BenchmarkRetryIfWithDBExecutor(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		_, _ = executor.Execute(context.Background(), request)
+		_, _ = executor.Handle(context.Background(), request)
 	}
 }
 

@@ -22,11 +22,18 @@ func RetryUnaryInterceptor(opts InterceptorOptions) grpc.UnaryClientInterceptor 
 	attempts, backoff, pred := normalizeInterceptorOpts(opts)
 
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, callOpts ...grpc.CallOption) error {
-		base := routery.ExecutorFunc[any, struct{}](func(ctx context.Context, reqVal any) (struct{}, error) {
-			return struct{}{}, invoker(ctx, method, reqVal, reply, cc, callOpts...)
-		})
+		base := routery.HandlerFunc[any, struct{}](
+			func(ctx context.Context, reqVal any) (routery.RouteResult[struct{}], error) {
+				err := invoker(ctx, method, reqVal, reply, cc, callOpts...)
+				if err != nil {
+					return routery.RouteResult[struct{}]{}, err
+				}
+
+				return routery.Handled(struct{}{}), nil
+			},
+		)
 		wrapped := routery.RetryIf[any, struct{}](attempts, backoff, pred)(base)
-		_, err := wrapped.Execute(ctx, req)
+		_, err := wrapped.Handle(ctx, req)
 		return err
 	}
 }
@@ -51,13 +58,23 @@ func RetryStreamInterceptor(opts InterceptorOptions) grpc.StreamClientIntercepto
 		streamer grpc.Streamer,
 		callOpts ...grpc.CallOption,
 	) (grpc.ClientStream, error) {
-		streamExec := routery.ExecutorFunc[struct{}, grpc.ClientStream](
-			func(ctx context.Context, _ struct{}) (grpc.ClientStream, error) {
-				return streamer(ctx, desc, cc, method, callOpts...)
+		streamHandler := routery.HandlerFunc[struct{}, grpc.ClientStream](
+			func(ctx context.Context, _ struct{}) (routery.RouteResult[grpc.ClientStream], error) {
+				stream, err := streamer(ctx, desc, cc, method, callOpts...)
+				if err != nil {
+					return routery.RouteResult[grpc.ClientStream]{}, err
+				}
+
+				return routery.Handled(stream), nil
 			},
 		)
-		wrapped := routery.RetryIf[struct{}, grpc.ClientStream](attempts, backoff, streamPred)(streamExec)
-		return wrapped.Execute(ctx, struct{}{})
+		wrapped := routery.RetryIf[struct{}, grpc.ClientStream](attempts, backoff, streamPred)(streamHandler)
+		result, err := wrapped.Handle(ctx, struct{}{})
+		if err != nil {
+			return nil, err
+		}
+
+		return result.Payload, nil
 	}
 }
 

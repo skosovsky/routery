@@ -4,55 +4,62 @@ import (
 	"context"
 	"fmt"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/skosovsky/routery"
 )
 
-// Tracing records one span around each call to the wrapped executor.
+// Tracing records one span around each call to the wrapped handler.
 //
 // If tracer is nil, the returned middleware always fails with [routery.ErrInvalidConfig].
-// If spanName is empty, "routery.execute" is used.
+// If spanName is empty, "routery.handle" is used.
 //
 // Request attributes are not inferred from generic Req; wrap this middleware or
 // start child spans in application code when you need rich attributes.
-func Tracing[Req any, Res any](tracer trace.Tracer, spanName string) routery.Middleware[Req, Res] {
+func Tracing[Req any, Res any](tracer trace.Tracer, spanName string) routery.HandlerMiddleware[Req, Res] {
 	if tracer == nil {
-		return func(routery.Executor[Req, Res]) routery.Executor[Req, Res] {
-			return routery.ExecutorFunc[Req, Res](func(context.Context, Req) (Res, error) {
-				var zero Res
-				return zero, fmt.Errorf("%w: nil OpenTelemetry tracer", routery.ErrInvalidConfig)
+		return func(routery.Handler[Req, Res]) routery.Handler[Req, Res] {
+			return routery.HandlerFunc[Req, Res](func(context.Context, Req) (routery.RouteResult[Res], error) {
+				return routery.RouteResult[Res]{}, fmt.Errorf("%w: nil OpenTelemetry tracer", routery.ErrInvalidConfig)
 			})
 		}
 	}
 
 	name := spanName
 	if name == "" {
-		name = "routery.execute"
+		name = "routery.handle"
 	}
 
-	return func(next routery.Executor[Req, Res]) routery.Executor[Req, Res] {
+	return func(next routery.Handler[Req, Res]) routery.Handler[Req, Res] {
 		if next == nil {
-			return routery.ExecutorFunc[Req, Res](func(context.Context, Req) (Res, error) {
-				var zero Res
-				return zero, fmt.Errorf(
-					"%w: tracing middleware requires non-nil next executor",
+			return routery.HandlerFunc[Req, Res](func(context.Context, Req) (routery.RouteResult[Res], error) {
+				return routery.RouteResult[Res]{}, fmt.Errorf(
+					"%w: tracing middleware requires non-nil next handler",
 					routery.ErrInvalidConfig,
 				)
 			})
 		}
 
-		return routery.ExecutorFunc[Req, Res](func(ctx context.Context, req Req) (Res, error) {
+		return routery.HandlerFunc[Req, Res](func(ctx context.Context, req Req) (routery.RouteResult[Res], error) {
 			ctx, span := tracer.Start(ctx, name)
 			defer span.End()
 
-			res, err := next.Execute(ctx, req)
+			result, err := next.Handle(ctx, req)
 			if err != nil {
 				span.RecordError(err)
 				span.SetStatus(codes.Error, err.Error())
+			} else {
+				span.SetAttributes(
+					attribute.String("routery.status", string(result.Status)),
+				)
+				if result.ReasonCode != "" {
+					span.SetAttributes(attribute.String("routery.reason_code", result.ReasonCode))
+				}
 			}
-			return res, err
+
+			return result, err
 		})
 	}
 }

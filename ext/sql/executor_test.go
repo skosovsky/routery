@@ -20,41 +20,41 @@ func statementExtractor(_ context.Context, req statementRequest) (string, []any,
 	return req.Query, req.Args, nil
 }
 
-func TestNewDBQueryExecutorInvalidConfig(t *testing.T) {
+func TestNewDBQueryHandlerInvalidConfig(t *testing.T) {
 	t.Parallel()
 
-	executor := NewDBQueryExecutor[statementRequest](nil, statementExtractor)
-	rows, err := executor.Execute(context.Background(), statementRequest{})
-	assertRowsCheckedAndClosed(t, rows)
+	executor := NewDBQueryHandler[statementRequest](nil, statementExtractor)
+	rowsResult, err := executor.Handle(context.Background(), statementRequest{})
+	assertRowsCheckedAndClosed(t, rowsResult.Payload)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewDBExecExecutorInvalidConfig(t *testing.T) {
+func TestNewDBExecHandlerInvalidConfig(t *testing.T) {
 	t.Parallel()
 
 	db, _ := openTestDB(t, testDriverConfig{})
-	executor := NewDBExecExecutor[statementRequest](db, nil)
+	executor := NewDBExecHandler[statementRequest](db, nil)
 
-	_, err := executor.Execute(context.Background(), statementRequest{})
+	_, err := executor.Handle(context.Background(), statementRequest{})
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewTxQueryExecutorInvalidConfig(t *testing.T) {
+func TestNewTxQueryHandlerInvalidConfig(t *testing.T) {
 	t.Parallel()
 
-	executor := NewTxQueryExecutor[statementRequest](nil, statementExtractor)
-	rows, err := executor.Execute(context.Background(), statementRequest{})
-	assertRowsCheckedAndClosed(t, rows)
+	executor := NewTxQueryHandler[statementRequest](nil, statementExtractor)
+	rowsResult, err := executor.Handle(context.Background(), statementRequest{})
+	assertRowsCheckedAndClosed(t, rowsResult.Payload)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewTxExecExecutorInvalidConfig(t *testing.T) {
+func TestNewTxExecHandlerInvalidConfig(t *testing.T) {
 	t.Parallel()
 
 	db, _ := openTestDB(t, testDriverConfig{})
@@ -66,20 +66,20 @@ func TestNewTxExecExecutorInvalidConfig(t *testing.T) {
 		_ = tx.Rollback()
 	})
 
-	executor := NewTxExecExecutor[statementRequest](tx, nil)
-	_, executeErr := executor.Execute(context.Background(), statementRequest{})
+	executor := NewTxExecHandler[statementRequest](tx, nil)
+	_, executeErr := executor.Handle(context.Background(), statementRequest{})
 	if !errors.Is(executeErr, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", executeErr)
 	}
 }
 
-func TestNewDBQueryExecutorExecutesQuery(t *testing.T) {
+func TestNewDBQueryHandlerExecutesQuery(t *testing.T) {
 	t.Parallel()
 
 	db, state := openTestDB(t, testDriverConfig{})
-	executor := NewDBQueryExecutor[statementRequest](db, statementExtractor)
+	executor := NewDBQueryHandler[statementRequest](db, statementExtractor)
 
-	rows, err := executor.Execute(context.Background(), statementRequest{
+	rowsResult, err := executor.Handle(context.Background(), statementRequest{
 		Query: "SELECT value FROM widgets WHERE id = ?",
 		Args:  []any{1},
 	})
@@ -87,12 +87,12 @@ func TestNewDBQueryExecutorExecutesQuery(t *testing.T) {
 		t.Fatalf("unexpected execute error: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = rows.Close()
+		_ = rowsResult.Payload.Close()
 	})
-	if !rows.Next() {
+	if !rowsResult.Payload.Next() {
 		t.Fatal("expected at least one row")
 	}
-	if rowsErr := rows.Err(); rowsErr != nil {
+	if rowsErr := rowsResult.Payload.Err(); rowsErr != nil {
 		t.Fatalf("unexpected rows error: %v", rowsErr)
 	}
 
@@ -108,13 +108,13 @@ func TestNewDBQueryExecutorExecutesQuery(t *testing.T) {
 	}
 }
 
-func TestNewDBExecExecutorExecutesStatement(t *testing.T) {
+func TestNewDBExecHandlerExecutesStatement(t *testing.T) {
 	t.Parallel()
 
 	db, state := openTestDB(t, testDriverConfig{})
-	executor := NewDBExecExecutor[statementRequest](db, statementExtractor)
+	executor := NewDBExecHandler[statementRequest](db, statementExtractor)
 
-	result, err := executor.Execute(context.Background(), statementRequest{
+	execResult, err := executor.Handle(context.Background(), statementRequest{
 		Query: "UPDATE widgets SET active = ? WHERE id = ?",
 		Args:  []any{true, 2},
 	})
@@ -122,7 +122,7 @@ func TestNewDBExecExecutorExecutesStatement(t *testing.T) {
 		t.Fatalf("unexpected execute error: %v", err)
 	}
 
-	rowsAffected, rowsAffectedErr := result.RowsAffected()
+	rowsAffected, rowsAffectedErr := execResult.Payload.RowsAffected()
 	if rowsAffectedErr != nil {
 		t.Fatalf("unexpected rows affected error: %v", rowsAffectedErr)
 	}
@@ -142,7 +142,7 @@ func TestNewDBExecExecutorExecutesStatement(t *testing.T) {
 	}
 }
 
-func TestNewTxQueryExecutorExecutesQuery(t *testing.T) {
+func TestNewTxQueryHandlerExecutesQuery(t *testing.T) {
 	t.Parallel()
 
 	db, state := openTestDB(t, testDriverConfig{})
@@ -154,20 +154,20 @@ func TestNewTxQueryExecutorExecutesQuery(t *testing.T) {
 		_ = tx.Rollback()
 	})
 
-	executor := NewTxQueryExecutor[statementRequest](tx, statementExtractor)
-	rows, executeErr := executor.Execute(context.Background(), statementRequest{
+	executor := NewTxQueryHandler[statementRequest](tx, statementExtractor)
+	rowsResult, executeErr := executor.Handle(context.Background(), statementRequest{
 		Query: "SELECT value FROM widgets",
 	})
 	if executeErr != nil {
 		t.Fatalf("unexpected execute error: %v", executeErr)
 	}
 	t.Cleanup(func() {
-		_ = rows.Close()
+		_ = rowsResult.Payload.Close()
 	})
-	if !rows.Next() {
+	if !rowsResult.Payload.Next() {
 		t.Fatal("expected at least one row")
 	}
-	if rowsErr := rows.Err(); rowsErr != nil {
+	if rowsErr := rowsResult.Payload.Err(); rowsErr != nil {
 		t.Fatalf("unexpected rows error: %v", rowsErr)
 	}
 
@@ -179,7 +179,7 @@ func TestNewTxQueryExecutorExecutesQuery(t *testing.T) {
 	}
 }
 
-func TestNewTxExecExecutorExecutesStatement(t *testing.T) {
+func TestNewTxExecHandlerExecutesStatement(t *testing.T) {
 	t.Parallel()
 
 	db, state := openTestDB(t, testDriverConfig{})
@@ -191,8 +191,8 @@ func TestNewTxExecExecutorExecutesStatement(t *testing.T) {
 		_ = tx.Rollback()
 	})
 
-	executor := NewTxExecExecutor[statementRequest](tx, statementExtractor)
-	result, executeErr := executor.Execute(context.Background(), statementRequest{
+	executor := NewTxExecHandler[statementRequest](tx, statementExtractor)
+	execResult, executeErr := executor.Handle(context.Background(), statementRequest{
 		Query: "DELETE FROM widgets WHERE id = ?",
 		Args:  []any{3},
 	})
@@ -200,7 +200,7 @@ func TestNewTxExecExecutorExecutesStatement(t *testing.T) {
 		t.Fatalf("unexpected execute error: %v", executeErr)
 	}
 
-	rowsAffected, rowsAffectedErr := result.RowsAffected()
+	rowsAffected, rowsAffectedErr := execResult.Payload.RowsAffected()
 	if rowsAffectedErr != nil {
 		t.Fatalf("unexpected rows affected error: %v", rowsAffectedErr)
 	}
@@ -217,14 +217,14 @@ func TestExtractorErrorIsReturnedWithoutWrapping(t *testing.T) {
 
 	db, _ := openTestDB(t, testDriverConfig{})
 	extractorErr := errors.New("extractor failed")
-	executor := NewDBExecExecutor[statementRequest](
+	executor := NewDBExecHandler[statementRequest](
 		db,
 		func(context.Context, statementRequest) (string, []any, error) {
 			return "", nil, extractorErr
 		},
 	)
 
-	_, err := executor.Execute(context.Background(), statementRequest{})
+	_, err := executor.Handle(context.Background(), statementRequest{})
 	if !errors.Is(err, extractorErr) {
 		t.Fatalf("expected extractor error, got %v", err)
 	}
@@ -240,12 +240,12 @@ func TestExecutionErrorWrapsQueryFailure(t *testing.T) {
 
 	queryErr := errors.New("query failed")
 	db, _ := openTestDB(t, testDriverConfig{queryErr: queryErr})
-	executor := NewDBQueryExecutor[statementRequest](db, statementExtractor)
+	executor := NewDBQueryHandler[statementRequest](db, statementExtractor)
 
-	rows, err := executor.Execute(context.Background(), statementRequest{
+	rowsResult, err := executor.Handle(context.Background(), statementRequest{
 		Query: "SELECT value FROM widgets",
 	})
-	assertRowsCheckedAndClosed(t, rows)
+	assertRowsCheckedAndClosed(t, rowsResult.Payload)
 	if err == nil {
 		t.Fatal("expected execute error")
 	}
@@ -277,8 +277,8 @@ func TestExecutionErrorWrapsTxFailure(t *testing.T) {
 		_ = tx.Rollback()
 	})
 
-	executor := NewTxExecExecutor[statementRequest](tx, statementExtractor)
-	_, executeErr := executor.Execute(context.Background(), statementRequest{
+	executor := NewTxExecHandler[statementRequest](tx, statementExtractor)
+	_, executeErr := executor.Handle(context.Background(), statementRequest{
 		Query: "UPDATE widgets SET active = ? WHERE id = ?",
 		Args:  []any{false, 1},
 	})
@@ -302,9 +302,9 @@ func TestRowsMustBeClosedByCaller(t *testing.T) {
 	t.Parallel()
 
 	db, state := openTestDB(t, testDriverConfig{})
-	executor := NewDBQueryExecutor[statementRequest](db, statementExtractor)
+	executor := NewDBQueryHandler[statementRequest](db, statementExtractor)
 
-	rows, err := executor.Execute(context.Background(), statementRequest{
+	rowsResult, err := executor.Handle(context.Background(), statementRequest{
 		Query: "SELECT value FROM widgets",
 	})
 	if err != nil {
@@ -313,7 +313,7 @@ func TestRowsMustBeClosedByCaller(t *testing.T) {
 	if state.rowsClosedCount() != 0 {
 		t.Fatalf("unexpected rows closed count before close: got %d, want 0", state.rowsClosedCount())
 	}
-	closeRowsAndCheck(t, rows)
+	closeRowsAndCheck(t, rowsResult.Payload)
 	if state.rowsClosedCount() != 1 {
 		t.Fatalf("unexpected rows closed count after close: got %d, want 1", state.rowsClosedCount())
 	}
@@ -323,12 +323,12 @@ func TestContextCancellationIsNotRetriedByDefaultPolicy(t *testing.T) {
 	t.Parallel()
 
 	db, _ := openTestDB(t, testDriverConfig{block: true})
-	executor := NewDBExecExecutor[statementRequest](db, statementExtractor)
+	executor := NewDBExecHandler[statementRequest](db, statementExtractor)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := executor.Execute(ctx, statementRequest{
+	_, err := executor.Handle(ctx, statementRequest{
 		Query: "UPDATE widgets SET active = ? WHERE id = ?",
 		Args:  []any{false, 1},
 	})

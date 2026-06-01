@@ -12,22 +12,22 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-func TestNewExecutorNilClient(t *testing.T) {
+func TestNewHandlerNilClient(t *testing.T) {
 	t.Parallel()
-	ex := NewExecutor[int, string](
+	ex := NewHandler[int, string](
 		nil,
 		func(context.Context, int) (redis.Cmder, error) {
 			panic("unreachable")
 		},
 		nil,
 	)
-	_, err := ex.Execute(context.Background(), 0)
+	_, err := ex.Handle(context.Background(), 0)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewExecutorNilExtractor(t *testing.T) {
+func TestNewHandlerNilExtractor(t *testing.T) {
 	t.Parallel()
 	mr, err := miniredis.Run()
 	if err != nil {
@@ -36,14 +36,14 @@ func TestNewExecutorNilExtractor(t *testing.T) {
 	t.Cleanup(mr.Close)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 
-	ex := NewExecutor[int, string](client, nil, func(context.Context, redis.Cmder) (string, error) { return "", nil })
-	_, err = ex.Execute(context.Background(), 0)
+	ex := NewHandler[int, string](client, nil, func(context.Context, redis.Cmder) (string, error) { return "", nil })
+	_, err = ex.Handle(context.Background(), 0)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewExecutorNilScan(t *testing.T) {
+func TestNewHandlerNilScan(t *testing.T) {
 	t.Parallel()
 	mr, err := miniredis.Run()
 	if err != nil {
@@ -52,16 +52,16 @@ func TestNewExecutorNilScan(t *testing.T) {
 	t.Cleanup(mr.Close)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 
-	ex := NewExecutor[int, string](client, func(context.Context, int) (redis.Cmder, error) {
+	ex := NewHandler[int, string](client, func(context.Context, int) (redis.Cmder, error) {
 		return client.Get(context.Background(), "k"), nil
 	}, nil)
-	_, err = ex.Execute(context.Background(), 0)
+	_, err = ex.Handle(context.Background(), 0)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewExecutorGetHit(t *testing.T) {
+func TestNewHandlerGetHit(t *testing.T) {
 	t.Parallel()
 	mr, err := miniredis.Run()
 	if err != nil {
@@ -71,17 +71,17 @@ func TestNewExecutorGetHit(t *testing.T) {
 	_ = mr.Set("k", "v")
 
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	ex := NewStringExecutor(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
+	ex := NewStringHandler(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
 		return client.Get(ctx, "k"), nil
 	})
 
-	got, err := ex.Execute(context.Background(), 0)
-	if err != nil || got != "v" {
-		t.Fatalf("got %q err=%v", got, err)
+	gotResult, err := ex.Handle(context.Background(), 0)
+	if err != nil || gotResult.Payload != "v" {
+		t.Fatalf("got %q err=%v", gotResult.Payload, err)
 	}
 }
 
-func TestNewExecutorGetMiss(t *testing.T) {
+func TestNewHandlerGetMiss(t *testing.T) {
 	t.Parallel()
 	mr, err := miniredis.Run()
 	if err != nil {
@@ -90,17 +90,17 @@ func TestNewExecutorGetMiss(t *testing.T) {
 	t.Cleanup(mr.Close)
 
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	ex := NewStringExecutor(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
+	ex := NewStringHandler(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
 		return client.Get(ctx, "missing"), nil
 	})
 
-	_, err = ex.Execute(context.Background(), 0)
+	_, err = ex.Handle(context.Background(), 0)
 	if !errors.Is(err, redis.Nil) {
 		t.Fatalf("want redis.Nil, got %v", err)
 	}
 }
 
-func TestNewExecutorExtractorError(t *testing.T) {
+func TestNewHandlerExtractorError(t *testing.T) {
 	t.Parallel()
 	mr, err := miniredis.Run()
 	if err != nil {
@@ -110,16 +110,16 @@ func TestNewExecutorExtractorError(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 
 	want := errors.New("extract fail")
-	ex := NewStringExecutor(client, func(context.Context, int) (redis.Cmder, error) {
+	ex := NewStringHandler(client, func(context.Context, int) (redis.Cmder, error) {
 		return nil, want
 	})
-	_, err = ex.Execute(context.Background(), 0)
+	_, err = ex.Handle(context.Background(), 0)
 	if !errors.Is(err, want) {
 		t.Fatalf("got %v", err)
 	}
 }
 
-func TestNewExecutorNilCmdFromExtractor(t *testing.T) {
+func TestNewHandlerNilCmdFromExtractor(t *testing.T) {
 	t.Parallel()
 	mr, err := miniredis.Run()
 	if err != nil {
@@ -128,16 +128,16 @@ func TestNewExecutorNilCmdFromExtractor(t *testing.T) {
 	t.Cleanup(mr.Close)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 
-	ex := NewStringExecutor(client, func(context.Context, int) (redis.Cmder, error) {
+	ex := NewStringHandler(client, func(context.Context, int) (redis.Cmder, error) {
 		return nil, nil //nolint:nilnil // exercise nil command after successful extraction
 	})
-	_, err = ex.Execute(context.Background(), 0)
+	_, err = ex.Handle(context.Background(), 0)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewStringExecutorWrongCmdType(t *testing.T) {
+func TestNewStringHandlerWrongCmdType(t *testing.T) {
 	t.Parallel()
 	mr, err := miniredis.Run()
 	if err != nil {
@@ -146,10 +146,10 @@ func TestNewStringExecutorWrongCmdType(t *testing.T) {
 	t.Cleanup(mr.Close)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 
-	ex := NewStringExecutor(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
+	ex := NewStringHandler(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
 		return client.Set(ctx, "a", "b", 0), nil
 	})
-	_, err = ex.Execute(context.Background(), 0)
+	_, err = ex.Handle(context.Background(), 0)
 	if err == nil || err.Error() == "" {
 		t.Fatalf("expected type error, got %v", err)
 	}
@@ -165,7 +165,7 @@ func TestExecutorConcurrent(t *testing.T) {
 	_ = mr.Set("n", "0")
 
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	ex := NewStringExecutor(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
+	ex := NewStringHandler(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
 		return client.Get(ctx, "n"), nil
 	})
 
@@ -173,7 +173,7 @@ func TestExecutorConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			_, e := ex.Execute(context.Background(), 0)
+			_, e := ex.Handle(context.Background(), 0)
 			if e != nil {
 				t.Error(e)
 			}

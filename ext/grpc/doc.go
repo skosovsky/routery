@@ -1,5 +1,5 @@
 // Package routerygrpc provides gRPC client helpers for [github.com/skosovsky/routery]:
-// unary executors, client interceptors with [github.com/skosovsky/routery.RetryIf], and a
+// unary handlers, client interceptors with [github.com/skosovsky/routery.RetryIf], and a
 // [DefaultRetryPolicy] based on [google.golang.org/grpc/status] codes.
 //
 // DeadlineExceeded from the server is retried only when the request value implements

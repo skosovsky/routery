@@ -24,20 +24,20 @@ func (f *fakeWriter) WriteMessages(ctx context.Context, msgs ...kafka.Message) e
 	return f.err
 }
 
-func TestNewProducerExecutorNil(t *testing.T) {
+func TestNewProducerHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewProducerExecutor(nil)
-	_, err := ex.Execute(context.Background(), PublishRequest{})
+	ex := NewProducerHandler(nil)
+	_, err := ex.Handle(context.Background(), PublishRequest{})
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewProducerExecutorEmptyMessages(t *testing.T) {
+func TestNewProducerHandlerEmptyMessages(t *testing.T) {
 	t.Parallel()
 	fw := &fakeWriter{}
-	ex := NewProducerExecutor(fw)
-	_, err := ex.Execute(context.Background(), PublishRequest{})
+	ex := NewProducerHandler(fw)
+	_, err := ex.Handle(context.Background(), PublishRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,11 +46,11 @@ func TestNewProducerExecutorEmptyMessages(t *testing.T) {
 	}
 }
 
-func TestNewProducerExecutorWrites(t *testing.T) {
+func TestNewProducerHandlerWrites(t *testing.T) {
 	t.Parallel()
 	fw := &fakeWriter{}
-	ex := NewProducerExecutor(fw)
-	_, err := ex.Execute(context.Background(), PublishRequest{
+	ex := NewProducerHandler(fw)
+	_, err := ex.Handle(context.Background(), PublishRequest{
 		Messages: []kafka.Message{{Value: []byte("a")}},
 	})
 	if err != nil {
@@ -61,12 +61,12 @@ func TestNewProducerExecutorWrites(t *testing.T) {
 	}
 }
 
-func TestNewProducerExecutorPropagatesError(t *testing.T) {
+func TestNewProducerHandlerPropagatesError(t *testing.T) {
 	t.Parallel()
 	want := errors.New("fail")
 	fw := &fakeWriter{err: want}
-	ex := NewProducerExecutor(fw)
-	_, err := ex.Execute(context.Background(), PublishRequest{
+	ex := NewProducerHandler(fw)
+	_, err := ex.Handle(context.Background(), PublishRequest{
 		Messages: []kafka.Message{{}},
 	})
 	if !errors.Is(err, want) {
@@ -77,12 +77,12 @@ func TestNewProducerExecutorPropagatesError(t *testing.T) {
 func TestProducerExecutorConcurrent(t *testing.T) {
 	t.Parallel()
 	fw := &fakeWriter{}
-	ex := NewProducerExecutor(fw)
+	ex := NewProducerHandler(fw)
 	const workers = 128
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			_, e := ex.Execute(context.Background(), PublishRequest{
+			_, e := ex.Handle(context.Background(), PublishRequest{
 				Messages: []kafka.Message{{Value: []byte("x")}},
 			})
 			if e != nil {

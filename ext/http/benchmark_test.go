@@ -24,16 +24,16 @@ func BenchmarkNewExecutorSuccess(b *testing.B) {
 		b.Fatalf("failed to create request: %v", err)
 	}
 
-	executor := NewExecutor(server.Client())
+	executor := NewHandler(server.Client())
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for range b.N {
-		response, executeErr := executor.Execute(context.Background(), request)
+		result, executeErr := executor.Handle(context.Background(), request)
 		if executeErr != nil {
 			b.Fatalf("unexpected execute error: %v", executeErr)
 		}
-		_ = response.Body.Close()
+		_ = result.Payload.Body.Close()
 	}
 }
 
@@ -87,7 +87,7 @@ func BenchmarkRetryIfHTTP503Then200(b *testing.B) {
 		b.Fatalf("failed to create request: %v", err)
 	}
 	executor := routery.Apply(
-		NewExecutor(client),
+		NewHandler(client),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
 	)
 
@@ -95,11 +95,11 @@ func BenchmarkRetryIfHTTP503Then200(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		response, executeErr := executor.Execute(context.Background(), request)
+		result, executeErr := executor.Handle(context.Background(), request)
 		if executeErr != nil {
 			b.Fatalf("unexpected execute error: %v", executeErr)
 		}
-		_ = response.Body.Close()
+		_ = result.Payload.Body.Close()
 	}
 }
 

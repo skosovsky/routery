@@ -30,66 +30,86 @@ type DeleteOneRunner interface {
 	DeleteOne(ctx context.Context, filter any, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error)
 }
 
-// NewFindExecutor wraps coll.Find.
-func NewFindExecutor(coll FindRunner) routery.Executor[FindRequest, *mongo.Cursor] {
+// NewFindHandler wraps coll.Find.
+func NewFindHandler(coll FindRunner) routery.Handler[FindRequest, *mongo.Cursor] {
 	if coll == nil {
-		return invalidFindExecutor(nilCollectionError())
+		return invalidFindHandler(nilCollectionError())
 	}
-	return routery.ExecutorFunc[FindRequest, *mongo.Cursor](
-		func(ctx context.Context, req FindRequest) (*mongo.Cursor, error) {
+	return routery.HandlerFunc[FindRequest, *mongo.Cursor](
+		func(ctx context.Context, req FindRequest) (routery.RouteResult[*mongo.Cursor], error) {
 			var opts []*options.FindOptions
 			if req.Options != nil {
 				opts = append(opts, req.Options)
 			}
-			return coll.Find(ctx, req.Filter, opts...)
+			cursor, err := coll.Find(ctx, req.Filter, opts...)
+			if err != nil {
+				return routery.RouteResult[*mongo.Cursor]{}, err
+			}
+
+			return routery.Handled(cursor), nil
 		},
 	)
 }
 
-// NewInsertOneExecutor wraps coll.InsertOne.
-func NewInsertOneExecutor(coll InsertOneRunner) routery.Executor[InsertOneRequest, *mongo.InsertOneResult] {
+// NewInsertOneHandler wraps coll.InsertOne.
+func NewInsertOneHandler(coll InsertOneRunner) routery.Handler[InsertOneRequest, *mongo.InsertOneResult] {
 	if coll == nil {
-		return invalidInsertExecutor(nilCollectionError())
+		return invalidInsertHandler(nilCollectionError())
 	}
-	return routery.ExecutorFunc[InsertOneRequest, *mongo.InsertOneResult](
-		func(ctx context.Context, req InsertOneRequest) (*mongo.InsertOneResult, error) {
+	return routery.HandlerFunc[InsertOneRequest, *mongo.InsertOneResult](
+		func(ctx context.Context, req InsertOneRequest) (routery.RouteResult[*mongo.InsertOneResult], error) {
 			var opts []*options.InsertOneOptions
 			if req.Options != nil {
 				opts = append(opts, req.Options)
 			}
-			return coll.InsertOne(ctx, req.Document, opts...)
+			result, err := coll.InsertOne(ctx, req.Document, opts...)
+			if err != nil {
+				return routery.RouteResult[*mongo.InsertOneResult]{}, err
+			}
+
+			return routery.Handled(result), nil
 		},
 	)
 }
 
-// NewUpdateOneExecutor wraps coll.UpdateOne.
-func NewUpdateOneExecutor(coll UpdateOneRunner) routery.Executor[UpdateOneRequest, *mongo.UpdateResult] {
+// NewUpdateOneHandler wraps coll.UpdateOne.
+func NewUpdateOneHandler(coll UpdateOneRunner) routery.Handler[UpdateOneRequest, *mongo.UpdateResult] {
 	if coll == nil {
-		return invalidUpdateExecutor(nilCollectionError())
+		return invalidUpdateHandler(nilCollectionError())
 	}
-	return routery.ExecutorFunc[UpdateOneRequest, *mongo.UpdateResult](
-		func(ctx context.Context, req UpdateOneRequest) (*mongo.UpdateResult, error) {
+	return routery.HandlerFunc[UpdateOneRequest, *mongo.UpdateResult](
+		func(ctx context.Context, req UpdateOneRequest) (routery.RouteResult[*mongo.UpdateResult], error) {
 			var opts []*options.UpdateOptions
 			if req.Options != nil {
 				opts = append(opts, req.Options)
 			}
-			return coll.UpdateOne(ctx, req.Filter, req.Update, opts...)
+			result, err := coll.UpdateOne(ctx, req.Filter, req.Update, opts...)
+			if err != nil {
+				return routery.RouteResult[*mongo.UpdateResult]{}, err
+			}
+
+			return routery.Handled(result), nil
 		},
 	)
 }
 
-// NewDeleteOneExecutor wraps coll.DeleteOne.
-func NewDeleteOneExecutor(coll DeleteOneRunner) routery.Executor[DeleteOneRequest, *mongo.DeleteResult] {
+// NewDeleteOneHandler wraps coll.DeleteOne.
+func NewDeleteOneHandler(coll DeleteOneRunner) routery.Handler[DeleteOneRequest, *mongo.DeleteResult] {
 	if coll == nil {
-		return invalidDeleteExecutor(nilCollectionError())
+		return invalidDeleteHandler(nilCollectionError())
 	}
-	return routery.ExecutorFunc[DeleteOneRequest, *mongo.DeleteResult](
-		func(ctx context.Context, req DeleteOneRequest) (*mongo.DeleteResult, error) {
+	return routery.HandlerFunc[DeleteOneRequest, *mongo.DeleteResult](
+		func(ctx context.Context, req DeleteOneRequest) (routery.RouteResult[*mongo.DeleteResult], error) {
 			var opts []*options.DeleteOptions
 			if req.Options != nil {
 				opts = append(opts, req.Options)
 			}
-			return coll.DeleteOne(ctx, req.Filter, opts...)
+			result, err := coll.DeleteOne(ctx, req.Filter, opts...)
+			if err != nil {
+				return routery.RouteResult[*mongo.DeleteResult]{}, err
+			}
+
+			return routery.Handled(result), nil
 		},
 	)
 }
@@ -98,34 +118,34 @@ func nilCollectionError() error {
 	return fmt.Errorf("%w: collection is nil", routery.ErrInvalidConfig)
 }
 
-func invalidFindExecutor(err error) routery.Executor[FindRequest, *mongo.Cursor] {
-	return routery.ExecutorFunc[FindRequest, *mongo.Cursor](
-		func(context.Context, FindRequest) (*mongo.Cursor, error) {
-			return nil, err
+func invalidFindHandler(err error) routery.Handler[FindRequest, *mongo.Cursor] {
+	return routery.HandlerFunc[FindRequest, *mongo.Cursor](
+		func(context.Context, FindRequest) (routery.RouteResult[*mongo.Cursor], error) {
+			return routery.RouteResult[*mongo.Cursor]{}, err
 		},
 	)
 }
 
-func invalidInsertExecutor(err error) routery.Executor[InsertOneRequest, *mongo.InsertOneResult] {
-	return routery.ExecutorFunc[InsertOneRequest, *mongo.InsertOneResult](
-		func(context.Context, InsertOneRequest) (*mongo.InsertOneResult, error) {
-			return nil, err
+func invalidInsertHandler(err error) routery.Handler[InsertOneRequest, *mongo.InsertOneResult] {
+	return routery.HandlerFunc[InsertOneRequest, *mongo.InsertOneResult](
+		func(context.Context, InsertOneRequest) (routery.RouteResult[*mongo.InsertOneResult], error) {
+			return routery.RouteResult[*mongo.InsertOneResult]{}, err
 		},
 	)
 }
 
-func invalidUpdateExecutor(err error) routery.Executor[UpdateOneRequest, *mongo.UpdateResult] {
-	return routery.ExecutorFunc[UpdateOneRequest, *mongo.UpdateResult](
-		func(context.Context, UpdateOneRequest) (*mongo.UpdateResult, error) {
-			return nil, err
+func invalidUpdateHandler(err error) routery.Handler[UpdateOneRequest, *mongo.UpdateResult] {
+	return routery.HandlerFunc[UpdateOneRequest, *mongo.UpdateResult](
+		func(context.Context, UpdateOneRequest) (routery.RouteResult[*mongo.UpdateResult], error) {
+			return routery.RouteResult[*mongo.UpdateResult]{}, err
 		},
 	)
 }
 
-func invalidDeleteExecutor(err error) routery.Executor[DeleteOneRequest, *mongo.DeleteResult] {
-	return routery.ExecutorFunc[DeleteOneRequest, *mongo.DeleteResult](
-		func(context.Context, DeleteOneRequest) (*mongo.DeleteResult, error) {
-			return nil, err
+func invalidDeleteHandler(err error) routery.Handler[DeleteOneRequest, *mongo.DeleteResult] {
+	return routery.HandlerFunc[DeleteOneRequest, *mongo.DeleteResult](
+		func(context.Context, DeleteOneRequest) (routery.RouteResult[*mongo.DeleteResult], error) {
+			return routery.RouteResult[*mongo.DeleteResult]{}, err
 		},
 	)
 }

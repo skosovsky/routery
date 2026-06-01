@@ -1,7 +1,7 @@
-// Package routeryredis adapts [github.com/redis/go-redis/v9] clients to [github.com/skosovsky/routery.Executor].
+// Package routeryredis adapts [github.com/redis/go-redis/v9] clients to [github.com/skosovsky/routery.Handler].
 //
-// Use [NewExecutor] with a [CommandExtractor] that returns a [redis.Cmder] bound to the same
-// [redis.Client] (for example the result of [redis.Client.Get]). The executor evaluates the
+// Use [NewHandler] with a [CommandExtractor] that returns a [redis.Cmder] bound to the same
+// [redis.Client] (for example the result of [redis.Client.Get]). The handler evaluates the
 // command via [redis.Cmder.Err] and then maps the result with [ScanResult].
 //
 // Cache misses: [redis.Nil] is returned as-is and [DefaultRetryPolicy] never retries it so a

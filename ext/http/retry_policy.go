@@ -27,7 +27,7 @@ func IsRetryableStatus(code int) bool {
 //
 // It retries transport failures and selected HTTP status codes while keeping
 // request-method and request-body replay safety checks. The original request
-// passed to the executor must be supplied as req (the same value RetryIf forwards).
+// passed to the handler must be supplied as req (the same value RetryIf forwards).
 func DefaultRetryPolicy(ctx context.Context, req *stdhttp.Request, err error) bool {
 	_ = ctx
 	if err == nil {

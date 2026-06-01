@@ -13,12 +13,12 @@ func ExampleApply() {
 	attempts := 0
 	retryErr := errors.New("retry")
 
-	base := routery.ExecutorFunc[int, string](func(context.Context, int) (string, error) {
+	base := routery.HandlerFunc[int, string](func(context.Context, int) (routery.RouteResult[string], error) {
 		attempts++
 		if attempts == 1 {
-			return "", retryErr
+			return routery.RouteResult[string]{}, retryErr
 		}
-		return "ok", nil
+		return routery.Handled("ok"), nil
 	})
 
 	executor := routery.Apply(
@@ -28,23 +28,23 @@ func ExampleApply() {
 		}),
 	)
 
-	response, err := executor.Execute(context.Background(), 0)
-	fmt.Println(response, err == nil, attempts)
+	result, err := executor.Handle(context.Background(), 0)
+	fmt.Println(result.Payload, err == nil, attempts)
 	// Output: ok true 2
 }
 
 func ExampleFirstCompleted() {
 	executor := routery.FirstCompleted[int, string](
-		routery.ExecutorFunc[int, string](func(context.Context, int) (string, error) {
-			return "", errors.New("failed")
+		routery.HandlerFunc[int, string](func(context.Context, int) (routery.RouteResult[string], error) {
+			return routery.RouteResult[string]{}, errors.New("failed")
 		}),
-		routery.ExecutorFunc[int, string](func(context.Context, int) (string, error) {
-			return "fast", nil
+		routery.HandlerFunc[int, string](func(context.Context, int) (routery.RouteResult[string], error) {
+			return routery.Handled("fast"), nil
 		}),
 	)
 
-	response, err := executor.Execute(context.Background(), 0)
-	fmt.Println(response, err == nil)
+	result, err := executor.Handle(context.Background(), 0)
+	fmt.Println(result.Payload, err == nil)
 	// Output: fast true
 }
 
@@ -54,16 +54,16 @@ func ExampleWeightBasedRouter() {
 			return 1, nil
 		},
 		2,
-		routery.ExecutorFunc[int, string](func(context.Context, int) (string, error) {
-			return "light", nil
+		routery.HandlerFunc[int, string](func(context.Context, int) (routery.RouteResult[string], error) {
+			return routery.Handled("light"), nil
 		}),
-		routery.ExecutorFunc[int, string](func(context.Context, int) (string, error) {
-			return "heavy", nil
+		routery.HandlerFunc[int, string](func(context.Context, int) (routery.RouteResult[string], error) {
+			return routery.Handled("heavy"), nil
 		}),
 	)
 
-	response, err := executor.Execute(context.Background(), 0)
-	fmt.Println(response, err == nil)
+	result, err := executor.Handle(context.Background(), 0)
+	fmt.Println(result.Payload, err == nil)
 	// Output: light true
 }
 
@@ -77,9 +77,9 @@ func ExampleApply_middlewareOrder() {
 	retryErr := errors.New("retry")
 
 	perAttemptCalls := 0
-	perAttemptBase := routery.ExecutorFunc[int, string](func(context.Context, int) (string, error) {
+	perAttemptBase := routery.HandlerFunc[int, string](func(context.Context, int) (routery.RouteResult[string], error) {
 		perAttemptCalls++
-		return "", retryErr
+		return routery.RouteResult[string]{}, retryErr
 	})
 
 	perAttempt := routery.Apply(
@@ -90,13 +90,13 @@ func ExampleApply_middlewareOrder() {
 		routery.Timeout[int, string](timeout),
 	)
 
-	_, perAttemptErr := perAttempt.Execute(context.Background(), 0)
+	_, perAttemptErr := perAttempt.Handle(context.Background(), 0)
 	fmt.Println(perAttemptCalls, errors.Is(perAttemptErr, retryErr))
 
 	globalCalls := 0
-	globalBase := routery.ExecutorFunc[int, string](func(context.Context, int) (string, error) {
+	globalBase := routery.HandlerFunc[int, string](func(context.Context, int) (routery.RouteResult[string], error) {
 		globalCalls++
-		return "", retryErr
+		return routery.RouteResult[string]{}, retryErr
 	})
 
 	global := routery.Apply(
@@ -107,7 +107,7 @@ func ExampleApply_middlewareOrder() {
 		}),
 	)
 
-	_, globalErr := global.Execute(context.Background(), 0)
+	_, globalErr := global.Handle(context.Background(), 0)
 	fmt.Println(globalCalls, errors.Is(globalErr, context.DeadlineExceeded))
 	// Output:
 	// 3 true
@@ -116,8 +116,8 @@ func ExampleApply_middlewareOrder() {
 
 func ExampleCircuitBreaker() {
 	fail := errors.New("fail")
-	base := routery.ExecutorFunc[int, int](func(context.Context, int) (int, error) {
-		return 0, fail
+	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
+		return routery.RouteResult[int]{}, fail
 	})
 
 	executor := routery.Apply(
@@ -125,15 +125,15 @@ func ExampleCircuitBreaker() {
 		routery.CircuitBreaker[int, int](1, time.Hour, nil),
 	)
 
-	_, err1 := executor.Execute(context.Background(), 0)
-	_, err2 := executor.Execute(context.Background(), 0)
+	_, err1 := executor.Handle(context.Background(), 0)
+	_, err2 := executor.Handle(context.Background(), 0)
 	fmt.Println(errors.Is(err1, fail), errors.Is(err2, routery.ErrCircuitOpen))
 	// Output: true true
 }
 
 func ExampleBulkhead() {
-	base := routery.ExecutorFunc[string, int](func(context.Context, string) (int, error) {
-		return 7, nil
+	base := routery.HandlerFunc[string, int](func(context.Context, string) (routery.RouteResult[int], error) {
+		return routery.Handled(7), nil
 	})
 
 	executor := routery.Apply(
@@ -141,7 +141,7 @@ func ExampleBulkhead() {
 		routery.Bulkhead[string, int](2),
 	)
 
-	res, err := executor.Execute(context.Background(), "req")
-	fmt.Println(res, err == nil)
+	res, err := executor.Handle(context.Background(), "req")
+	fmt.Println(res.Payload, err == nil)
 	// Output: 7 true
 }

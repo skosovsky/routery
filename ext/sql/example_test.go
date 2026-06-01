@@ -9,7 +9,7 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-func ExampleNewDBQueryExecutor() {
+func ExampleNewDBQueryHandler() {
 	db, state, err := openTestDBWithName(uniqueDriverName("example-query"), testDriverConfig{})
 	if err != nil {
 		fmt.Println("unexpected", err)
@@ -21,19 +21,19 @@ func ExampleNewDBQueryExecutor() {
 		ID int
 	}
 
-	executor := NewDBQueryExecutor(
+	executor := NewDBQueryHandler(
 		db,
 		func(_ context.Context, req queryRequest) (string, []any, error) {
 			return "SELECT value FROM widgets WHERE id = ?", []any{req.ID}, nil
 		},
 	)
 
-	rows, executeErr := executor.Execute(context.Background(), queryRequest{ID: 1})
+	rowsResult, executeErr := executor.Handle(context.Background(), queryRequest{ID: 1})
 	if executeErr != nil {
 		fmt.Println("unexpected", executeErr)
 		return
 	}
-	if rowsErr := drainRowsForExample(rows); rowsErr != nil {
+	if rowsErr := drainRowsForExample(rowsResult.Payload); rowsErr != nil {
 		fmt.Println("unexpected", rowsErr)
 		return
 	}
@@ -67,13 +67,13 @@ func ExampleWeightBasedRouter_masterReplica() {
 		SQL string
 	}
 
-	primaryExecutor := NewDBQueryExecutor(
+	primaryExecutor := NewDBQueryHandler(
 		primaryDB,
 		func(_ context.Context, req queryRequest) (string, []any, error) {
 			return req.SQL, nil, nil
 		},
 	)
-	replicaExecutor := NewDBQueryExecutor(
+	replicaExecutor := NewDBQueryHandler(
 		replicaDB,
 		func(_ context.Context, req queryRequest) (string, []any, error) {
 			return req.SQL, nil, nil
@@ -89,26 +89,26 @@ func ExampleWeightBasedRouter_masterReplica() {
 		primaryExecutor,
 	)
 
-	shortRows, shortErr := router.Execute(context.Background(), queryRequest{
+	shortRowsResult, shortErr := router.Handle(context.Background(), queryRequest{
 		SQL: "SELECT value FROM widgets",
 	})
 	if shortErr != nil {
 		fmt.Println("unexpected", shortErr)
 		return
 	}
-	if rowsErr := drainRowsForExample(shortRows); rowsErr != nil {
+	if rowsErr := drainRowsForExample(shortRowsResult.Payload); rowsErr != nil {
 		fmt.Println("unexpected", rowsErr)
 		return
 	}
 
-	longRows, longErr := router.Execute(context.Background(), queryRequest{
+	longRowsResult, longErr := router.Handle(context.Background(), queryRequest{
 		SQL: "SELECT value FROM widgets WHERE tenant_id = ? AND active = ?",
 	})
 	if longErr != nil {
 		fmt.Println("unexpected", longErr)
 		return
 	}
-	if rowsErr := drainRowsForExample(longRows); rowsErr != nil {
+	if rowsErr := drainRowsForExample(longRowsResult.Payload); rowsErr != nil {
 		fmt.Println("unexpected", rowsErr)
 		return
 	}

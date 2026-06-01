@@ -21,8 +21,8 @@ func (stdoutWriter) WriteMessages(ctx context.Context, msgs ...kafka.Message) er
 	return nil
 }
 
-func ExampleNewProducerExecutor_withRetryIf() {
-	base := routerykafka.NewProducerExecutor(stdoutWriter{})
+func ExampleNewProducerHandler_withRetryIf() {
+	base := routerykafka.NewProducerHandler(stdoutWriter{})
 
 	executor := routery.Apply(
 		base,
@@ -33,7 +33,7 @@ func ExampleNewProducerExecutor_withRetryIf() {
 		),
 	)
 
-	_, err := executor.Execute(context.Background(), routerykafka.PublishRequest{
+	_, err := executor.Handle(context.Background(), routerykafka.PublishRequest{
 		Messages: []kafka.Message{{Value: []byte("ok")}},
 	})
 	if err != nil {

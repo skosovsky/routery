@@ -21,7 +21,7 @@ type circuitBreakerState struct {
 	probeInFlight bool
 }
 
-// CircuitBreaker wraps an executor with a fail-fast circuit breaker.
+// CircuitBreaker wraps a handler with a fail-fast circuit breaker.
 //
 // States: Closed (requests pass), Open (requests fail with [ErrCircuitOpen]),
 // HalfOpen (one probe request is allowed after resetTimeout).
@@ -31,39 +31,42 @@ type circuitBreakerState struct {
 // not prove the downstream recovered: the breaker stays HalfOpen so another
 // probe may run.
 //
+// Business route statuses never affect breaker counters. Only non-nil errors
+// returned from Handle can open the circuit.
+//
 // If isFailure is nil, any non-nil error counts as a failure for counting in
 // Closed except [context.Canceled] and [context.DeadlineExceeded].
-func CircuitBreaker[Req any, Res any](
+func CircuitBreaker[TReq any, TRes any](
 	failureThreshold int,
 	resetTimeout time.Duration,
 	isFailure func(error) bool,
-) Middleware[Req, Res] {
+) HandlerMiddleware[TReq, TRes] {
 	if failureThreshold < 1 {
-		return func(Executor[Req, Res]) Executor[Req, Res] {
-			return invalidExecutor[Req, Res](configError("circuit breaker failure threshold must be at least 1"))
+		return func(Handler[TReq, TRes]) Handler[TReq, TRes] {
+			return invalidHandler[TReq, TRes](configError("circuit breaker failure threshold must be at least 1"))
 		}
 	}
 	if resetTimeout < 0 {
-		return func(Executor[Req, Res]) Executor[Req, Res] {
-			return invalidExecutor[Req, Res](configError("circuit breaker reset timeout must be non-negative"))
+		return func(Handler[TReq, TRes]) Handler[TReq, TRes] {
+			return invalidHandler[TReq, TRes](configError("circuit breaker reset timeout must be non-negative"))
 		}
 	}
 
 	//nolint:exhaustruct // zero values are intentional for counters, mutex, and timestamps.
 	st := &circuitBreakerState{state: cbClosed}
-	return func(next Executor[Req, Res]) Executor[Req, Res] {
+	return func(next Handler[TReq, TRes]) Handler[TReq, TRes] {
 		if next == nil {
-			return invalidExecutor[Req, Res](configError("circuit breaker middleware requires non-nil next executor"))
+			return invalidHandler[TReq, TRes](configError("circuit breaker middleware requires non-nil next handler"))
 		}
 
-		return ExecutorFunc[Req, Res](func(ctx context.Context, req Req) (Res, error) {
+		return HandlerFunc[TReq, TRes](func(ctx context.Context, req TReq) (RouteResult[TRes], error) {
 			if err := st.beforeRequest(resetTimeout); err != nil {
-				return zeroValue[Res](), err
+				return zeroRouteResult[TRes](), err
 			}
 
-			res, err := next.Execute(ctx, req)
+			result, err := next.Handle(ctx, req)
 			st.afterRequest(err, isFailure, failureThreshold)
-			return res, err
+			return result, err
 		})
 	}
 }
@@ -121,7 +124,6 @@ func (st *circuitBreakerState) afterRequest(err error, isFailure func(error) boo
 			st.openedAt = time.Now()
 			st.failures = 0
 		}
-		// Non-fatal errors (e.g. client cancel/deadline): stay HalfOpen for a later probe.
 	}
 }
 
