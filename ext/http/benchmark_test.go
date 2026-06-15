@@ -12,7 +12,7 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-func BenchmarkNewExecutorSuccess(b *testing.B) {
+func BenchmarkNewRouteHandlerSuccess(b *testing.B) {
 	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
 		w.WriteHeader(stdhttp.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -24,16 +24,20 @@ func BenchmarkNewExecutorSuccess(b *testing.B) {
 		b.Fatalf("failed to create request: %v", err)
 	}
 
-	executor := NewHandler(server.Client())
+	handler := NewRouteHandler(server.Client())
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for range b.N {
-		result, executeErr := executor.Handle(context.Background(), request)
+		outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
+		if !outcome.HasPayload {
+			b.Fatal("expected route payload")
+		}
+		response := outcome.Payload
 		if executeErr != nil {
 			b.Fatalf("unexpected execute error: %v", executeErr)
 		}
-		_ = result.Payload.Body.Close()
+		_ = response.Body.Close()
 	}
 }
 
@@ -86,8 +90,8 @@ func BenchmarkRetryIfHTTP503Then200(b *testing.B) {
 	if err != nil {
 		b.Fatalf("failed to create request: %v", err)
 	}
-	executor := routery.Apply(
-		NewHandler(client),
+	handler := routery.ApplyRoute(
+		NewRouteHandler(client),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
 	)
 
@@ -95,11 +99,15 @@ func BenchmarkRetryIfHTTP503Then200(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		result, executeErr := executor.Handle(context.Background(), request)
+		outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
+		if !outcome.HasPayload {
+			b.Fatal("expected route payload")
+		}
+		response := outcome.Payload
 		if executeErr != nil {
 			b.Fatalf("unexpected execute error: %v", executeErr)
 		}
-		_ = result.Payload.Body.Close()
+		_ = response.Body.Close()
 	}
 }
 

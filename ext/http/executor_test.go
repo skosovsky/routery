@@ -14,27 +14,31 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-func TestNewHandlerReturnsConfigErrorForNilClient(t *testing.T) {
+func TestNewRouteHandlerReturnsConfigErrorForNilClient(t *testing.T) {
 	t.Parallel()
 
-	executor := NewHandler(nil)
-	_, err := executor.Handle(context.Background(), httptest.NewRequest(stdhttp.MethodGet, "/", nil))
+	handler := NewRouteHandler(nil)
+	_, err := routery.InvokeRouteHandler(
+		context.Background(),
+		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
+		handler,
+	)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewHandlerReturnsConfigErrorForNilRequest(t *testing.T) {
+func TestNewRouteHandlerReturnsConfigErrorForNilRequest(t *testing.T) {
 	t.Parallel()
 
-	executor := NewHandler(stdhttp.DefaultClient)
-	_, err := executor.Handle(context.Background(), nil)
+	handler := NewRouteHandler(stdhttp.DefaultClient)
+	_, err := routery.InvokeRouteHandler(context.Background(), nil, handler)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewHandlerReturnsResponseForSuccessStatus(t *testing.T) {
+func TestNewRouteHandlerReturnsResponseForSuccessStatus(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
@@ -49,19 +53,23 @@ func TestNewHandlerReturnsResponseForSuccessStatus(t *testing.T) {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	result, executeErr := NewHandler(client).Handle(context.Background(), request)
+	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, NewRouteHandler(client))
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	response := outcome.Payload
 	if executeErr != nil {
 		t.Fatalf("execute returned unexpected error: %v", executeErr)
 	}
 	t.Cleanup(func() {
-		_ = result.Payload.Body.Close()
+		_ = response.Body.Close()
 	})
-	if result.Payload.StatusCode != stdhttp.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", result.Payload.StatusCode, stdhttp.StatusOK)
+	if response.StatusCode != stdhttp.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", response.StatusCode, stdhttp.StatusOK)
 	}
 }
 
-func TestNewHandlerWrapsNon2xxAsStatusError(t *testing.T) {
+func TestNewRouteHandlerWrapsNon2xxAsStatusError(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
@@ -76,12 +84,12 @@ func TestNewHandlerWrapsNon2xxAsStatusError(t *testing.T) {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	result, executeErr := NewHandler(client).Handle(context.Background(), request)
+	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, NewRouteHandler(client))
 	if executeErr == nil {
 		t.Fatal("expected status error")
 	}
-	if result.Payload != nil {
-		t.Fatal("expected empty route result payload on status error")
+	if outcome.HasPayload {
+		t.Fatal("expected empty outcome on status error")
 	}
 
 	var statusErr *StatusError
@@ -252,17 +260,21 @@ func TestRetryIfWithDefaultRetryPolicyPost503NoGetBodyRetries(t *testing.T) {
 	}
 	request.GetBody = nil
 
-	executor := routery.Apply(
-		NewHandler(server.Client()),
+	handler := routery.ApplyRoute(
+		NewRouteHandler(server.Client()),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
 	)
 
-	result, executeErr := executor.Handle(context.Background(), request)
+	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	response := outcome.Payload
 	if executeErr != nil {
 		t.Fatalf("execute returned unexpected error: %v", executeErr)
 	}
 	t.Cleanup(func() {
-		_ = result.Payload.Body.Close()
+		_ = response.Body.Close()
 	})
 
 	if attempts.Load() != 2 {
@@ -276,7 +288,7 @@ func TestRetryIfWithDefaultRetryPolicyPost503NoGetBodyRetries(t *testing.T) {
 	}
 }
 
-func TestNewHandlerMaxReplayBodyBytesExceeded(t *testing.T) {
+func TestNewRouteHandlerMaxReplayBodyBytesExceeded(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -302,9 +314,10 @@ func TestNewHandlerMaxReplayBodyBytesExceeded(t *testing.T) {
 	}
 	request.GetBody = nil
 
-	_, executeErr := NewHandler(server.Client(), WithMaxReplayBodyBytes(maxReplayBytes)).Handle(
+	_, executeErr := routery.InvokeRouteHandler(
 		context.Background(),
 		request,
+		NewRouteHandler(server.Client(), WithMaxReplayBodyBytes(maxReplayBytes)),
 	)
 	if !errors.Is(executeErr, ErrReplayBodyTooLarge) {
 		t.Fatalf("expected ErrReplayBodyTooLarge, got %v", executeErr)
@@ -314,7 +327,7 @@ func TestNewHandlerMaxReplayBodyBytesExceeded(t *testing.T) {
 	}
 }
 
-func TestNewHandlerMaxReplayBodyBytesExceededIsSticky(t *testing.T) {
+func TestNewRouteHandlerMaxReplayBodyBytesExceededIsSticky(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -340,9 +353,9 @@ func TestNewHandlerMaxReplayBodyBytesExceededIsSticky(t *testing.T) {
 	}
 	request.GetBody = nil
 
-	executor := NewHandler(server.Client(), WithMaxReplayBodyBytes(maxReplayBytes))
+	handler := NewRouteHandler(server.Client(), WithMaxReplayBodyBytes(maxReplayBytes))
 	for attempt := 1; attempt <= 2; attempt++ {
-		_, executeErr := executor.Handle(context.Background(), request)
+		_, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
 		if !errors.Is(executeErr, ErrReplayBodyTooLarge) {
 			t.Fatalf("attempt %d: expected ErrReplayBodyTooLarge, got %v", attempt, executeErr)
 		}
@@ -365,7 +378,7 @@ func TestReadAllLimitedWrapsUnlimitedReadError(t *testing.T) {
 	}
 }
 
-func TestNewHandlerMaxReplayBodyBytesUnlimited(t *testing.T) {
+func TestNewRouteHandlerMaxReplayBodyBytesUnlimited(t *testing.T) {
 	t.Parallel()
 
 	const largePayloadSize = 1 << 20
@@ -403,17 +416,21 @@ func TestNewHandlerMaxReplayBodyBytesUnlimited(t *testing.T) {
 	}
 	request.GetBody = nil
 
-	executor := routery.Apply(
-		NewHandler(server.Client(), WithMaxReplayBodyBytes(0)),
+	handler := routery.ApplyRoute(
+		NewRouteHandler(server.Client(), WithMaxReplayBodyBytes(0)),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
 	)
 
-	result, executeErr := executor.Handle(context.Background(), request)
+	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	response := outcome.Payload
 	if executeErr != nil {
 		t.Fatalf("execute returned unexpected error: %v", executeErr)
 	}
 	t.Cleanup(func() {
-		_ = result.Payload.Body.Close()
+		_ = response.Body.Close()
 	})
 
 	if attempts.Load() != 2 {
@@ -427,7 +444,7 @@ func TestNewHandlerMaxReplayBodyBytesUnlimited(t *testing.T) {
 	}
 }
 
-func TestNewHandlerRespectsRequestContextTimeout(t *testing.T) {
+func TestNewRouteHandlerRespectsRequestContextTimeout(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
@@ -446,12 +463,12 @@ func TestNewHandlerRespectsRequestContextTimeout(t *testing.T) {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	executor := routery.Apply(
-		NewHandler(client),
-		routery.Timeout[*stdhttp.Request, *stdhttp.Response](16*time.Millisecond),
+	handler := routery.ApplyRoute(
+		NewRouteHandler(client),
+		Timeout(16*time.Millisecond),
 	)
 
-	_, executeErr := executor.Handle(context.Background(), request)
+	_, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if !errors.Is(executeErr, context.DeadlineExceeded) {
 		t.Fatalf("expected context deadline exceeded, got %v", executeErr)
 	}
@@ -567,17 +584,17 @@ func TestRetryIfWithDefaultRetryPolicyKeepsFinalBodyOpen(t *testing.T) {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	executor := routery.Apply(
-		NewHandler(client),
+	handler := routery.ApplyRoute(
+		NewRouteHandler(client),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
 	)
 
-	result, executeErr := executor.Handle(context.Background(), request)
+	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if executeErr == nil {
 		t.Fatal("expected status error")
 	}
-	if result.Payload != nil {
-		t.Fatal("expected empty route result payload on exhausted retry")
+	if outcome.HasPayload {
+		t.Fatal("expected empty outcome on exhausted retry")
 	}
 
 	var statusErr *StatusError
@@ -608,41 +625,44 @@ func TestRetryIfClosesIntermediateStatusBodies(t *testing.T) {
 	attempts := 0
 	request := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 
-	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
-		func(context.Context, *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
-			attempts++
-			if attempts == 1 {
-				response := &stdhttp.Response{
-					StatusCode: stdhttp.StatusServiceUnavailable,
-					Body:       closeCounter,
-				}
-				return routery.RouteResult[*stdhttp.Response]{}, &StatusError{
-					Request:  request,
-					Response: response,
-					Code:     stdhttp.StatusServiceUnavailable,
-				}
+	base := func(_ context.Context, _ *stdhttp.Request, rec routery.ResultRecorder[*stdhttp.Response]) error {
+		attempts++
+		if attempts == 1 {
+			response := &stdhttp.Response{
+				StatusCode: stdhttp.StatusServiceUnavailable,
+				Body:       closeCounter,
 			}
+			return &StatusError{
+				Request:  request,
+				Response: response,
+				Code:     stdhttp.StatusServiceUnavailable,
+			}
+		}
 
-			return routery.Handled(&stdhttp.Response{
-				StatusCode: stdhttp.StatusOK,
-				Body:       io.NopCloser(strings.NewReader("ok")),
-			}), nil
-		},
-	)
+		rec.Stop(&stdhttp.Response{
+			StatusCode: stdhttp.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("ok")),
+		}, "")
+		return nil
+	}
 
-	executor := routery.Apply(
+	handler := routery.ApplyRoute(
 		base,
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
 	)
 
-	result, err := executor.Handle(context.Background(), request)
+	outcome, err := routery.InvokeRouteHandler(context.Background(), request, handler)
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	response := outcome.Payload
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload.StatusCode != stdhttp.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", result.Payload.StatusCode, stdhttp.StatusOK)
+	if response.StatusCode != stdhttp.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", response.StatusCode, stdhttp.StatusOK)
 	}
-	_ = result.Payload.Body.Close()
+	_ = response.Body.Close()
 
 	if closeCounter.closes.Load() != 1 {
 		t.Fatalf("expected intermediate body close, got %d", closeCounter.closes.Load())

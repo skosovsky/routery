@@ -27,56 +27,52 @@ type GetObjectAPI interface {
 	) (*s3.GetObjectOutput, error)
 }
 
-// NewPutObjectHandler wraps api.PutObject.
-func NewPutObjectHandler(api PutObjectAPI) routery.Handler[*s3.PutObjectInput, *s3.PutObjectOutput] {
+// NewPutObjectRouteHandler wraps api.PutObject.
+func NewPutObjectRouteHandler(api PutObjectAPI) routery.RouteHandler[*s3.PutObjectInput, *s3.PutObjectOutput] {
 	if api == nil {
-		return invalidPutHandler(configError("s3 PutObject client is nil"))
+		return invalidPutRouteHandler(configError("s3 PutObject client is nil"))
 	}
-	return routery.HandlerFunc[*s3.PutObjectInput, *s3.PutObjectOutput](
-		func(ctx context.Context, in *s3.PutObjectInput) (routery.RouteResult[*s3.PutObjectOutput], error) {
-			output, err := api.PutObject(ctx, in)
-			if err != nil {
-				return routery.RouteResult[*s3.PutObjectOutput]{}, err
-			}
 
-			return routery.Handled(output), nil
-		},
-	)
+	return func(ctx context.Context, in *s3.PutObjectInput, rec routery.ResultRecorder[*s3.PutObjectOutput]) error {
+		output, err := api.PutObject(ctx, in)
+		if err != nil {
+			return err
+		}
+
+		rec.Stop(output, "")
+		return nil
+	}
 }
 
-// NewGetObjectHandler wraps api.GetObject.
-func NewGetObjectHandler(api GetObjectAPI) routery.Handler[*s3.GetObjectInput, *s3.GetObjectOutput] {
+// NewGetObjectRouteHandler wraps api.GetObject.
+func NewGetObjectRouteHandler(api GetObjectAPI) routery.RouteHandler[*s3.GetObjectInput, *s3.GetObjectOutput] {
 	if api == nil {
-		return invalidGetHandler(configError("s3 GetObject client is nil"))
+		return invalidGetRouteHandler(configError("s3 GetObject client is nil"))
 	}
-	return routery.HandlerFunc[*s3.GetObjectInput, *s3.GetObjectOutput](
-		func(ctx context.Context, in *s3.GetObjectInput) (routery.RouteResult[*s3.GetObjectOutput], error) {
-			output, err := api.GetObject(ctx, in)
-			if err != nil {
-				return routery.RouteResult[*s3.GetObjectOutput]{}, err
-			}
 
-			return routery.Handled(output), nil
-		},
-	)
+	return func(ctx context.Context, in *s3.GetObjectInput, rec routery.ResultRecorder[*s3.GetObjectOutput]) error {
+		output, err := api.GetObject(ctx, in)
+		if err != nil {
+			return err
+		}
+
+		rec.Stop(output, "")
+		return nil
+	}
 }
 
 func configError(detail string) error {
 	return fmt.Errorf("%w: %s", routery.ErrInvalidConfig, detail)
 }
 
-func invalidPutHandler(err error) routery.Handler[*s3.PutObjectInput, *s3.PutObjectOutput] {
-	return routery.HandlerFunc[*s3.PutObjectInput, *s3.PutObjectOutput](
-		func(context.Context, *s3.PutObjectInput) (routery.RouteResult[*s3.PutObjectOutput], error) {
-			return routery.RouteResult[*s3.PutObjectOutput]{}, err
-		},
-	)
+func invalidPutRouteHandler(err error) routery.RouteHandler[*s3.PutObjectInput, *s3.PutObjectOutput] {
+	return func(context.Context, *s3.PutObjectInput, routery.ResultRecorder[*s3.PutObjectOutput]) error {
+		return err
+	}
 }
 
-func invalidGetHandler(err error) routery.Handler[*s3.GetObjectInput, *s3.GetObjectOutput] {
-	return routery.HandlerFunc[*s3.GetObjectInput, *s3.GetObjectOutput](
-		func(context.Context, *s3.GetObjectInput) (routery.RouteResult[*s3.GetObjectOutput], error) {
-			return routery.RouteResult[*s3.GetObjectOutput]{}, err
-		},
-	)
+func invalidGetRouteHandler(err error) routery.RouteHandler[*s3.GetObjectInput, *s3.GetObjectOutput] {
+	return func(context.Context, *s3.GetObjectInput, routery.ResultRecorder[*s3.GetObjectOutput]) error {
+		return err
+	}
 }

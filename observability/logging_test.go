@@ -15,17 +15,18 @@ func TestLoggingNoOpWhenHandlerIsNil(t *testing.T) {
 	t.Parallel()
 
 	calls := 0
-	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
+	base := routery.FromFunc(func(context.Context, int) (int, error) {
 		calls++
-		return routery.Handled(1), nil
+		return 1, nil
 	})
 
-	result, err := Logging[int, int]("operation", nil, nil)(base).Handle(context.Background(), 0)
+	handler := routery.ApplyRoute(base, Logging[int, int]("operation", nil, nil))
+	outcome, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload != 1 {
-		t.Fatalf("unexpected result: got %d, want 1", result.Payload)
+	if !outcome.HasPayload || outcome.Payload != 1 {
+		t.Fatalf("unexpected result: got %d, want 1", outcome.Payload)
 	}
 	if calls != 1 {
 		t.Fatalf("unexpected call count: got %d, want 1", calls)
@@ -36,20 +37,20 @@ func TestLoggingEmitsEvent(t *testing.T) {
 	t.Parallel()
 
 	eventChan := make(chan Event[int, int], 1)
-	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
-		return routery.Handled(2), nil
+	base := routery.FromFunc(func(context.Context, int) (int, error) {
+		return 2, nil
 	})
 
-	executor := Logging[int, int]("primary", func(_ context.Context, event Event[int, int]) {
+	handler := routery.ApplyRoute(base, Logging[int, int]("primary", func(_ context.Context, event Event[int, int]) {
 		eventChan <- event
-	}, nil)(base)
+	}, nil))
 
-	result, err := executor.Handle(context.Background(), 1)
+	outcome, err := routery.InvokeRouteHandler(context.Background(), 1, handler)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload != 2 {
-		t.Fatalf("unexpected result: got %d, want 2", result.Payload)
+	if !outcome.HasPayload || outcome.Payload != 2 {
+		t.Fatalf("unexpected result: got %d, want 2", outcome.Payload)
 	}
 
 	select {
@@ -69,14 +70,11 @@ func assertLoggingEvent(t *testing.T, event Event[int, int]) {
 	if event.Request != 1 {
 		t.Fatalf("unexpected request: got %d, want 1", event.Request)
 	}
-	if event.Result.Payload != 2 {
-		t.Fatalf("unexpected response: got %d, want 2", event.Result.Payload)
+	if event.Outcome.Action != routery.ActionStop {
+		t.Fatalf("unexpected action: got %q, want stop", event.Outcome.Action)
 	}
-	if event.Result.Status != routery.StatusHandled {
-		t.Fatalf("unexpected status: got %q, want handled", event.Result.Status)
-	}
-	if event.PayloadMeta.Shape != "int" {
-		t.Fatalf("unexpected payload shape: got %q, want int", event.PayloadMeta.Shape)
+	if event.Outcome.PayloadMeta.Shape != "int" {
+		t.Fatalf("unexpected payload shape: got %q, want int", event.Outcome.PayloadMeta.Shape)
 	}
 	if event.Err != nil {
 		t.Fatalf("unexpected event error: %v", event.Err)
@@ -89,11 +87,116 @@ func assertLoggingEvent(t *testing.T, event Event[int, int]) {
 	}
 }
 
-func TestLoggingReturnsConfigErrorWhenNextExecutorIsNil(t *testing.T) {
+func TestLoggingEmitsActionNext(t *testing.T) {
 	t.Parallel()
 
-	executor := Logging[int, int]("primary", func(context.Context, Event[int, int]) {}, nil)(nil)
-	_, err := executor.Handle(context.Background(), 0)
+	eventChan := make(chan Event[int, int], 1)
+	base := func(_ context.Context, _ int, rec routery.ResultRecorder[int]) error {
+		rec.Next("delegate")
+		return nil
+	}
+
+	handler := routery.ApplyRoute(base, Logging[int, int]("next", func(_ context.Context, event Event[int, int]) {
+		eventChan <- event
+	}, nil))
+
+	outcome, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if outcome.Action != routery.ActionNext {
+		t.Fatalf("got action %q; want next", outcome.Action)
+	}
+
+	select {
+	case event := <-eventChan:
+		if event.Outcome.Action != routery.ActionNext {
+			t.Fatalf("got event action %q; want next", event.Outcome.Action)
+		}
+		if event.Outcome.ReasonCode != "delegate" {
+			t.Fatalf("got reason %q; want delegate", event.Outcome.ReasonCode)
+		}
+	case <-time.After(16 * time.Millisecond):
+		t.Fatal("expected one logging event")
+	}
+}
+
+func TestLoggingEmitsPartialOutcomeOnError(t *testing.T) {
+	t.Parallel()
+
+	eventChan := make(chan Event[int, int], 1)
+	handlerErr := errors.New("handler failed")
+	base := func(_ context.Context, _ int, _ routery.ResultRecorder[int]) error {
+		return handlerErr
+	}
+
+	handler := routery.ApplyRoute(base, Logging[int, int]("error", func(_ context.Context, event Event[int, int]) {
+		eventChan <- event
+	}, nil))
+
+	_, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
+	if !errors.Is(err, handlerErr) {
+		t.Fatalf("got err %v; want %v", err, handlerErr)
+	}
+
+	select {
+	case event := <-eventChan:
+		if !errors.Is(event.Err, handlerErr) {
+			t.Fatalf("got event err %v; want %v", event.Err, handlerErr)
+		}
+		if event.Outcome.Action != routery.ActionAbort {
+			t.Fatalf("got action %q; want abort on error", event.Outcome.Action)
+		}
+		if event.Outcome.PayloadMeta.Shape != shapeEmpty {
+			t.Fatalf("got shape %q; want empty", event.Outcome.PayloadMeta.Shape)
+		}
+	case <-time.After(16 * time.Millisecond):
+		t.Fatal("expected one logging event")
+	}
+}
+
+func TestLoggingEmitsIgnoreDisposition(t *testing.T) {
+	t.Parallel()
+
+	eventChan := make(chan Event[int, int], 1)
+	base := func(_ context.Context, _ int, rec routery.ResultRecorder[int]) error {
+		rec.Ignore("declined")
+		return nil
+	}
+
+	handler := routery.ApplyRoute(base, Logging[int, int]("ignore", func(_ context.Context, event Event[int, int]) {
+		eventChan <- event
+	}, nil))
+
+	outcome, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if outcome.Action != routery.ActionStop {
+		t.Fatalf("got outcome action %q; want stop", outcome.Action)
+	}
+
+	select {
+	case event := <-eventChan:
+		if event.Outcome.Action != routery.ActionStop {
+			t.Fatalf("got action %q; want stop", event.Outcome.Action)
+		}
+		if event.Outcome.PayloadMeta.Shape != shapeEmpty {
+			t.Fatalf("got shape %q; want empty", event.Outcome.PayloadMeta.Shape)
+		}
+	case <-time.After(16 * time.Millisecond):
+		t.Fatal("expected one logging event")
+	}
+}
+
+func TestLoggingReturnsConfigErrorWhenNextRouteHandlerIsNil(t *testing.T) {
+	t.Parallel()
+
+	handler := routery.ApplyRoute[int, int](
+		nil,
+		Logging[int, int]("primary", func(context.Context, Event[int, int]) {}, nil),
+	)
+	_, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
@@ -105,19 +208,17 @@ func TestLoggingDoesNotConsumeStreamLikeValues(t *testing.T) {
 	request := &readCounter{}
 	response := &readCounter{}
 
-	base := routery.HandlerFunc[*readCounter, *readCounter](
-		func(context.Context, *readCounter) (routery.RouteResult[*readCounter], error) {
-			return routery.Handled(response), nil
-		},
-	)
+	base := routery.FromFunc(func(_ context.Context, _ *readCounter) (*readCounter, error) {
+		return response, nil
+	})
 
-	executor := Logging[*readCounter, *readCounter](
+	handler := routery.ApplyRoute(base, Logging[*readCounter, *readCounter](
 		"stream",
 		func(context.Context, Event[*readCounter, *readCounter]) {},
 		nil,
-	)(base)
+	))
 
-	_, err := executor.Handle(context.Background(), request)
+	_, err := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}

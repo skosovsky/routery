@@ -29,8 +29,8 @@ func FuzzRetryIfNoPanics(f *testing.F) {
 			backoffMillis = -10
 		}
 
-		base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-			return zeroRouteResult[int](), errors.New("retry")
+		base := FromFunc(func(context.Context, int) (int, error) {
+			return 0, errors.New("retry")
 		})
 
 		backoff := time.Duration(backoffMillis) * time.Microsecond
@@ -39,8 +39,8 @@ func FuzzRetryIfNoPanics(f *testing.F) {
 			predicate = nil
 		}
 
-		executor := RetryIf[int, int](attempts, backoff, predicate)(base)
-		_, _ = executor.Handle(context.Background(), 0)
+		handler := ApplyRoute(base, RetryIf[int, int](attempts, backoff, predicate))
+		_, _ = InvokeRouteHandler(context.Background(), 0, handler)
 	})
 }
 
@@ -65,17 +65,17 @@ func FuzzConstructorsNoPanics(f *testing.F) {
 	f.Fuzz(func(t *testing.T, primaryNil bool, secondaryNil bool, predicateNil bool, threshold int) {
 		t.Helper()
 
-		var primary Handler[int, int]
-		var secondary Handler[int, int]
+		var primary RouteHandler[int, int]
+		var secondary RouteHandler[int, int]
 
 		if !primaryNil {
-			primary = HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-				return Handled(1), nil
+			primary = FromFunc(func(context.Context, int) (int, error) {
+				return 1, nil
 			})
 		}
 		if !secondaryNil {
-			secondary = HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-				return Handled(2), nil
+			secondary = FromFunc(func(context.Context, int) (int, error) {
+				return 2, nil
 			})
 		}
 
@@ -84,15 +84,15 @@ func FuzzConstructorsNoPanics(f *testing.F) {
 			predicate = nil
 		}
 
-		_, _ = Fallback(primary, secondary).Handle(context.Background(), 0)
-		_, _ = PredicateFallback(primary, secondary, predicate).Handle(context.Background(), 0)
-		_, _ = RoundRobin(primary, secondary).Handle(context.Background(), 0)
-		_, _ = FirstCompleted(primary, secondary).Handle(context.Background(), 0)
-		_, _ = WeightBasedRouter(
+		_, _ = InvokeRouteHandler(context.Background(), 0, Fallback(primary, secondary))
+		_, _ = InvokeRouteHandler(context.Background(), 0, PredicateFallback(primary, secondary, predicate))
+		_, _ = InvokeRouteHandler(context.Background(), 0, RoundRobin(primary, secondary))
+		_, _ = InvokeRouteHandler(context.Background(), 0, FirstCompleted(primary, secondary))
+		_, _ = InvokeRouteHandler(context.Background(), 0, WeightBasedRouter(
 			func(context.Context, int) (int, error) { return 1, nil },
 			threshold,
 			primary,
 			secondary,
-		).Handle(context.Background(), 0)
+		))
 	})
 }

@@ -14,17 +14,18 @@ func TestMetricsNoOpWhenHooksAreEmpty(t *testing.T) {
 	t.Parallel()
 
 	calls := 0
-	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
+	base := routery.FromFunc(func(context.Context, int) (int, error) {
 		calls++
-		return routery.Handled(1), nil
+		return 1, nil
 	})
 
-	result, err := Metrics[int, int]("operation", MetricsHooks[int]{})(base).Handle(context.Background(), 0)
+	handler := routery.ApplyRoute(base, Metrics[int, int]("operation", MetricsHooks[int]{}))
+	outcome, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload != 1 {
-		t.Fatalf("unexpected result: got %d, want 1", result.Payload)
+	if !outcome.HasPayload || outcome.Payload != 1 {
+		t.Fatalf("unexpected result: got %d, want 1", outcome.Payload)
 	}
 	if calls != 1 {
 		t.Fatalf("unexpected call count: got %d, want 1", calls)
@@ -40,17 +41,18 @@ func TestMetricsCallsHooks(t *testing.T) {
 		gotName        string
 		gotDuration    time.Duration
 		gotErr         error
-		gotStatus      routery.RouteStatus
+		gotAction      routery.RouteAction
 		gotReasonCode  string
 		gotPayloadMeta PayloadMeta
 	)
 
 	expectedErr := errors.New("failure")
-	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
-		return routery.Ignored[int]("not_found"), expectedErr
-	})
+	base := func(_ context.Context, _ int, rec routery.ResultRecorder[int]) error {
+		rec.Ignore("not_found")
+		return expectedErr
+	}
 
-	executor := Metrics[int, int]("primary", MetricsHooks[int]{
+	handler := routery.ApplyRoute(base, Metrics[int, int]("primary", MetricsHooks[int]{
 		OnStart: func(context.Context, string) {
 			startCalls.Add(1)
 		},
@@ -59,13 +61,13 @@ func TestMetricsCallsHooks(t *testing.T) {
 			gotName = name
 			gotDuration = duration
 			gotErr = err
-			gotStatus = result.Status
+			gotAction = result.Action
 			gotReasonCode = result.ReasonCode
 			gotPayloadMeta = payloadMeta
 		},
-	})(base)
+	}))
 
-	_, err := executor.Handle(context.Background(), 0)
+	_, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected wrapped error, got %v", err)
 	}
@@ -85,8 +87,8 @@ func TestMetricsCallsHooks(t *testing.T) {
 	if !errors.Is(gotErr, expectedErr) {
 		t.Fatalf("unexpected completion error: got %v, want %v", gotErr, expectedErr)
 	}
-	if gotStatus != routery.StatusIgnored {
-		t.Fatalf("unexpected status: got %q, want ignored", gotStatus)
+	if gotAction != routery.ActionAbort {
+		t.Fatalf("unexpected action: got %q, want abort", gotAction)
 	}
 	if gotReasonCode != "not_found" {
 		t.Fatalf("unexpected reason code: got %q, want not_found", gotReasonCode)
@@ -100,23 +102,23 @@ func TestMetricsUsesCustomPayloadMeta(t *testing.T) {
 	t.Parallel()
 
 	var gotMeta PayloadMeta
-	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
-		return routery.Handled(7), nil
+	base := routery.FromFunc(func(context.Context, int) (int, error) {
+		return 7, nil
 	})
 
-	executor := Metrics[int, int]("primary", MetricsHooks[int]{
+	handler := routery.ApplyRoute(base, Metrics[int, int]("primary", MetricsHooks[int]{
 		OnComplete: func(_ context.Context, _ string, _ time.Duration, _ ResultMeta, payloadMeta PayloadMeta, _ error) {
 			gotMeta = payloadMeta
 		},
-		PayloadMeta: func(_ context.Context, _ routery.RouteResult[int]) PayloadMeta {
+		PayloadMeta: func(_ context.Context, _ routery.ResultRecorder[int]) PayloadMeta {
 			return PayloadMeta{
 				Shape:       "custom",
 				Fingerprint: routery.FingerprintSHA256([]byte("7")),
 			}
 		},
-	})(base)
+	}))
 
-	_, err := executor.Handle(context.Background(), 0)
+	_, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -128,14 +130,71 @@ func TestMetricsUsesCustomPayloadMeta(t *testing.T) {
 	}
 }
 
-func TestMetricsReturnsConfigErrorWhenNextExecutorIsNil(t *testing.T) {
+func TestMetricsEmitsActionNext(t *testing.T) {
 	t.Parallel()
 
-	executor := Metrics[int, int]("primary", MetricsHooks[int]{
-		OnStart: func(context.Context, string) {},
-	})(nil)
+	var gotAction routery.RouteAction
+	base := func(_ context.Context, _ int, rec routery.ResultRecorder[int]) error {
+		rec.Next("delegate")
+		return nil
+	}
 
-	_, err := executor.Handle(context.Background(), 0)
+	handler := routery.ApplyRoute(base, Metrics[int, int]("next", MetricsHooks[int]{
+		OnComplete: func(_ context.Context, _ string, _ time.Duration, result ResultMeta, _ PayloadMeta, _ error) {
+			gotAction = result.Action
+		},
+	}))
+
+	outcome, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if outcome.Action != routery.ActionNext {
+		t.Fatalf("got outcome action %q; want next", outcome.Action)
+	}
+	if gotAction != routery.ActionNext {
+		t.Fatalf("got metrics action %q; want next", gotAction)
+	}
+}
+
+func TestMetricsEmitsOutcomeOnError(t *testing.T) {
+	t.Parallel()
+
+	var gotAction routery.RouteAction
+	handlerErr := errors.New("handler failed")
+	base := func(_ context.Context, _ int, _ routery.ResultRecorder[int]) error {
+		return handlerErr
+	}
+
+	handler := routery.ApplyRoute(base, Metrics[int, int]("error", MetricsHooks[int]{
+		OnComplete: func(_ context.Context, _ string, _ time.Duration, result ResultMeta, payloadMeta PayloadMeta, err error) {
+			gotAction = result.Action
+			if payloadMeta.Shape != shapeEmpty {
+				t.Errorf("got shape %q; want empty", payloadMeta.Shape)
+			}
+			if !errors.Is(err, handlerErr) {
+				t.Errorf("got err %v; want %v", err, handlerErr)
+			}
+		},
+	}))
+
+	_, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
+	if !errors.Is(err, handlerErr) {
+		t.Fatalf("got err %v; want %v", err, handlerErr)
+	}
+	if gotAction != routery.ActionAbort {
+		t.Fatalf("got action %q; want abort", gotAction)
+	}
+}
+
+func TestMetricsReturnsConfigErrorWhenNextRouteHandlerIsNil(t *testing.T) {
+	t.Parallel()
+
+	handler := routery.ApplyRoute[int, int](nil, Metrics[int, int]("primary", MetricsHooks[int]{
+		OnStart: func(context.Context, string) {},
+	}))
+
+	_, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}

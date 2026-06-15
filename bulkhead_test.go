@@ -13,17 +13,18 @@ func TestBulkheadRejectsWhenFull(t *testing.T) {
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	base := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
 		close(entered)
 		<-release
-		return Handled(1), nil
-	})
+		rec.Stop(1, "")
+		return nil
+	}
 
-	executor := Apply(base, Bulkhead[int, int](1))
+	handler := ApplyRoute(base, Bulkhead[int, int](1))
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		_, err := executor.Handle(context.Background(), 0)
+		_, err := InvokeRouteHandler(context.Background(), 0, handler)
 		if err != nil {
 			t.Errorf("first call: %v", err)
 		}
@@ -31,7 +32,7 @@ func TestBulkheadRejectsWhenFull(t *testing.T) {
 
 	<-entered
 
-	_, err := executor.Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if !errors.Is(err, ErrTooManyRequests) {
 		t.Fatalf("want ErrTooManyRequests, got %v", err)
 	}
@@ -45,17 +46,18 @@ func TestBulkheadContextWinsRace(t *testing.T) {
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	base := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
 		close(entered)
 		<-release
-		return Handled(1), nil
-	})
+		rec.Stop(1, "")
+		return nil
+	}
 
-	executor := Apply(base, Bulkhead[int, int](1))
+	handler := ApplyRoute(base, Bulkhead[int, int](1))
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		_, err := executor.Handle(context.Background(), 0)
+		_, err := InvokeRouteHandler(context.Background(), 0, handler)
 		if err != nil {
 			t.Errorf("first: %v", err)
 		}
@@ -66,7 +68,7 @@ func TestBulkheadContextWinsRace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := executor.Handle(ctx, 0)
+	_, err := InvokeRouteHandler(ctx, 0, handler)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("want canceled, got %v", err)
 	}
@@ -78,8 +80,8 @@ func TestBulkheadContextWinsRace(t *testing.T) {
 func TestBulkheadInvalidLimit(t *testing.T) {
 	t.Parallel()
 
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(0), nil })
-	_, err := Bulkhead[int, int](0)(base).Handle(context.Background(), 0)
+	base := FromFunc(func(context.Context, int) (int, error) { return 0, nil })
+	_, err := InvokeRouteHandler(context.Background(), 0, ApplyRoute(base, Bulkhead[int, int](0)))
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
@@ -88,7 +90,7 @@ func TestBulkheadInvalidLimit(t *testing.T) {
 func TestBulkheadNilNext(t *testing.T) {
 	t.Parallel()
 
-	_, err := Bulkhead[int, int](1)(nil).Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, ApplyRoute[int, int](nil, Bulkhead[int, int](1)))
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
@@ -103,18 +105,18 @@ func TestBulkheadSupportsConcurrentCalls(t *testing.T) {
 		limit   = 4
 	)
 
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-		return Handled(1), nil
+	base := FromFunc(func(context.Context, int) (int, error) {
+		return 1, nil
 	})
 
-	executor := Apply(base, Bulkhead[int, int](limit))
+	handler := ApplyRoute(base, Bulkhead[int, int](limit))
 
 	var wg sync.WaitGroup
 	errs := make(chan error, workers*calls)
 	for range workers {
 		wg.Go(func() {
 			for range calls {
-				_, err := executor.Handle(context.Background(), 0)
+				_, err := InvokeRouteHandler(context.Background(), 0, handler)
 				if err != nil && !errors.Is(err, ErrTooManyRequests) {
 					errs <- err
 				}
@@ -128,15 +130,37 @@ func TestBulkheadSupportsConcurrentCalls(t *testing.T) {
 	}
 }
 
+func TestBulkheadPartialRecorderDiscardedOnError(t *testing.T) {
+	t.Parallel()
+
+	handlerErr := errors.New("handler failed")
+	base := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		rec.Stop(42, "handled")
+		return handlerErr
+	}
+
+	handler := ApplyRoute(base, Bulkhead[int, int](2))
+	outcome, err := InvokeRouteHandler(context.Background(), 0, handler)
+	if !errors.Is(err, handlerErr) {
+		t.Fatalf("got err %v; want %v", err, handlerErr)
+	}
+	if outcome.HasPayload {
+		t.Fatal("expected no payload on error")
+	}
+	if outcome.Action != ActionAbort {
+		t.Fatalf("got action %q; want abort", outcome.Action)
+	}
+}
+
 func TestBulkheadAcquireAndExecute(t *testing.T) {
 	t.Parallel()
 
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-		return Handled(42), nil
+	base := FromFunc(func(context.Context, int) (int, error) {
+		return 42, nil
 	})
-	res, err := Apply(base, Bulkhead[int, int](2)).Handle(context.Background(), 0)
-	if err != nil || res.Payload != 42 {
-		t.Fatalf("res=%d err=%v", res.Payload, err)
+	outcome, err := InvokeRouteHandler(context.Background(), 0, ApplyRoute(base, Bulkhead[int, int](2)))
+	if err != nil || !outcome.HasPayload || outcome.Payload != 42 {
+		t.Fatalf("payload=%d err=%v", outcome.Payload, err)
 	}
 }
 
@@ -145,16 +169,16 @@ func TestBulkheadTimeoutWaitingNotUsed(t *testing.T) {
 
 	// Semaphore is non-blocking on full: slow holder should not block second call.
 	block := make(chan struct{})
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	base := func(_ context.Context, _ int, _ ResultRecorder[int]) error {
 		<-block
-		return Handled(0), nil
-	})
+		return nil
+	}
 
-	executor := Apply(base, Bulkhead[int, int](1))
+	handler := ApplyRoute(base, Bulkhead[int, int](1))
 
 	done := make(chan struct{})
 	go func() {
-		_, _ = executor.Handle(context.Background(), 0)
+		_, _ = InvokeRouteHandler(context.Background(), 0, handler)
 		close(done)
 	}()
 
@@ -163,7 +187,7 @@ func TestBulkheadTimeoutWaitingNotUsed(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	_, err := executor.Handle(ctx, 0)
+	_, err := InvokeRouteHandler(ctx, 0, handler)
 	if !errors.Is(err, ErrTooManyRequests) {
 		t.Fatalf("want ErrTooManyRequests, got %v", err)
 	}

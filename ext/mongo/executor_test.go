@@ -26,39 +26,54 @@ func (f *fakeFind) Find(ctx context.Context, filter any, opts ...*options.FindOp
 	return nil, f.err
 }
 
-func TestNewFindHandlerNil(t *testing.T) {
+func TestNewFindRouteHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewFindHandler(nil)
-	_, err := ex.Handle(context.Background(), FindRequest{Filter: map[string]any{}})
+	ex := NewFindRouteHandler(nil)
+	_, err := routery.InvokeRouteHandler(
+		context.Background(),
+		FindRequest{Filter: map[string]any{}},
+		ex,
+	)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
 }
 
-func TestNewFindHandlerDelegates(t *testing.T) {
+func TestNewFindRouteHandlerDelegates(t *testing.T) {
 	t.Parallel()
 	ff := &fakeFind{}
-	ex := NewFindHandler(ff)
+	ex := NewFindRouteHandler(ff)
 	want := errors.New("boom")
 	ff.err = want
 	opts := options.Find().SetBatchSize(2)
-	_, err := ex.Handle(context.Background(), FindRequest{Filter: map[string]any{"a": 1}, Options: opts})
+	outcome, err := routery.InvokeRouteHandler(
+		context.Background(),
+		FindRequest{Filter: map[string]any{"a": 1}, Options: opts},
+		ex,
+	)
 	if !errors.Is(err, want) {
 		t.Fatalf("got %v", err)
+	}
+	if outcome.Action != routery.ActionAbort {
+		t.Fatalf("got action %q; want abort", outcome.Action)
 	}
 	if ff.calls.Load() != 1 {
 		t.Fatalf("calls=%d", ff.calls.Load())
 	}
 }
 
-func TestNewInsertOneHandlerDelegates(t *testing.T) {
+func TestNewInsertOneRouteHandlerDelegates(t *testing.T) {
 	t.Parallel()
 	fi := &fakeInsert{}
-	ex := NewInsertOneHandler(fi)
+	ex := NewInsertOneRouteHandler(fi)
 	want := errors.New("ins")
 	fi.err = want
 	opt := options.InsertOne().SetComment("c")
-	_, err := ex.Handle(context.Background(), InsertOneRequest{Document: map[string]int{"x": 1}, Options: opt})
+	_, err := routery.InvokeRouteHandler(
+		context.Background(),
+		InsertOneRequest{Document: map[string]int{"x": 1}, Options: opt},
+		ex,
+	)
 	if !errors.Is(err, want) {
 		t.Fatalf("got %v", err)
 	}
@@ -67,18 +82,18 @@ func TestNewInsertOneHandlerDelegates(t *testing.T) {
 	}
 }
 
-func TestNewUpdateOneHandlerDelegates(t *testing.T) {
+func TestNewUpdateOneRouteHandlerDelegates(t *testing.T) {
 	t.Parallel()
 	fu := &fakeUpdate{}
-	ex := NewUpdateOneHandler(fu)
+	ex := NewUpdateOneRouteHandler(fu)
 	want := errors.New("up")
 	fu.err = want
 	opt := options.Update().SetUpsert(true)
-	_, err := ex.Handle(context.Background(), UpdateOneRequest{
+	_, err := routery.InvokeRouteHandler(context.Background(), UpdateOneRequest{
 		Filter:  map[string]any{},
 		Update:  map[string]any{"$set": map[string]int{"a": 1}},
 		Options: opt,
-	})
+	}, ex)
 	if !errors.Is(err, want) {
 		t.Fatalf("got %v", err)
 	}
@@ -87,14 +102,18 @@ func TestNewUpdateOneHandlerDelegates(t *testing.T) {
 	}
 }
 
-func TestNewDeleteOneHandlerDelegates(t *testing.T) {
+func TestNewDeleteOneRouteHandlerDelegates(t *testing.T) {
 	t.Parallel()
 	fd := &fakeDelete{}
-	ex := NewDeleteOneHandler(fd)
+	ex := NewDeleteOneRouteHandler(fd)
 	want := errors.New("del")
 	fd.err = want
 	opt := options.Delete().SetComment("d")
-	_, err := ex.Handle(context.Background(), DeleteOneRequest{Filter: map[string]any{}, Options: opt})
+	_, err := routery.InvokeRouteHandler(
+		context.Background(),
+		DeleteOneRequest{Filter: map[string]any{}, Options: opt},
+		ex,
+	)
 	if !errors.Is(err, want) {
 		t.Fatalf("got %v", err)
 	}
@@ -121,10 +140,14 @@ func (f *fakeInsert) InsertOne(
 	return f.res, f.err
 }
 
-func TestNewInsertOneHandlerNil(t *testing.T) {
+func TestNewInsertOneRouteHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewInsertOneHandler(nil)
-	_, err := ex.Handle(context.Background(), InsertOneRequest{Document: map[string]any{}})
+	ex := NewInsertOneRouteHandler(nil)
+	_, err := routery.InvokeRouteHandler(
+		context.Background(),
+		InsertOneRequest{Document: map[string]any{}},
+		ex,
+	)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
@@ -150,10 +173,10 @@ func (f *fakeUpdate) UpdateOne(
 	return f.res, f.err
 }
 
-func TestNewUpdateOneHandlerNil(t *testing.T) {
+func TestNewUpdateOneRouteHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewUpdateOneHandler(nil)
-	_, err := ex.Handle(context.Background(), UpdateOneRequest{})
+	ex := NewUpdateOneRouteHandler(nil)
+	_, err := routery.InvokeRouteHandler(context.Background(), UpdateOneRequest{}, ex)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
@@ -177,24 +200,28 @@ func (f *fakeDelete) DeleteOne(
 	return f.res, f.err
 }
 
-func TestNewDeleteOneHandlerNil(t *testing.T) {
+func TestNewDeleteOneRouteHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewDeleteOneHandler(nil)
-	_, err := ex.Handle(context.Background(), DeleteOneRequest{})
+	ex := NewDeleteOneRouteHandler(nil)
+	_, err := routery.InvokeRouteHandler(context.Background(), DeleteOneRequest{}, ex)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
 }
 
-func TestFindExecutorConcurrent(t *testing.T) {
+func TestFindRouteHandlerConcurrent(t *testing.T) {
 	t.Parallel()
 	ff := &fakeFind{}
-	ex := NewFindHandler(ff)
+	ex := NewFindRouteHandler(ff)
 	const workers = 128
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			_, _ = ex.Handle(context.Background(), FindRequest{Filter: map[string]any{}})
+			_, _ = routery.InvokeRouteHandler(
+				context.Background(),
+				FindRequest{Filter: map[string]any{}},
+				ex,
+			)
 		})
 	}
 	wg.Wait()

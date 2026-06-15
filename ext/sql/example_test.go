@@ -9,7 +9,7 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-func ExampleNewDBQueryHandler() {
+func ExampleNewDBQueryRouteHandler() {
 	db, state, err := openTestDBWithName(uniqueDriverName("example-query"), testDriverConfig{})
 	if err != nil {
 		fmt.Println("unexpected", err)
@@ -21,19 +21,23 @@ func ExampleNewDBQueryHandler() {
 		ID int
 	}
 
-	executor := NewDBQueryHandler(
+	handler := NewDBQueryRouteHandler(
 		db,
 		func(_ context.Context, req queryRequest) (string, []any, error) {
 			return "SELECT value FROM widgets WHERE id = ?", []any{req.ID}, nil
 		},
 	)
 
-	rowsResult, executeErr := executor.Handle(context.Background(), queryRequest{ID: 1})
+	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), queryRequest{ID: 1}, handler)
 	if executeErr != nil {
 		fmt.Println("unexpected", executeErr)
 		return
 	}
-	if rowsErr := drainRowsForExample(rowsResult.Payload); rowsErr != nil {
+	if !outcome.HasPayload {
+		fmt.Println("unexpected", "no payload")
+		return
+	}
+	if rowsErr := drainRowsForExample(outcome.Payload); rowsErr != nil {
 		fmt.Println("unexpected", rowsErr)
 		return
 	}
@@ -67,13 +71,13 @@ func ExampleWeightBasedRouter_masterReplica() {
 		SQL string
 	}
 
-	primaryExecutor := NewDBQueryHandler(
+	primaryRouteHandler := NewDBQueryRouteHandler(
 		primaryDB,
 		func(_ context.Context, req queryRequest) (string, []any, error) {
 			return req.SQL, nil, nil
 		},
 	)
-	replicaExecutor := NewDBQueryHandler(
+	replicaRouteHandler := NewDBQueryRouteHandler(
 		replicaDB,
 		func(_ context.Context, req queryRequest) (string, []any, error) {
 			return req.SQL, nil, nil
@@ -85,30 +89,38 @@ func ExampleWeightBasedRouter_masterReplica() {
 			return len(strings.Fields(req.SQL)), nil
 		},
 		5,
-		replicaExecutor,
-		primaryExecutor,
+		replicaRouteHandler,
+		primaryRouteHandler,
 	)
 
-	shortRowsResult, shortErr := router.Handle(context.Background(), queryRequest{
+	shortOutcome, shortErr := routery.InvokeRouteHandler(context.Background(), queryRequest{
 		SQL: "SELECT value FROM widgets",
-	})
+	}, router)
 	if shortErr != nil {
 		fmt.Println("unexpected", shortErr)
 		return
 	}
-	if rowsErr := drainRowsForExample(shortRowsResult.Payload); rowsErr != nil {
+	if !shortOutcome.HasPayload {
+		fmt.Println("unexpected", "no payload")
+		return
+	}
+	if rowsErr := drainRowsForExample(shortOutcome.Payload); rowsErr != nil {
 		fmt.Println("unexpected", rowsErr)
 		return
 	}
 
-	longRowsResult, longErr := router.Handle(context.Background(), queryRequest{
+	longOutcome, longErr := routery.InvokeRouteHandler(context.Background(), queryRequest{
 		SQL: "SELECT value FROM widgets WHERE tenant_id = ? AND active = ?",
-	})
+	}, router)
 	if longErr != nil {
 		fmt.Println("unexpected", longErr)
 		return
 	}
-	if rowsErr := drainRowsForExample(longRowsResult.Payload); rowsErr != nil {
+	if !longOutcome.HasPayload {
+		fmt.Println("unexpected", "no payload")
+		return
+	}
+	if rowsErr := drainRowsForExample(longOutcome.Payload); rowsErr != nil {
 		fmt.Println("unexpected", rowsErr)
 		return
 	}

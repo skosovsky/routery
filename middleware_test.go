@@ -7,36 +7,37 @@ import (
 	"testing"
 )
 
-func TestApplyAppliesMiddlewaresInReverseOrder(t *testing.T) {
+func TestApplyRouteAppliesMiddlewaresInReverseOrder(t *testing.T) {
 	t.Parallel()
 
 	callOrder := make([]string, 0, 2+2)
 
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	base := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
 		callOrder = append(callOrder, "base")
-		return Handled(1), nil
-	})
+		rec.Stop(1, "")
+		return nil
+	}
 
-	first := func(next Handler[int, int]) Handler[int, int] {
-		return HandlerFunc[int, int](func(ctx context.Context, req int) (RouteResult[int], error) {
+	first := func(next RouteHandler[int, int]) RouteHandler[int, int] {
+		return func(ctx context.Context, req int, rec ResultRecorder[int]) error {
 			callOrder = append(callOrder, "first-before")
-			res, err := next.Handle(ctx, req)
+			err := next(ctx, req, rec)
 			callOrder = append(callOrder, "first-after")
-			return res, err
-		})
+			return err
+		}
 	}
 
-	second := func(next Handler[int, int]) Handler[int, int] {
-		return HandlerFunc[int, int](func(ctx context.Context, req int) (RouteResult[int], error) {
+	second := func(next RouteHandler[int, int]) RouteHandler[int, int] {
+		return func(ctx context.Context, req int, rec ResultRecorder[int]) error {
 			callOrder = append(callOrder, "second-before")
-			res, err := next.Handle(ctx, req)
+			err := next(ctx, req, rec)
 			callOrder = append(callOrder, "second-after")
-			return res, err
-		})
+			return err
+		}
 	}
 
-	executor := Apply(base, first, second)
-	_, err := executor.Handle(context.Background(), 0)
+	handler := ApplyRoute(base, first, second)
+	_, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
@@ -47,24 +48,24 @@ func TestApplyAppliesMiddlewaresInReverseOrder(t *testing.T) {
 	}
 }
 
-func TestApplySkipsNilMiddlewares(t *testing.T) {
+func TestApplyRouteSkipsNilMiddlewares(t *testing.T) {
 	t.Parallel()
 
 	called := false
 
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-		return Handled(1), nil
+	base := FromFunc(func(context.Context, int) (int, error) {
+		return 1, nil
 	})
 
-	observed := func(next Handler[int, int]) Handler[int, int] {
-		return HandlerFunc[int, int](func(ctx context.Context, req int) (RouteResult[int], error) {
+	observed := func(next RouteHandler[int, int]) RouteHandler[int, int] {
+		return func(ctx context.Context, req int, rec ResultRecorder[int]) error {
 			called = true
-			return next.Handle(ctx, req)
-		})
+			return next(ctx, req, rec)
+		}
 	}
 
-	executor := Apply(base, nil, observed, nil)
-	_, err := executor.Handle(context.Background(), 0)
+	handler := ApplyRoute(base, nil, observed, nil)
+	_, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
@@ -73,29 +74,29 @@ func TestApplySkipsNilMiddlewares(t *testing.T) {
 	}
 }
 
-func TestApplyReturnsConfigErrorForNilBase(t *testing.T) {
+func TestApplyRouteReturnsConfigErrorForNilBase(t *testing.T) {
 	t.Parallel()
 
-	executor := Apply[int, int](nil)
-	_, err := executor.Handle(context.Background(), 0)
+	handler := ApplyRoute[int, int](nil)
+	_, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestApplyReturnsConfigErrorWhenMiddlewareReturnsNil(t *testing.T) {
+func TestApplyRouteReturnsConfigErrorWhenMiddlewareReturnsNil(t *testing.T) {
 	t.Parallel()
 
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-		return Handled(1), nil
+	base := FromFunc(func(context.Context, int) (int, error) {
+		return 1, nil
 	})
 
-	broken := func(Handler[int, int]) Handler[int, int] {
+	broken := func(RouteHandler[int, int]) RouteHandler[int, int] {
 		return nil
 	}
 
-	executor := Apply(base, broken)
-	_, err := executor.Handle(context.Background(), 0)
+	handler := ApplyRoute(base, broken)
+	_, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}

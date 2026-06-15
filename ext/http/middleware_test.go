@@ -36,20 +36,24 @@ func TestTimeoutBodyReadableAfterReturn(t *testing.T) {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	executor := routery.Apply(
-		NewHandler(server.Client()),
+	handler := routery.ApplyRoute(
+		NewRouteHandler(server.Client()),
 		Timeout(time.Second),
 	)
 
-	result, executeErr := executor.Handle(context.Background(), request)
+	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if executeErr != nil {
 		t.Fatalf("execute returned unexpected error: %v", executeErr)
 	}
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	response := outcome.Payload
 	t.Cleanup(func() {
-		_ = result.Payload.Body.Close()
+		_ = response.Body.Close()
 	})
 
-	body, readErr := io.ReadAll(result.Payload.Body)
+	body, readErr := io.ReadAll(response.Body)
 	if readErr != nil {
 		t.Fatalf("failed to read response body: %v", readErr)
 	}
@@ -62,28 +66,31 @@ func TestTimeoutCancelOnBodyClose(t *testing.T) {
 	t.Parallel()
 
 	done := make(chan struct{})
-	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
-		func(ctx context.Context, _ *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
-			go func() {
-				<-ctx.Done()
-				close(done)
-			}()
+	base := func(ctx context.Context, _ *stdhttp.Request, rec routery.ResultRecorder[*stdhttp.Response]) error {
+		go func() {
+			<-ctx.Done()
+			close(done)
+		}()
 
-			return routery.Handled(&stdhttp.Response{
-				StatusCode: stdhttp.StatusOK,
-				Body:       io.NopCloser(strings.NewReader("body")),
-			}), nil
-		},
-	)
+		rec.Stop(&stdhttp.Response{
+			StatusCode: stdhttp.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("body")),
+		}, "")
+		return nil
+	}
 
-	result, err := Timeout(time.Second)(base).Handle(
+	outcome, err := routery.InvokeRouteHandler(
 		context.Background(),
 		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
+		Timeout(time.Second)(base),
 	)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if closeErr := result.Payload.Body.Close(); closeErr != nil {
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	if closeErr := outcome.Payload.Body.Close(); closeErr != nil {
 		t.Fatalf("close returned unexpected error: %v", closeErr)
 	}
 
@@ -95,20 +102,19 @@ func TestTimeoutCancelOnError(t *testing.T) {
 
 	done := make(chan struct{})
 	wantErr := errors.New("network failed")
-	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
-		func(ctx context.Context, _ *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
-			go func() {
-				<-ctx.Done()
-				close(done)
-			}()
+	base := func(ctx context.Context, _ *stdhttp.Request, _ routery.ResultRecorder[*stdhttp.Response]) error {
+		go func() {
+			<-ctx.Done()
+			close(done)
+		}()
 
-			return routery.RouteResult[*stdhttp.Response]{}, wantErr
-		},
-	)
+		return wantErr
+	}
 
-	_, err := Timeout(time.Second)(base).Handle(
+	_, err := routery.InvokeRouteHandler(
 		context.Background(),
 		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
+		Timeout(time.Second)(base),
 	)
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("unexpected error: got %v, want %v", err, wantErr)
@@ -117,32 +123,79 @@ func TestTimeoutCancelOnError(t *testing.T) {
 	assertClosed(t, done)
 }
 
+func TestHTTPTimeoutCopiesNextAndIgnoreOutcome(t *testing.T) {
+	t.Parallel()
+
+	t.Run("next", func(t *testing.T) {
+		t.Parallel()
+
+		rec := routery.NewResultRecorder[*stdhttp.Response]()
+		base := func(_ context.Context, _ *stdhttp.Request, localRec routery.ResultRecorder[*stdhttp.Response]) error {
+			localRec.Next("delegate")
+			return nil
+		}
+		err := Timeout(time.Second)(base)(context.Background(), httptest.NewRequest(stdhttp.MethodGet, "/", nil), rec)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if rec.Action() != routery.ActionNext {
+			t.Fatalf("got action %q; want next", rec.Action())
+		}
+		if rec.ReasonCode() != "delegate" {
+			t.Fatalf("got reason %q; want delegate", rec.ReasonCode())
+		}
+	})
+
+	t.Run("ignore", func(t *testing.T) {
+		t.Parallel()
+
+		rec := routery.NewResultRecorder[*stdhttp.Response]()
+		base := func(_ context.Context, _ *stdhttp.Request, localRec routery.ResultRecorder[*stdhttp.Response]) error {
+			localRec.Ignore("skip")
+			return nil
+		}
+		err := Timeout(time.Second)(base)(context.Background(), httptest.NewRequest(stdhttp.MethodGet, "/", nil), rec)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if rec.Action() != routery.ActionStop {
+			t.Fatalf("got action %q; want stop", rec.Action())
+		}
+		if rec.ReasonCode() != "skip" {
+			t.Fatalf("got reason %q; want skip", rec.ReasonCode())
+		}
+	})
+}
+
 func TestTimeoutNoBodyResponseCancelsImmediately(t *testing.T) {
 	t.Parallel()
 
 	done := make(chan struct{})
-	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
-		func(ctx context.Context, _ *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
-			go func() {
-				<-ctx.Done()
-				close(done)
-			}()
+	base := func(ctx context.Context, _ *stdhttp.Request, rec routery.ResultRecorder[*stdhttp.Response]) error {
+		go func() {
+			<-ctx.Done()
+			close(done)
+		}()
 
-			return routery.Handled(&stdhttp.Response{
-				StatusCode: stdhttp.StatusNoContent,
-				Body:       stdhttp.NoBody,
-			}), nil
-		},
-	)
+		rec.Stop(&stdhttp.Response{
+			StatusCode: stdhttp.StatusNoContent,
+			Body:       stdhttp.NoBody,
+		}, "")
+		return nil
+	}
 
-	result, err := Timeout(time.Second)(base).Handle(
+	outcome, err := routery.InvokeRouteHandler(
 		context.Background(),
 		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
+		Timeout(time.Second)(base),
 	)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload.Body != stdhttp.NoBody {
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	if outcome.Payload.Body != stdhttp.NoBody {
 		t.Fatal("expected no body sentinel")
 	}
 
@@ -152,26 +205,30 @@ func TestTimeoutNoBodyResponseCancelsImmediately(t *testing.T) {
 func TestTimeoutDoubleCloseSafe(t *testing.T) {
 	t.Parallel()
 
-	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
-		func(context.Context, *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
-			return routery.Handled(&stdhttp.Response{
-				StatusCode: stdhttp.StatusOK,
-				Body:       io.NopCloser(strings.NewReader("body")),
-			}), nil
-		},
-	)
+	base := func(_ context.Context, _ *stdhttp.Request, rec routery.ResultRecorder[*stdhttp.Response]) error {
+		rec.Stop(&stdhttp.Response{
+			StatusCode: stdhttp.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("body")),
+		}, "")
+		return nil
+	}
 
-	result, err := Timeout(time.Second)(base).Handle(
+	outcome, err := routery.InvokeRouteHandler(
 		context.Background(),
 		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
+		Timeout(time.Second)(base),
 	)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if closeErr := result.Payload.Body.Close(); closeErr != nil {
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	response := outcome.Payload
+	if closeErr := response.Body.Close(); closeErr != nil {
 		t.Fatalf("first close returned unexpected error: %v", closeErr)
 	}
-	if closeErr := result.Payload.Body.Close(); closeErr != nil {
+	if closeErr := response.Body.Close(); closeErr != nil {
 		t.Fatalf("second close returned unexpected error: %v", closeErr)
 	}
 }
@@ -205,16 +262,14 @@ func TestTimeoutCancelOnPanicInNext(t *testing.T) {
 	const panicValue = "boom"
 
 	done := make(chan struct{})
-	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
-		func(ctx context.Context, _ *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
-			go func() {
-				<-ctx.Done()
-				close(done)
-			}()
+	base := func(ctx context.Context, _ *stdhttp.Request, _ routery.ResultRecorder[*stdhttp.Response]) error {
+		go func() {
+			<-ctx.Done()
+			close(done)
+		}()
 
-			panic(panicValue)
-		},
-	)
+		panic(panicValue)
+	}
 
 	defer func() {
 		recovered := recover()
@@ -225,9 +280,10 @@ func TestTimeoutCancelOnPanicInNext(t *testing.T) {
 		assertClosed(t, done)
 	}()
 
-	_, _ = Timeout(time.Second)(base).Handle(
+	_, _ = routery.InvokeRouteHandler(
 		context.Background(),
 		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
+		Timeout(time.Second)(base),
 	)
 	t.Fatal("expected panic")
 }
@@ -235,10 +291,20 @@ func TestTimeoutCancelOnPanicInNext(t *testing.T) {
 func TestTimeoutZeroPassesThrough(t *testing.T) {
 	t.Parallel()
 
-	base := &recordingHandler{}
-	wrapped := Timeout(0)(base)
-	if wrapped != base {
-		t.Fatal("expected zero timeout to return the original handler")
+	wrapped := Timeout(0)(recordingRouteHandler)
+	outcome, err := routery.InvokeRouteHandler(
+		context.Background(),
+		httptest.NewRequest(stdhttp.MethodGet, "/", nil),
+		wrapped,
+	)
+	if err != nil {
+		t.Fatalf("execute returned unexpected error: %v", err)
+	}
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	if outcome.Payload.StatusCode != stdhttp.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", outcome.Payload.StatusCode, stdhttp.StatusOK)
 	}
 }
 
@@ -246,24 +312,26 @@ func TestTimeoutDoesNotCloneRequestShadowGuard(t *testing.T) {
 	t.Parallel()
 
 	request := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
-	base := routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
-		func(_ context.Context, got *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
-			if got != request {
-				t.Fatal("timeout middleware cloned the request")
-			}
+	base := func(_ context.Context, got *stdhttp.Request, rec routery.ResultRecorder[*stdhttp.Response]) error {
+		if got != request {
+			t.Fatal("timeout middleware cloned the request")
+		}
 
-			return routery.Handled(&stdhttp.Response{
-				StatusCode: stdhttp.StatusNoContent,
-				Body:       stdhttp.NoBody,
-			}), nil
-		},
-	)
+		rec.Stop(&stdhttp.Response{
+			StatusCode: stdhttp.StatusNoContent,
+			Body:       stdhttp.NoBody,
+		}, "")
+		return nil
+	}
 
-	result, err := Timeout(time.Second)(base).Handle(context.Background(), request)
+	outcome, err := routery.InvokeRouteHandler(context.Background(), request, Timeout(time.Second)(base))
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload.Body != stdhttp.NoBody {
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	if outcome.Payload.Body != stdhttp.NoBody {
 		t.Fatal("expected no body sentinel")
 	}
 }
@@ -305,21 +373,25 @@ func TestTimeoutWithRetryIfPost503NoGetBodyBodyReplayed(t *testing.T) {
 	}
 	request.GetBody = nil
 
-	executor := routery.Apply(
-		NewHandler(server.Client()),
+	handler := routery.ApplyRoute(
+		NewRouteHandler(server.Client()),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
 		Timeout(time.Second),
 	)
 
-	result, executeErr := executor.Handle(context.Background(), request)
+	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if executeErr != nil {
 		t.Fatalf("execute returned unexpected error: %v", executeErr)
 	}
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	response := outcome.Payload
 	t.Cleanup(func() {
-		_ = result.Payload.Body.Close()
+		_ = response.Body.Close()
 	})
 
-	body, readErr := io.ReadAll(result.Payload.Body)
+	body, readErr := io.ReadAll(response.Body)
 	if readErr != nil {
 		t.Fatalf("failed to read response body: %v", readErr)
 	}
@@ -347,14 +419,14 @@ func assertClosed(t *testing.T, done <-chan struct{}) {
 	}
 }
 
-type recordingHandler struct{}
-
-func (handler *recordingHandler) Handle(
+func recordingRouteHandler(
 	_ context.Context,
 	_ *stdhttp.Request,
-) (routery.RouteResult[*stdhttp.Response], error) {
-	return routery.Handled(&stdhttp.Response{
+	rec routery.ResultRecorder[*stdhttp.Response],
+) error {
+	rec.Stop(&stdhttp.Response{
 		StatusCode: stdhttp.StatusOK,
 		Body:       io.NopCloser(strings.NewReader("ok")),
-	}), nil
+	}, "")
+	return nil
 }

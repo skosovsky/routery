@@ -7,11 +7,9 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-// ResultMeta is a serializable summary of a route result for metrics callbacks.
-//
-// It intentionally omits payload values; use [PayloadMeta] for safe payload telemetry.
+// ResultMeta is a serializable summary of a route outcome for metrics callbacks.
 type ResultMeta struct {
-	Status     routery.RouteStatus
+	Action     routery.RouteAction
 	ReasonCode string
 }
 
@@ -23,39 +21,43 @@ type MetricsHooks[Res any] struct {
 }
 
 // Metrics emits start and completion callbacks around execution.
-func Metrics[Req any, Res any](name string, hooks MetricsHooks[Res]) routery.HandlerMiddleware[Req, Res] {
+func Metrics[Req any, Res any](name string, hooks MetricsHooks[Res]) routery.RouteMiddleware[Req, Res] {
 	if hooks.OnStart == nil && hooks.OnComplete == nil {
-		return func(next routery.Handler[Req, Res]) routery.Handler[Req, Res] {
+		return func(next routery.RouteHandler[Req, Res]) routery.RouteHandler[Req, Res] {
 			if next == nil {
-				return invalidHandler[Req, Res]("metrics middleware requires non-nil next handler")
+				return invalidRouteHandler[Req, Res]("metrics middleware requires non-nil next route handler")
 			}
 			return next
 		}
 	}
 
-	return func(next routery.Handler[Req, Res]) routery.Handler[Req, Res] {
+	return func(next routery.RouteHandler[Req, Res]) routery.RouteHandler[Req, Res] {
 		if next == nil {
-			return invalidHandler[Req, Res]("metrics middleware requires non-nil next handler")
+			return invalidRouteHandler[Req, Res]("metrics middleware requires non-nil next route handler")
 		}
 
-		return routery.HandlerFunc[Req, Res](func(ctx context.Context, req Req) (routery.RouteResult[Res], error) {
+		return func(ctx context.Context, req Req, rec routery.ResultRecorder[Res]) error {
 			if hooks.OnStart != nil {
 				hooks.OnStart(ctx, name)
 			}
 
 			start := time.Now()
-			result, handleErr := next.Handle(ctx, req)
+			handleErr := next(ctx, req, rec)
 
 			if hooks.OnComplete != nil {
-				meta := resolvePayloadMeta(ctx, result, hooks.PayloadMeta)
+				meta := resolvePayloadMeta(ctx, rec, hooks.PayloadMeta)
+				action := rec.Action()
+				if handleErr != nil {
+					action = routery.ActionAbort
+				}
 				resultMeta := ResultMeta{
-					Status:     result.Status,
-					ReasonCode: result.ReasonCode,
+					Action:     action,
+					ReasonCode: rec.ReasonCode(),
 				}
 				hooks.OnComplete(ctx, name, time.Since(start), resultMeta, meta, handleErr)
 			}
 
-			return result, handleErr
-		})
+			return handleErr
+		}
 	}
 }

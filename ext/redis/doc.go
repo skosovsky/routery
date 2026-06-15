@@ -1,6 +1,6 @@
-// Package routeryredis adapts [github.com/redis/go-redis/v9] clients to [github.com/skosovsky/routery.Handler].
+// Package routeryredis adapts [github.com/redis/go-redis/v9] clients to [github.com/skosovsky/routery.RouteHandler].
 //
-// Use [NewHandler] with a [CommandExtractor] that returns a [redis.Cmder] bound to the same
+// Use [NewRouteHandler] with a [CommandExtractor] that returns a [redis.Cmder] bound to the same
 // [redis.Client] (for example the result of [redis.Client.Get]). The handler evaluates the
 // command via [redis.Cmder.Err] and then maps the result with [ScanResult].
 //

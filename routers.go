@@ -9,133 +9,159 @@ import (
 )
 
 // Fallback executes primary first and uses secondary when primary returns an error.
-//
-// Business route statuses from primary are returned as-is when err is nil.
-func Fallback[TReq any, TRes any](primary Handler[TReq, TRes], secondary Handler[TReq, TRes]) Handler[TReq, TRes] {
+func Fallback[Req any, Res any](
+	primary RouteHandler[Req, Res],
+	secondary RouteHandler[Req, Res],
+) RouteHandler[Req, Res] {
 	if primary == nil || secondary == nil {
-		return invalidHandler[TReq, TRes](configError("fallback requires non-nil primary and secondary handlers"))
+		return invalidRouteHandler[Req, Res](
+			configError("fallback requires non-nil primary and secondary route handlers"),
+		)
 	}
 
-	return HandlerFunc[TReq, TRes](func(ctx context.Context, req TReq) (RouteResult[TRes], error) {
-		result, err := primary.Handle(ctx, req)
+	return func(ctx context.Context, req Req, rec ResultRecorder[Res]) error {
+		localPrimary := NewResultRecorder[Res]()
+		err := primary(ctx, req, localPrimary)
 		if err == nil {
-			return result, nil
+			CopyRecorderOutcome(rec, localPrimary)
+			return nil
 		}
 
-		return secondary.Handle(ctx, req)
-	})
+		localSecondary := NewResultRecorder[Res]()
+		if err := secondary(ctx, req, localSecondary); err != nil {
+			return err
+		}
+		CopyRecorderOutcome(rec, localSecondary)
+
+		return nil
+	}
 }
 
 // RetryIf retries execution when predicate returns true for a system error.
-//
-// StatusNext, StatusIgnored, StatusHandled, and StatusAsync never trigger retries.
-func RetryIf[TReq any, TRes any](
+func RetryIf[Req any, Res any](
 	attempts int,
 	backoff time.Duration,
-	predicate RetryPredicate[TReq],
-) HandlerMiddleware[TReq, TRes] {
+	predicate RetryPredicate[Req],
+) RouteMiddleware[Req, Res] {
 	normalizedAttempts := max(attempts, 1)
 	normalizedBackoff := max(backoff, time.Duration(0))
 	if predicate == nil {
-		return func(Handler[TReq, TRes]) Handler[TReq, TRes] {
-			return invalidHandler[TReq, TRes](configError("retry predicate is nil"))
+		return func(RouteHandler[Req, Res]) RouteHandler[Req, Res] {
+			return invalidRouteHandler[Req, Res](configError("retry predicate is nil"))
 		}
 	}
 
-	return func(next Handler[TReq, TRes]) Handler[TReq, TRes] {
+	return func(next RouteHandler[Req, Res]) RouteHandler[Req, Res] {
 		if next == nil {
-			return invalidHandler[TReq, TRes](configError("retry middleware requires non-nil next handler"))
+			return invalidRouteHandler[Req, Res](configError("retry middleware requires non-nil next route handler"))
 		}
 
-		return HandlerFunc[TReq, TRes](func(ctx context.Context, req TReq) (RouteResult[TRes], error) {
-			return executeWithRetry(ctx, req, next, normalizedAttempts, normalizedBackoff, predicate)
-		})
+		return func(ctx context.Context, req Req, rec ResultRecorder[Res]) error {
+			return executeWithRetry(ctx, req, rec, next, normalizedAttempts, normalizedBackoff, predicate)
+		}
 	}
 }
 
-// RoundRobin distributes requests among handlers sequentially.
-func RoundRobin[TReq any, TRes any](handlers ...Handler[TReq, TRes]) Handler[TReq, TRes] {
-	validated, err := validateHandlers(handlers, "round robin")
+// RoundRobin distributes requests among route handlers sequentially.
+func RoundRobin[Req any, Res any](handlers ...RouteHandler[Req, Res]) RouteHandler[Req, Res] {
+	validated, err := validateRouteHandlers(handlers, "round robin")
 	if err != nil {
-		return invalidHandler[TReq, TRes](err)
+		return invalidRouteHandler[Req, Res](err)
 	}
 
-	return &roundRobinHandler[TReq, TRes]{
+	handler := &roundRobinHandler[Req, Res]{
 		handlers: validated,
 		next:     atomic.Uint64{},
 	}
+
+	return func(ctx context.Context, req Req, rec ResultRecorder[Res]) error {
+		return handler.route(ctx, req, rec)
+	}
 }
 
-// Timeout limits execution time for the wrapped handler.
-func Timeout[TReq any, TRes any](timeout time.Duration) HandlerMiddleware[TReq, TRes] {
+func (handler *roundRobinHandler[Req, Res]) route(
+	ctx context.Context,
+	req Req,
+	rec ResultRecorder[Res],
+) error {
+	handlerCount := uint64(len(handler.handlers))
+	index := (handler.next.Add(1) - 1) % handlerCount
+	return handler.handlers[index](ctx, req, rec)
+}
+
+// Timeout limits execution time for the wrapped route handler.
+func Timeout[Req any, Res any](timeout time.Duration) RouteMiddleware[Req, Res] {
 	if timeout <= 0 {
-		return func(next Handler[TReq, TRes]) Handler[TReq, TRes] {
+		return func(next RouteHandler[Req, Res]) RouteHandler[Req, Res] {
 			if next == nil {
-				return invalidHandler[TReq, TRes](configError("timeout middleware requires non-nil next handler"))
+				return invalidRouteHandler[Req, Res](
+					configError("timeout middleware requires non-nil next route handler"),
+				)
 			}
 			return next
 		}
 	}
 
-	return func(next Handler[TReq, TRes]) Handler[TReq, TRes] {
+	return func(next RouteHandler[Req, Res]) RouteHandler[Req, Res] {
 		if next == nil {
-			return invalidHandler[TReq, TRes](configError("timeout middleware requires non-nil next handler"))
+			return invalidRouteHandler[Req, Res](configError("timeout middleware requires non-nil next route handler"))
 		}
 
-		return HandlerFunc[TReq, TRes](func(ctx context.Context, req TReq) (RouteResult[TRes], error) {
+		return func(ctx context.Context, req Req, rec ResultRecorder[Res]) error {
 			timedCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 
-			return next.Handle(timedCtx, req)
-		})
+			localRec := NewResultRecorder[Res]()
+			err := next(timedCtx, req, localRec)
+			if err != nil {
+				return err
+			}
+			CopyRecorderOutcome(rec, localRec)
+
+			return nil
+		}
 	}
 }
 
-type roundRobinHandler[TReq any, TRes any] struct {
-	handlers []Handler[TReq, TRes]
+type roundRobinHandler[Req any, Res any] struct {
+	handlers []RouteHandler[Req, Res]
 	next     atomic.Uint64
 }
 
-func (handler *roundRobinHandler[TReq, TRes]) Handle(ctx context.Context, req TReq) (RouteResult[TRes], error) {
-	handlerCount := uint64(len(handler.handlers))
-	index := (handler.next.Add(1) - 1) % handlerCount
-	return handler.handlers[index].Handle(ctx, req)
-}
-
-func executeWithRetry[TReq any, TRes any](
+func executeWithRetry[Req any, Res any](
 	ctx context.Context,
-	req TReq,
-	next Handler[TReq, TRes],
+	req Req,
+	rec ResultRecorder[Res],
+	next RouteHandler[Req, Res],
 	attempts int,
 	backoff time.Duration,
-	predicate RetryPredicate[TReq],
-) (RouteResult[TRes], error) {
+	predicate RetryPredicate[Req],
+) error {
 	wait := backoff
-	var (
-		lastErr error
-		result  RouteResult[TRes]
-	)
+	var lastErr error
 
 	for attemptIndex := range attempts {
-		result, lastErr = next.Handle(ctx, req)
+		localRec := NewResultRecorder[Res]()
+		lastErr = next(ctx, req, localRec)
 		if lastErr == nil {
-			return result, nil
+			CopyRecorderOutcome(rec, localRec)
+			return nil
 		}
 
 		isFinalAttempt := attemptIndex == attempts-1
 		if isFinalAttempt || !predicate(ctx, req, lastErr) {
-			return result, lastErr
+			return lastErr
 		}
 
 		if wait > 0 {
 			if err := sleepWithContext(ctx, wait); err != nil {
-				return zeroRouteResult[TRes](), err
+				return err
 			}
 			wait = growBackoff(wait)
 		}
 	}
 
-	return result, lastErr
+	return lastErr
 }
 
 func growBackoff(current time.Duration) time.Duration {

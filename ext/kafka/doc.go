@@ -1,5 +1,5 @@
 // Package routerykafka adapts Kafka producers ([github.com/segmentio/kafka-go]) to
-// [github.com/skosovsky/routery.Handler] for use with middleware such as [github.com/skosovsky/routery.RetryIf]
+// [github.com/skosovsky/routery.RouteHandler] for use with middleware such as [github.com/skosovsky/routery.RetryIf]
 // and [github.com/skosovsky/routery.Bulkhead].
 //
 // Idempotent producer: enable idempotent writes in your Kafka cluster / producer configuration.

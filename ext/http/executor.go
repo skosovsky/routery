@@ -18,7 +18,7 @@ const defaultMaxReplayBodyBytes int64 = 10 << 20
 // ErrReplayBodyTooLarge indicates that a request body cannot be buffered safely.
 var ErrReplayBodyTooLarge = errors.New("routery/ext/http: replay body exceeds limit")
 
-// Option configures the HTTP handler.
+// Option configures the HTTP route handler.
 type Option func(*options)
 
 type options struct {
@@ -27,9 +27,6 @@ type options struct {
 }
 
 // WithMaxReplayBodyBytes limits in-memory buffering for replayable request bodies.
-//
-// A value of 0 disables the limit. Negative values make NewHandler return a
-// configuration error handler.
 func WithMaxReplayBodyBytes(maxBytes int64) Option {
 	return func(opts *options) {
 		if maxBytes < 0 {
@@ -61,55 +58,53 @@ func (err *StatusError) Error() string {
 	return fmt.Sprintf("routery/ext/http: unexpected status %d", err.Code)
 }
 
-// NewHandler adapts a standard HTTP client to a routery handler.
-func NewHandler(
+// NewRouteHandler adapts a standard HTTP client to a routery route handler.
+func NewRouteHandler(
 	client *stdhttp.Client,
 	handlerOptions ...Option,
-) routery.Handler[*stdhttp.Request, *stdhttp.Response] {
+) routery.RouteHandler[*stdhttp.Request, *stdhttp.Response] {
 	if client == nil {
 		//nolint:bodyclose // No HTTP response is created in this branch.
-		return invalidHandler(configError("http client is nil"))
+		return invalidRouteHandler(configError("http client is nil"))
 	}
 
 	opts := applyOptions(handlerOptions)
 	if opts.err != nil {
 		//nolint:bodyclose // No HTTP response is created in this branch.
-		return invalidHandler(opts.err)
+		return invalidRouteHandler(opts.err)
 	}
 
-	return routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
-		func(ctx context.Context, request *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
-			if request == nil {
-				return routery.RouteResult[*stdhttp.Response]{}, configError("request is nil")
+	return func(ctx context.Context, request *stdhttp.Request, rec routery.ResultRecorder[*stdhttp.Response]) error {
+		if request == nil {
+			return configError("request is nil")
+		}
+
+		attemptRequest, err := cloneForAttempt(ctx, request, opts.maxReplayBodyBytes)
+		if err != nil {
+			return err
+		}
+
+		//nolint:gosec // Caller provides the request target; this adapter must forward it unchanged.
+		response, executeErr := client.Do(attemptRequest)
+		if executeErr != nil {
+			if response != nil && response.Body != nil {
+				_ = response.Body.Close()
 			}
 
-			attemptRequest, err := cloneForAttempt(ctx, request, opts.maxReplayBodyBytes)
-			if err != nil {
-				return routery.RouteResult[*stdhttp.Response]{}, err
+			return executeErr
+		}
+
+		if response.StatusCode < stdhttp.StatusOK || response.StatusCode >= stdhttp.StatusMultipleChoices {
+			return &StatusError{
+				Request:  request,
+				Response: response,
+				Code:     response.StatusCode,
 			}
+		}
 
-			//nolint:gosec // Caller provides the request target; this adapter must forward it unchanged.
-			response, executeErr := client.Do(attemptRequest)
-			if executeErr != nil {
-				if response != nil && response.Body != nil {
-					_ = response.Body.Close()
-				}
-
-				return routery.RouteResult[*stdhttp.Response]{}, executeErr
-			}
-
-			if response.StatusCode < stdhttp.StatusOK || response.StatusCode >= stdhttp.StatusMultipleChoices {
-				return routery.RouteResult[*stdhttp.Response]{}, &StatusError{
-					Request:  request,
-					Response: response,
-					Code:     response.StatusCode,
-				}
-			}
-
-			//nolint:bodyclose // Caller closes the response body per net/http contract.
-			return routery.Handled(response), nil
-		},
-	)
+		rec.Stop(response, "")
+		return nil
+	}
 }
 
 func applyOptions(handlerOptions []Option) options {
@@ -201,25 +196,23 @@ func configError(detail string) error {
 	return fmt.Errorf("%w: %s", routery.ErrInvalidConfig, detail)
 }
 
-func invalidHandler(
+func invalidRouteHandler(
 	err error,
-) routery.Handler[*stdhttp.Request, *stdhttp.Response] {
-	return routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
-		func(context.Context, *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
-			return routery.RouteResult[*stdhttp.Response]{}, err
-		},
-	)
+) routery.RouteHandler[*stdhttp.Request, *stdhttp.Response] {
+	return func(context.Context, *stdhttp.Request, routery.ResultRecorder[*stdhttp.Response]) error {
+		return err
+	}
 }
 
 // Timeout limits HTTP execution time without cancelling response body reads.
-func Timeout(timeout time.Duration) routery.HandlerMiddleware[*stdhttp.Request, *stdhttp.Response] {
+func Timeout(timeout time.Duration) routery.RouteMiddleware[*stdhttp.Request, *stdhttp.Response] {
 	if timeout <= 0 {
 		return func(
-			next routery.Handler[*stdhttp.Request, *stdhttp.Response],
-		) routery.Handler[*stdhttp.Request, *stdhttp.Response] {
+			next routery.RouteHandler[*stdhttp.Request, *stdhttp.Response],
+		) routery.RouteHandler[*stdhttp.Request, *stdhttp.Response] {
 			if next == nil {
 				//nolint:bodyclose // No HTTP response is created in this branch.
-				return invalidHandler(configError("timeout middleware requires non-nil next handler"))
+				return invalidRouteHandler(configError("timeout middleware requires non-nil next route handler"))
 			}
 
 			return next
@@ -227,42 +220,45 @@ func Timeout(timeout time.Duration) routery.HandlerMiddleware[*stdhttp.Request, 
 	}
 
 	return func(
-		next routery.Handler[*stdhttp.Request, *stdhttp.Response],
-	) routery.Handler[*stdhttp.Request, *stdhttp.Response] {
+		next routery.RouteHandler[*stdhttp.Request, *stdhttp.Response],
+	) routery.RouteHandler[*stdhttp.Request, *stdhttp.Response] {
 		if next == nil {
 			//nolint:bodyclose // No HTTP response is created in this branch.
-			return invalidHandler(configError("timeout middleware requires non-nil next handler"))
+			return invalidRouteHandler(configError("timeout middleware requires non-nil next route handler"))
 		}
 
-		return routery.HandlerFunc[*stdhttp.Request, *stdhttp.Response](
-			func(ctx context.Context, req *stdhttp.Request) (routery.RouteResult[*stdhttp.Response], error) {
-				timedCtx, cancel := context.WithTimeout(ctx, timeout)
-				defer func() {
-					if recovered := recover(); recovered != nil {
-						cancel()
-						panic(recovered)
-					}
-				}()
-
-				//nolint:bodyclose // Body is returned to the caller or wrapped by cancelTimerBody.
-				result, err := next.Handle(timedCtx, req)
-				if err != nil ||
-					result.Payload == nil ||
-					result.Payload.Body == nil ||
-					result.Payload.Body == stdhttp.NoBody {
+		//nolint:bodyclose // Response bodies are forwarded to the caller via ResultRecorder.
+		return func(ctx context.Context, req *stdhttp.Request, rec routery.ResultRecorder[*stdhttp.Response]) error {
+			timedCtx, cancel := context.WithTimeout(ctx, timeout)
+			defer func() {
+				if recovered := recover(); recovered != nil {
 					cancel()
-					return result, err
+					panic(recovered)
 				}
+			}()
 
-				result.Payload.Body = &cancelTimerBody{
-					ReadCloser: result.Payload.Body,
-					cancelOnce: sync.Once{},
-					cancel:     cancel,
-				}
+			localRec := routery.NewResultRecorder[*stdhttp.Response]()
+			err := next(timedCtx, req, localRec)
+			if err != nil {
+				cancel()
+				return err
+			}
 
-				return result, nil
-			},
-		)
+			payload, ok := localRec.Payload()
+			if !ok || payload == nil || payload.Body == nil || payload.Body == stdhttp.NoBody {
+				cancel()
+				routery.CopyRecorderOutcome(rec, localRec)
+				return nil
+			}
+
+			payload.Body = &cancelTimerBody{
+				ReadCloser: payload.Body,
+				cancelOnce: sync.Once{},
+				cancel:     cancel,
+			}
+			rec.Stop(payload, localRec.ReasonCode())
+			return nil
+		}
 	}
 }
 

@@ -14,21 +14,21 @@ func TestFallbackReturnsPrimaryResultOnSuccess(t *testing.T) {
 	primaryCalls := 0
 	secondaryCalls := 0
 
-	primary := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	primary := FromFunc(func(context.Context, int) (int, error) {
 		primaryCalls++
-		return Handled(1), nil
+		return 1, nil
 	})
-	secondary := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	secondary := FromFunc(func(context.Context, int) (int, error) {
 		secondaryCalls++
-		return Handled(2), nil
+		return 2, nil
 	})
 
-	result, err := Fallback(primary, secondary).Handle(context.Background(), 0)
+	outcome, err := InvokeRouteHandler(context.Background(), 0, Fallback(primary, secondary))
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload != 1 {
-		t.Fatalf("unexpected result: got %d, want 1", result.Payload)
+	if !outcome.HasPayload || outcome.Payload != 1 {
+		t.Fatalf("unexpected result: got %d, want 1", outcome.Payload)
 	}
 	if primaryCalls != 1 {
 		t.Fatalf("unexpected primary call count: got %d, want 1", primaryCalls)
@@ -42,26 +42,26 @@ func TestFallbackUsesSecondaryOnPrimaryError(t *testing.T) {
 	t.Parallel()
 
 	primaryErr := errors.New("primary failed")
-	primary := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-		return zeroRouteResult[int](), primaryErr
+	primary := FromFunc(func(context.Context, int) (int, error) {
+		return 0, primaryErr
 	})
-	secondary := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-		return Handled(2), nil
+	secondary := FromFunc(func(context.Context, int) (int, error) {
+		return 2, nil
 	})
 
-	result, err := Fallback(primary, secondary).Handle(context.Background(), 0)
+	outcome, err := InvokeRouteHandler(context.Background(), 0, Fallback(primary, secondary))
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload != 2 {
-		t.Fatalf("unexpected result: got %d, want 2", result.Payload)
+	if !outcome.HasPayload || outcome.Payload != 2 {
+		t.Fatalf("unexpected result: got %d, want 2", outcome.Payload)
 	}
 }
 
 func TestFallbackReturnsConfigErrorForInvalidConfig(t *testing.T) {
 	t.Parallel()
 
-	_, err := Fallback[int, int](nil, nil).Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, Fallback[int, int](nil, nil))
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
@@ -75,24 +75,24 @@ func TestRetryIfRetriesWhenPredicateMatches(t *testing.T) {
 	retryErr := errors.New("retry")
 	calls := 0
 
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	base := FromFunc(func(context.Context, int) (int, error) {
 		calls++
 		if calls < attemptsCount {
-			return zeroRouteResult[int](), retryErr
+			return 0, retryErr
 		}
-		return Handled(1), nil
+		return 1, nil
 	})
 
-	executor := RetryIf[int, int](attemptsCount, 0, func(_ context.Context, _ int, err error) bool {
+	handler := ApplyRoute(base, RetryIf[int, int](attemptsCount, 0, func(_ context.Context, _ int, err error) bool {
 		return errors.Is(err, retryErr)
-	})(base)
+	}))
 
-	result, err := executor.Handle(context.Background(), 0)
+	outcome, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload != 1 {
-		t.Fatalf("unexpected result: got %d, want 1", result.Payload)
+	if !outcome.HasPayload || outcome.Payload != 1 {
+		t.Fatalf("unexpected result: got %d, want 1", outcome.Payload)
 	}
 	if calls != attemptsCount {
 		t.Fatalf("unexpected call count: got %d, want %d", calls, attemptsCount)
@@ -104,16 +104,16 @@ func TestRetryIfStopsWhenPredicateMisses(t *testing.T) {
 
 	calls := 0
 	baseErr := errors.New("stop")
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	base := FromFunc(func(context.Context, int) (int, error) {
 		calls++
-		return zeroRouteResult[int](), baseErr
+		return 0, baseErr
 	})
 
-	executor := RetryIf[int, int](2+1, 0, func(context.Context, int, error) bool {
+	handler := ApplyRoute(base, RetryIf[int, int](2+1, 0, func(context.Context, int, error) bool {
 		return false
-	})(base)
+	}))
 
-	_, err := executor.Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if !errors.Is(err, baseErr) {
 		t.Fatalf("expected base error, got %v", err)
 	}
@@ -127,16 +127,16 @@ func TestRetryIfNormalizesAttemptsToOne(t *testing.T) {
 
 	calls := 0
 	baseErr := errors.New("single")
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	base := FromFunc(func(context.Context, int) (int, error) {
 		calls++
-		return zeroRouteResult[int](), baseErr
+		return 0, baseErr
 	})
 
-	executor := RetryIf[int, int](0, 0, func(context.Context, int, error) bool {
+	handler := ApplyRoute(base, RetryIf[int, int](0, 0, func(context.Context, int, error) bool {
 		return true
-	})(base)
+	}))
 
-	_, err := executor.Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if !errors.Is(err, baseErr) {
 		t.Fatalf("expected base error, got %v", err)
 	}
@@ -148,12 +148,12 @@ func TestRetryIfNormalizesAttemptsToOne(t *testing.T) {
 func TestRetryIfReturnsConfigErrorForNilPredicate(t *testing.T) {
 	t.Parallel()
 
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-		return Handled(1), nil
+	base := FromFunc(func(context.Context, int) (int, error) {
+		return 1, nil
 	})
 
-	executor := RetryIf[int, int](1, 0, nil)(base)
-	_, err := executor.Handle(context.Background(), 0)
+	handler := ApplyRoute(base, RetryIf[int, int](1, 0, nil))
+	_, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
@@ -197,17 +197,19 @@ func TestRetryIfHonorsContextCancellationDuringBackoff(t *testing.T) {
 		backoff = 64 * time.Millisecond
 	)
 
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-		return zeroRouteResult[int](), errors.New("retry")
+	base := FromFunc(func(context.Context, int) (int, error) {
+		return 0, errors.New("retry")
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	start := time.Now()
-	_, err := RetryIf[int, int](2+1, backoff, func(context.Context, int, error) bool {
+	handler := ApplyRoute(base, RetryIf[int, int](2+1, backoff, func(context.Context, int, error) bool {
 		return true
-	})(base).Handle(ctx, 0)
+	}))
+
+	start := time.Now()
+	_, err := InvokeRouteHandler(ctx, 0, handler)
 	elapsed := time.Since(start)
 
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -223,19 +225,22 @@ func TestRoundRobinDistributesSequentially(t *testing.T) {
 
 	const calls = 2 * (2 + 1)
 
-	executor := RoundRobin[int, int](
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(1), nil }),
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(2), nil }),
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(2 + 1), nil }),
+	handler := RoundRobin[int, int](
+		FromFunc(func(context.Context, int) (int, error) { return 1, nil }),
+		FromFunc(func(context.Context, int) (int, error) { return 2, nil }),
+		FromFunc(func(context.Context, int) (int, error) { return 2 + 1, nil }),
 	)
 
 	got := make([]int, 0, calls)
 	for range calls {
-		res, err := executor.Handle(context.Background(), 0)
+		outcome, err := InvokeRouteHandler(context.Background(), 0, handler)
 		if err != nil {
 			t.Fatalf("execute returned unexpected error: %v", err)
 		}
-		got = append(got, res.Payload)
+		if !outcome.HasPayload {
+			t.Fatal("expected payload")
+		}
+		got = append(got, outcome.Payload)
 	}
 
 	want := []int{1, 2, 3, 1, 2, 3}
@@ -249,15 +254,15 @@ func TestRoundRobinDistributesSequentially(t *testing.T) {
 func TestRoundRobinReturnsSentinelErrors(t *testing.T) {
 	t.Parallel()
 
-	_, err := RoundRobin[int, int]().Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, RoundRobin[int, int]())
 	if !errors.Is(err, ErrNoHandlers) {
 		t.Fatalf("expected ErrNoHandlers, got %v", err)
 	}
 
-	_, err = RoundRobin[int, int](
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(1), nil }),
+	_, err = InvokeRouteHandler(context.Background(), 0, RoundRobin[int, int](
+		FromFunc(func(context.Context, int) (int, error) { return 1, nil }),
 		nil,
-	).Handle(context.Background(), 0)
+	))
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
@@ -271,9 +276,9 @@ func TestRoundRobinSupportsConcurrentCalls(t *testing.T) {
 		calls   = 2
 	)
 
-	executor := RoundRobin[int, int](
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(1), nil }),
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(2), nil }),
+	handler := RoundRobin[int, int](
+		FromFunc(func(context.Context, int) (int, error) { return 1, nil }),
+		FromFunc(func(context.Context, int) (int, error) { return 2, nil }),
 	)
 
 	var group sync.WaitGroup
@@ -282,7 +287,7 @@ func TestRoundRobinSupportsConcurrentCalls(t *testing.T) {
 	for range workers {
 		group.Go(func() {
 			for range calls {
-				_, err := executor.Handle(context.Background(), 0)
+				_, err := InvokeRouteHandler(context.Background(), 0, handler)
 				if err != nil {
 					errs <- err
 				}
@@ -303,13 +308,13 @@ func TestTimeoutEnforcesDeadline(t *testing.T) {
 
 	const timeout = 16 * time.Millisecond
 
-	base := HandlerFunc[int, int](func(ctx context.Context, _ int) (RouteResult[int], error) {
+	base := func(ctx context.Context, _ int, _ ResultRecorder[int]) error {
 		<-ctx.Done()
-		return zeroRouteResult[int](), ctx.Err()
-	})
+		return ctx.Err()
+	}
 
 	start := time.Now()
-	_, err := Timeout[int, int](timeout)(base).Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, ApplyRoute(base, Timeout[int, int](timeout)))
 	elapsed := time.Since(start)
 
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -328,16 +333,16 @@ func TestTimeoutRespectsEarlierParentDeadline(t *testing.T) {
 		mwTimeout     = 80 * time.Millisecond
 	)
 
-	base := HandlerFunc[int, int](func(ctx context.Context, _ int) (RouteResult[int], error) {
+	base := func(ctx context.Context, _ int, _ ResultRecorder[int]) error {
 		<-ctx.Done()
-		return zeroRouteResult[int](), ctx.Err()
-	})
+		return ctx.Err()
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), parentTimeout)
 	defer cancel()
 
 	start := time.Now()
-	_, err := Timeout[int, int](mwTimeout)(base).Handle(ctx, 0)
+	_, err := InvokeRouteHandler(ctx, 0, ApplyRoute(base, Timeout[int, int](mwTimeout)))
 	elapsed := time.Since(start)
 
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -351,67 +356,324 @@ func TestTimeoutRespectsEarlierParentDeadline(t *testing.T) {
 func TestTimeoutReturnsIdentityWhenDurationIsNonPositive(t *testing.T) {
 	t.Parallel()
 
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-		return Handled(2 + 2), nil
+	base := FromFunc(func(context.Context, int) (int, error) {
+		return 2 + 2, nil
 	})
 
-	result, err := Timeout[int, int](0)(base).Handle(context.Background(), 0)
+	outcome, err := InvokeRouteHandler(context.Background(), 0, ApplyRoute(base, Timeout[int, int](0)))
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload != 2+2 {
-		t.Fatalf("unexpected result: got %d, want 4", result.Payload)
+	if !outcome.HasPayload || outcome.Payload != 2+2 {
+		t.Fatalf("unexpected result: got %d, want 4", outcome.Payload)
 	}
 }
 
-func TestRetryIfDoesNotRetryOnRouteStatusNext(t *testing.T) {
+func TestRetryIfDoesNotRetryOnActionNext(t *testing.T) {
 	t.Parallel()
 
 	calls := 0
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	base := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
 		calls++
-		return Next[int]("delegate"), nil
-	})
+		rec.Next("delegate")
+		return nil
+	}
 
-	executor := RetryIf[int, int](5, 0, func(context.Context, int, error) bool {
+	handler := ApplyRoute(base, RetryIf[int, int](5, 0, func(context.Context, int, error) bool {
 		return true
-	})(base)
+	}))
 
-	result, err := executor.Handle(context.Background(), 0)
-	if err != nil {
+	rec := NewResultRecorder[int]()
+	if err := handler(context.Background(), 0, rec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.Status != StatusNext || calls != 1 {
-		t.Fatalf("got status=%s calls=%d, want next/1", result.Status, calls)
+	if rec.Action() != ActionNext || calls != 1 {
+		t.Fatalf("got action=%s calls=%d, want next/1", rec.Action(), calls)
 	}
 }
 
-func TestRetryIfDoesNotRetryOnRouteStatusIgnored(t *testing.T) {
+func TestRetryIfDoesNotRetryOnIgnore(t *testing.T) {
 	t.Parallel()
 
 	calls := 0
-	base := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	base := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
 		calls++
-		return Ignored[int]("skip"), nil
-	})
+		rec.Ignore("skip")
+		return nil
+	}
 
-	executor := RetryIf[int, int](5, 0, func(context.Context, int, error) bool {
+	handler := ApplyRoute(base, RetryIf[int, int](5, 0, func(context.Context, int, error) bool {
 		return true
-	})(base)
+	}))
 
-	result, err := executor.Handle(context.Background(), 0)
+	rec := NewResultRecorder[int]()
+	if err := handler(context.Background(), 0, rec); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec.Action() != ActionStop || calls != 1 {
+		t.Fatalf("got action=%s calls=%d, want stop/1", rec.Action(), calls)
+	}
+	if _, ok := rec.Payload(); ok {
+		t.Fatal("expected no payload after Ignore")
+	}
+}
+
+func TestFallbackPrimaryNextThenErrorUsesCleanSecondary(t *testing.T) {
+	t.Parallel()
+
+	secondaryCalled := false
+	primary := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		rec.Next("dirty")
+		return errors.New("primary failed")
+	}
+	secondary := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		secondaryCalled = true
+		rec.Stop(42, "")
+		return nil
+	}
+
+	outcome, err := InvokeRouteHandler(context.Background(), 0, Fallback(primary, secondary))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.Status != StatusIgnored || calls != 1 {
-		t.Fatalf("got status=%s calls=%d, want ignored/1", result.Status, calls)
+	if !secondaryCalled {
+		t.Fatal("expected secondary to run")
+	}
+	if !outcome.HasPayload || outcome.Payload != 42 {
+		t.Fatalf("got %+v; want payload 42", outcome)
+	}
+}
+
+func TestRetryIfRetriesAfterPrimaryNextWithoutTerminalState(t *testing.T) {
+	t.Parallel()
+
+	attempts := 0
+	base := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		attempts++
+		if attempts == 1 {
+			rec.Next("partial")
+			return errors.New("retry me")
+		}
+		rec.Stop(7, "")
+		return nil
+	}
+
+	handler := ApplyRoute(base, RetryIf[int, int](3, 0, func(context.Context, int, error) bool {
+		return true
+	}))
+
+	outcome, err := InvokeRouteHandler(context.Background(), 0, handler)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("got attempts=%d; want 2", attempts)
+	}
+	if !outcome.HasPayload || outcome.Payload != 7 {
+		t.Fatalf("got %+v; want payload 7", outcome)
+	}
+}
+
+func TestFallbackPrimaryIgnoreSkipsSecondary(t *testing.T) {
+	t.Parallel()
+
+	secondaryCalled := false
+	primary := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		rec.Ignore("skip")
+		return nil
+	}
+	secondary := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		secondaryCalled = true
+		rec.Stop(99, "")
+		return nil
+	}
+
+	outcome, err := InvokeRouteHandler(context.Background(), 0, Fallback(primary, secondary))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if secondaryCalled {
+		t.Fatal("expected secondary to be skipped")
+	}
+	if outcome.HasPayload {
+		t.Fatal("expected no payload after Ignore")
+	}
+	if outcome.ReasonCode != "skip" {
+		t.Fatalf("got reason %q; want skip", outcome.ReasonCode)
+	}
+}
+
+func TestFallbackPrimaryNextSkipsSecondary(t *testing.T) {
+	t.Parallel()
+
+	secondaryCalled := false
+	primary := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		rec.Next("delegate")
+		return nil
+	}
+	secondary := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		secondaryCalled = true
+		rec.Stop(99, "")
+		return nil
+	}
+
+	outcome, err := InvokeRouteHandler(context.Background(), 0, Fallback(primary, secondary))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if secondaryCalled {
+		t.Fatal("expected secondary to be skipped")
+	}
+	if outcome.Action != ActionNext {
+		t.Fatalf("got action %q; want next", outcome.Action)
+	}
+	if outcome.ReasonCode != "delegate" {
+		t.Fatalf("got reason %q; want delegate", outcome.ReasonCode)
+	}
+}
+
+func TestPredicateFallbackPrimaryNextSkipsSecondary(t *testing.T) {
+	t.Parallel()
+
+	secondaryCalled := false
+	primary := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		rec.Next("delegate")
+		return nil
+	}
+	secondary := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		secondaryCalled = true
+		rec.Stop(99, "")
+		return nil
+	}
+
+	outcome, err := InvokeRouteHandler(context.Background(), 0, PredicateFallback(primary, secondary, func(error) bool {
+		return true
+	}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if secondaryCalled {
+		t.Fatal("expected secondary to be skipped")
+	}
+	if outcome.Action != ActionNext {
+		t.Fatalf("got action %q; want next", outcome.Action)
+	}
+}
+
+func TestCoreTimeoutCopiesNextAndIgnoreOnSuccess(t *testing.T) {
+	t.Parallel()
+
+	t.Run("next", func(t *testing.T) {
+		t.Parallel()
+
+		rec := NewResultRecorder[int]()
+		base := func(_ context.Context, _ int, localRec ResultRecorder[int]) error {
+			localRec.Next("delegate")
+			return nil
+		}
+		err := ApplyRoute(base, Timeout[int, int](time.Second))(context.Background(), 0, rec)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if rec.Action() != ActionNext {
+			t.Fatalf("got action %q; want next", rec.Action())
+		}
+		if rec.ReasonCode() != "delegate" {
+			t.Fatalf("got reason %q; want delegate", rec.ReasonCode())
+		}
+	})
+
+	t.Run("ignore", func(t *testing.T) {
+		t.Parallel()
+
+		rec := NewResultRecorder[int]()
+		base := func(_ context.Context, _ int, localRec ResultRecorder[int]) error {
+			localRec.Ignore("skip")
+			return nil
+		}
+		err := ApplyRoute(base, Timeout[int, int](time.Second))(context.Background(), 0, rec)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if rec.Action() != ActionStop {
+			t.Fatalf("got action %q; want stop", rec.Action())
+		}
+		if rec.ReasonCode() != "skip" {
+			t.Fatalf("got reason %q; want skip", rec.ReasonCode())
+		}
+		if _, ok := rec.Payload(); ok {
+			t.Fatal("expected no payload after Ignore")
+		}
+	})
+}
+
+func TestInvokeRouteHandlerReturnsAbortOutcomeOnError(t *testing.T) {
+	t.Parallel()
+
+	handlerErr := errors.New("handler failed")
+	handler := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		rec.Stop(42, "handled")
+		return handlerErr
+	}
+
+	outcome, err := InvokeRouteHandler(context.Background(), 0, handler)
+	if !errors.Is(err, handlerErr) {
+		t.Fatalf("got err %v; want %v", err, handlerErr)
+	}
+	if outcome.HasPayload {
+		t.Fatal("expected no payload on error")
+	}
+	if outcome.Action != ActionAbort {
+		t.Fatalf("got action %q; want abort", outcome.Action)
+	}
+}
+
+func TestTimeoutDiscardsPartialRecorderOnContextError(t *testing.T) {
+	t.Parallel()
+
+	base := func(ctx context.Context, _ int, rec ResultRecorder[int]) error {
+		rec.Next("partial")
+		<-ctx.Done()
+		return ctx.Err()
+	}
+
+	rec := NewResultRecorder[int]()
+	err := ApplyRoute(base, Timeout[int, int](20*time.Millisecond))(context.Background(), 0, rec)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("got err %v; want deadline exceeded", err)
+	}
+	if rec.Action() != ActionNext {
+		t.Fatalf("got action %s; want next (partial state discarded)", rec.Action())
+	}
+}
+
+func TestInvokeRouteHandlerIgnoreReturnsOutcome(t *testing.T) {
+	t.Parallel()
+
+	handler := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		rec.Ignore("ignored")
+		return nil
+	}
+
+	outcome, err := InvokeRouteHandler(context.Background(), 0, handler)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if outcome.HasPayload {
+		t.Fatal("expected no payload")
+	}
+	if outcome.ReasonCode != "ignored" {
+		t.Fatalf("got reason %q; want ignored", outcome.ReasonCode)
+	}
+	if outcome.Action != ActionStop {
+		t.Fatalf("got action %q; want stop", outcome.Action)
 	}
 }
 
 func TestTimeoutReturnsConfigErrorWhenNextIsNil(t *testing.T) {
 	t.Parallel()
 
-	_, err := Timeout[int, int](time.Second)(nil).Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, ApplyRoute[int, int](nil, Timeout[int, int](time.Second)))
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}

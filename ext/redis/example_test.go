@@ -11,7 +11,7 @@ import (
 	routeryredis "github.com/skosovsky/routery/ext/redis"
 )
 
-func ExampleNewStringHandler_withRetryIf() {
+func ExampleNewStringRouteHandler_withRetryIf() {
 	mr, err := miniredis.Run()
 	if err != nil {
 		fmt.Println("miniredis:", err)
@@ -21,20 +21,24 @@ func ExampleNewStringHandler_withRetryIf() {
 	_ = mr.Set("user:1", "alice")
 
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	base := routeryredis.NewStringHandler(client, func(ctx context.Context, id int) (redis.Cmder, error) {
+	base := routeryredis.NewStringRouteHandler(client, func(ctx context.Context, id int) (redis.Cmder, error) {
 		return client.Get(ctx, fmt.Sprintf("user:%d", id)), nil
 	})
 
-	executor := routery.Apply(
+	handler := routery.ApplyRoute(
 		base,
 		routery.RetryIf[int, string](3, 0, routeryredis.DefaultRetryPolicy[int]),
 	)
 
-	result, err := executor.Handle(context.Background(), 1)
+	outcome, err := routery.InvokeRouteHandler(context.Background(), 1, handler)
 	if err != nil {
 		fmt.Println("err", err)
 		return
 	}
-	fmt.Println(result.Payload)
+	if !outcome.HasPayload {
+		fmt.Println("no payload")
+		return
+	}
+	fmt.Println(outcome.Payload)
 	// Output: alice
 }

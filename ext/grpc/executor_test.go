@@ -9,36 +9,36 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-func TestNewUnaryHandlerNilInvoker(t *testing.T) {
+func TestNewUnaryRouteHandlerNilInvoker(t *testing.T) {
 	t.Parallel()
-	ex := NewUnaryHandler[int, int](nil)
-	_, err := ex.Handle(context.Background(), 0)
+	ex := NewUnaryRouteHandler[int, int](nil)
+	_, err := routery.InvokeRouteHandler(context.Background(), 0, ex)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewUnaryHandlerOK(t *testing.T) {
+func TestNewUnaryRouteHandlerOK(t *testing.T) {
 	t.Parallel()
-	ex := NewUnaryHandler(func(_ context.Context, x int) (int, error) {
+	ex := NewUnaryRouteHandler(func(_ context.Context, x int) (int, error) {
 		return x + 1, nil
 	})
-	vResult, err := ex.Handle(context.Background(), 41)
-	if err != nil || vResult.Payload != 42 {
-		t.Fatalf("got %d err=%v", vResult.Payload, err)
+	outcome, err := routery.InvokeRouteHandler(context.Background(), 41, ex)
+	if err != nil || !outcome.HasPayload || outcome.Payload != 42 {
+		t.Fatalf("got %d err=%v", outcome.Payload, err)
 	}
 }
 
-func TestNewUnaryHandlerConcurrent(t *testing.T) {
+func TestNewUnaryRouteHandlerConcurrent(t *testing.T) {
 	t.Parallel()
-	ex := NewUnaryHandler(func(_ context.Context, x int) (int, error) {
+	ex := NewUnaryRouteHandler(func(_ context.Context, x int) (int, error) {
 		return x, nil
 	})
 	const workers = 128
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			_, e := ex.Handle(context.Background(), 7)
+			_, e := routery.InvokeRouteHandler(context.Background(), 7, ex)
 			if e != nil {
 				t.Error(e)
 			}

@@ -15,13 +15,13 @@ func ExampleTracing() {
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
 	tracer := tp.Tracer("example")
 
-	base := routery.HandlerFunc[int, int](func(context.Context, int) (routery.RouteResult[int], error) {
-		return routery.Handled(42), nil
+	base := routery.FromFunc(func(context.Context, int) (int, error) {
+		return 42, nil
 	})
 
-	executor := routery.Apply(base, routeryotel.Tracing[int, int](tracer, "work"))
-	res, err := executor.Handle(context.Background(), 0)
-	fmt.Println(res.Payload, err == nil)
+	handler := routery.ApplyRoute(base, routeryotel.Tracing[int, int](tracer, "work"))
+	outcome, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
+	fmt.Println(outcome.Payload, err == nil)
 	// Output: 42 true
 }
 

@@ -361,20 +361,24 @@ func TestRetryIfWithDefaultRetryPolicyThree503Then200(t *testing.T) {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	executor := routery.Apply(
-		NewHandler(server.Client()),
+	handler := routery.ApplyRoute(
+		NewRouteHandler(server.Client()),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](4, 0, DefaultRetryPolicy),
 	)
 
-	result, executeErr := executor.Handle(context.Background(), request)
+	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	response := outcome.Payload
 	if executeErr != nil {
 		t.Fatalf("unexpected execute error: %v", executeErr)
 	}
-	if result.Payload.StatusCode != stdhttp.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", result.Payload.StatusCode, stdhttp.StatusOK)
+	if response.StatusCode != stdhttp.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", response.StatusCode, stdhttp.StatusOK)
 	}
-	body, readErr := io.ReadAll(result.Payload.Body)
-	_ = result.Payload.Body.Close()
+	body, readErr := io.ReadAll(response.Body)
+	_ = response.Body.Close()
 	if readErr != nil {
 		t.Fatalf("failed to read response body: %v", readErr)
 	}
@@ -402,19 +406,23 @@ func TestRetryIfClosesAllIntermediateStatusBodies(t *testing.T) {
 	if reqErr != nil {
 		t.Fatalf("failed to create request: %v", reqErr)
 	}
-	executor := routery.Apply(
-		NewHandler(client),
+	handler := routery.ApplyRoute(
+		NewRouteHandler(client),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](4, 0, DefaultRetryPolicy),
 	)
 
-	result, err := executor.Handle(context.Background(), request)
+	outcome, err := routery.InvokeRouteHandler(context.Background(), request, handler)
+	if !outcome.HasPayload {
+		t.Fatal("expected route payload")
+	}
+	response := outcome.Payload
 	if err != nil {
 		t.Fatalf("unexpected execute error: %v", err)
 	}
-	if result.Payload.StatusCode != stdhttp.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", result.Payload.StatusCode, stdhttp.StatusOK)
+	if response.StatusCode != stdhttp.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", response.StatusCode, stdhttp.StatusOK)
 	}
-	_ = result.Payload.Body.Close()
+	_ = response.Body.Close()
 
 	if got := body1.closes.Load(); got != 1 {
 		t.Fatalf("unexpected closes for body1: got %d, want 1", got)
@@ -455,17 +463,17 @@ func TestRetryIfContextCanceledDuringBackoffStopsRetries(t *testing.T) {
 		cancel()
 	}()
 
-	executor := routery.Apply(
-		NewHandler(server.Client()),
+	handler := routery.ApplyRoute(
+		NewRouteHandler(server.Client()),
 		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](3, time.Second, DefaultRetryPolicy),
 	)
 
-	result, executeErr := executor.Handle(ctx, request)
+	outcome, executeErr := routery.InvokeRouteHandler(ctx, request, handler)
 	if !errors.Is(executeErr, context.Canceled) {
 		t.Fatalf("expected context cancellation, got %v", executeErr)
 	}
-	if result.Payload != nil {
-		t.Fatalf("expected nil response on canceled backoff, got %+v", result.Payload)
+	if outcome.HasPayload {
+		t.Fatalf("expected nil response on canceled backoff, got %+v", outcome.Payload)
 	}
 	if got := attempts.Load(); got != 1 {
 		t.Fatalf("unexpected number of attempts: got %d, want 1", got)

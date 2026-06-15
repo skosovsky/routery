@@ -21,53 +21,44 @@ type circuitBreakerState struct {
 	probeInFlight bool
 }
 
-// CircuitBreaker wraps a handler with a fail-fast circuit breaker.
+// CircuitBreaker wraps a route handler with a fail-fast circuit breaker.
 //
-// States: Closed (requests pass), Open (requests fail with [ErrCircuitOpen]),
-// HalfOpen (one probe request is allowed after resetTimeout).
-//
-// In HalfOpen, only a successful probe (nil error) closes the circuit.
-// Client-side cancellation ([context.Canceled], [context.DeadlineExceeded]) does
-// not prove the downstream recovered: the breaker stays HalfOpen so another
-// probe may run.
-//
-// Business route statuses never affect breaker counters. Only non-nil errors
-// returned from Handle can open the circuit.
-//
-// If isFailure is nil, any non-nil error counts as a failure for counting in
-// Closed except [context.Canceled] and [context.DeadlineExceeded].
-func CircuitBreaker[TReq any, TRes any](
+// Only non-nil errors returned from route handlers can open the circuit.
+// Business dispositions such as ActionNext never affect breaker counters.
+func CircuitBreaker[Req any, Res any](
 	failureThreshold int,
 	resetTimeout time.Duration,
 	isFailure func(error) bool,
-) HandlerMiddleware[TReq, TRes] {
+) RouteMiddleware[Req, Res] {
 	if failureThreshold < 1 {
-		return func(Handler[TReq, TRes]) Handler[TReq, TRes] {
-			return invalidHandler[TReq, TRes](configError("circuit breaker failure threshold must be at least 1"))
+		return func(RouteHandler[Req, Res]) RouteHandler[Req, Res] {
+			return invalidRouteHandler[Req, Res](configError("circuit breaker failure threshold must be at least 1"))
 		}
 	}
 	if resetTimeout < 0 {
-		return func(Handler[TReq, TRes]) Handler[TReq, TRes] {
-			return invalidHandler[TReq, TRes](configError("circuit breaker reset timeout must be non-negative"))
+		return func(RouteHandler[Req, Res]) RouteHandler[Req, Res] {
+			return invalidRouteHandler[Req, Res](configError("circuit breaker reset timeout must be non-negative"))
 		}
 	}
 
 	//nolint:exhaustruct // zero values are intentional for counters, mutex, and timestamps.
 	st := &circuitBreakerState{state: cbClosed}
-	return func(next Handler[TReq, TRes]) Handler[TReq, TRes] {
+	return func(next RouteHandler[Req, Res]) RouteHandler[Req, Res] {
 		if next == nil {
-			return invalidHandler[TReq, TRes](configError("circuit breaker middleware requires non-nil next handler"))
+			return invalidRouteHandler[Req, Res](
+				configError("circuit breaker middleware requires non-nil next route handler"),
+			)
 		}
 
-		return HandlerFunc[TReq, TRes](func(ctx context.Context, req TReq) (RouteResult[TRes], error) {
+		return func(ctx context.Context, req Req, rec ResultRecorder[Res]) error {
 			if err := st.beforeRequest(resetTimeout); err != nil {
-				return zeroRouteResult[TRes](), err
+				return err
 			}
 
-			result, err := next.Handle(ctx, req)
+			err := next(ctx, req, rec)
 			st.afterRequest(err, isFailure, failureThreshold)
-			return result, err
-		})
+			return err
+		}
 	}
 }
 

@@ -20,41 +20,45 @@ func statementExtractor(_ context.Context, req statementRequest) (string, []any,
 	return req.Query, req.Args, nil
 }
 
-func TestNewDBQueryHandlerInvalidConfig(t *testing.T) {
+func TestNewDBQueryRouteHandlerInvalidConfig(t *testing.T) {
 	t.Parallel()
 
-	executor := NewDBQueryHandler[statementRequest](nil, statementExtractor)
-	rowsResult, err := executor.Handle(context.Background(), statementRequest{})
-	assertRowsCheckedAndClosed(t, rowsResult.Payload)
+	handler := NewDBQueryRouteHandler[statementRequest](nil, statementExtractor)
+	outcome, err := routery.InvokeRouteHandler(context.Background(), statementRequest{}, handler)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
+	if outcome.HasPayload {
+		t.Fatal("expected no payload on config error")
+	}
 }
 
-func TestNewDBExecHandlerInvalidConfig(t *testing.T) {
+func TestNewDBExecRouteHandlerInvalidConfig(t *testing.T) {
 	t.Parallel()
 
 	db, _ := openTestDB(t, testDriverConfig{})
-	executor := NewDBExecHandler[statementRequest](db, nil)
+	handler := NewDBExecRouteHandler[statementRequest](db, nil)
 
-	_, err := executor.Handle(context.Background(), statementRequest{})
+	_, err := routery.InvokeRouteHandler(context.Background(), statementRequest{}, handler)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewTxQueryHandlerInvalidConfig(t *testing.T) {
+func TestNewTxQueryRouteHandlerInvalidConfig(t *testing.T) {
 	t.Parallel()
 
-	executor := NewTxQueryHandler[statementRequest](nil, statementExtractor)
-	rowsResult, err := executor.Handle(context.Background(), statementRequest{})
-	assertRowsCheckedAndClosed(t, rowsResult.Payload)
+	handler := NewTxQueryRouteHandler[statementRequest](nil, statementExtractor)
+	outcome, err := routery.InvokeRouteHandler(context.Background(), statementRequest{}, handler)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
+	if outcome.HasPayload {
+		t.Fatal("expected no payload on config error")
+	}
 }
 
-func TestNewTxExecHandlerInvalidConfig(t *testing.T) {
+func TestNewTxExecRouteHandlerInvalidConfig(t *testing.T) {
 	t.Parallel()
 
 	db, _ := openTestDB(t, testDriverConfig{})
@@ -66,33 +70,37 @@ func TestNewTxExecHandlerInvalidConfig(t *testing.T) {
 		_ = tx.Rollback()
 	})
 
-	executor := NewTxExecHandler[statementRequest](tx, nil)
-	_, executeErr := executor.Handle(context.Background(), statementRequest{})
+	handler := NewTxExecRouteHandler[statementRequest](tx, nil)
+	_, executeErr := routery.InvokeRouteHandler(context.Background(), statementRequest{}, handler)
 	if !errors.Is(executeErr, routery.ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", executeErr)
 	}
 }
 
-func TestNewDBQueryHandlerExecutesQuery(t *testing.T) {
+func TestNewDBQueryRouteHandlerExecutesQuery(t *testing.T) {
 	t.Parallel()
 
 	db, state := openTestDB(t, testDriverConfig{})
-	executor := NewDBQueryHandler[statementRequest](db, statementExtractor)
+	handler := NewDBQueryRouteHandler[statementRequest](db, statementExtractor)
 
-	rowsResult, err := executor.Handle(context.Background(), statementRequest{
+	outcome, err := routery.InvokeRouteHandler(context.Background(), statementRequest{
 		Query: "SELECT value FROM widgets WHERE id = ?",
 		Args:  []any{1},
-	})
+	}, handler)
 	if err != nil {
 		t.Fatalf("unexpected execute error: %v", err)
 	}
+	if !outcome.HasPayload {
+		t.Fatal("expected rows payload")
+	}
+	rows := outcome.Payload
 	t.Cleanup(func() {
-		_ = rowsResult.Payload.Close()
+		_ = rows.Close()
 	})
-	if !rowsResult.Payload.Next() {
+	if !rows.Next() {
 		t.Fatal("expected at least one row")
 	}
-	if rowsErr := rowsResult.Payload.Err(); rowsErr != nil {
+	if rowsErr := rows.Err(); rowsErr != nil {
 		t.Fatalf("unexpected rows error: %v", rowsErr)
 	}
 
@@ -108,21 +116,24 @@ func TestNewDBQueryHandlerExecutesQuery(t *testing.T) {
 	}
 }
 
-func TestNewDBExecHandlerExecutesStatement(t *testing.T) {
+func TestNewDBExecRouteHandlerExecutesStatement(t *testing.T) {
 	t.Parallel()
 
 	db, state := openTestDB(t, testDriverConfig{})
-	executor := NewDBExecHandler[statementRequest](db, statementExtractor)
+	handler := NewDBExecRouteHandler[statementRequest](db, statementExtractor)
 
-	execResult, err := executor.Handle(context.Background(), statementRequest{
+	outcome, err := routery.InvokeRouteHandler(context.Background(), statementRequest{
 		Query: "UPDATE widgets SET active = ? WHERE id = ?",
 		Args:  []any{true, 2},
-	})
+	}, handler)
 	if err != nil {
 		t.Fatalf("unexpected execute error: %v", err)
 	}
+	if !outcome.HasPayload {
+		t.Fatal("expected exec result payload")
+	}
 
-	rowsAffected, rowsAffectedErr := execResult.Payload.RowsAffected()
+	rowsAffected, rowsAffectedErr := outcome.Payload.RowsAffected()
 	if rowsAffectedErr != nil {
 		t.Fatalf("unexpected rows affected error: %v", rowsAffectedErr)
 	}
@@ -142,7 +153,7 @@ func TestNewDBExecHandlerExecutesStatement(t *testing.T) {
 	}
 }
 
-func TestNewTxQueryHandlerExecutesQuery(t *testing.T) {
+func TestNewTxQueryRouteHandlerExecutesQuery(t *testing.T) {
 	t.Parallel()
 
 	db, state := openTestDB(t, testDriverConfig{})
@@ -154,20 +165,24 @@ func TestNewTxQueryHandlerExecutesQuery(t *testing.T) {
 		_ = tx.Rollback()
 	})
 
-	executor := NewTxQueryHandler[statementRequest](tx, statementExtractor)
-	rowsResult, executeErr := executor.Handle(context.Background(), statementRequest{
+	handler := NewTxQueryRouteHandler[statementRequest](tx, statementExtractor)
+	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), statementRequest{
 		Query: "SELECT value FROM widgets",
-	})
+	}, handler)
 	if executeErr != nil {
 		t.Fatalf("unexpected execute error: %v", executeErr)
 	}
+	if !outcome.HasPayload {
+		t.Fatal("expected rows payload")
+	}
+	rows := outcome.Payload
 	t.Cleanup(func() {
-		_ = rowsResult.Payload.Close()
+		_ = rows.Close()
 	})
-	if !rowsResult.Payload.Next() {
+	if !rows.Next() {
 		t.Fatal("expected at least one row")
 	}
-	if rowsErr := rowsResult.Payload.Err(); rowsErr != nil {
+	if rowsErr := rows.Err(); rowsErr != nil {
 		t.Fatalf("unexpected rows error: %v", rowsErr)
 	}
 
@@ -179,7 +194,7 @@ func TestNewTxQueryHandlerExecutesQuery(t *testing.T) {
 	}
 }
 
-func TestNewTxExecHandlerExecutesStatement(t *testing.T) {
+func TestNewTxExecRouteHandlerExecutesStatement(t *testing.T) {
 	t.Parallel()
 
 	db, state := openTestDB(t, testDriverConfig{})
@@ -191,16 +206,19 @@ func TestNewTxExecHandlerExecutesStatement(t *testing.T) {
 		_ = tx.Rollback()
 	})
 
-	executor := NewTxExecHandler[statementRequest](tx, statementExtractor)
-	execResult, executeErr := executor.Handle(context.Background(), statementRequest{
+	handler := NewTxExecRouteHandler[statementRequest](tx, statementExtractor)
+	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), statementRequest{
 		Query: "DELETE FROM widgets WHERE id = ?",
 		Args:  []any{3},
-	})
+	}, handler)
 	if executeErr != nil {
 		t.Fatalf("unexpected execute error: %v", executeErr)
 	}
+	if !outcome.HasPayload {
+		t.Fatal("expected exec result payload")
+	}
 
-	rowsAffected, rowsAffectedErr := execResult.Payload.RowsAffected()
+	rowsAffected, rowsAffectedErr := outcome.Payload.RowsAffected()
 	if rowsAffectedErr != nil {
 		t.Fatalf("unexpected rows affected error: %v", rowsAffectedErr)
 	}
@@ -217,14 +235,14 @@ func TestExtractorErrorIsReturnedWithoutWrapping(t *testing.T) {
 
 	db, _ := openTestDB(t, testDriverConfig{})
 	extractorErr := errors.New("extractor failed")
-	executor := NewDBExecHandler[statementRequest](
+	handler := NewDBExecRouteHandler[statementRequest](
 		db,
 		func(context.Context, statementRequest) (string, []any, error) {
 			return "", nil, extractorErr
 		},
 	)
 
-	_, err := executor.Handle(context.Background(), statementRequest{})
+	_, err := routery.InvokeRouteHandler(context.Background(), statementRequest{}, handler)
 	if !errors.Is(err, extractorErr) {
 		t.Fatalf("expected extractor error, got %v", err)
 	}
@@ -240,14 +258,16 @@ func TestExecutionErrorWrapsQueryFailure(t *testing.T) {
 
 	queryErr := errors.New("query failed")
 	db, _ := openTestDB(t, testDriverConfig{queryErr: queryErr})
-	executor := NewDBQueryHandler[statementRequest](db, statementExtractor)
+	handler := NewDBQueryRouteHandler[statementRequest](db, statementExtractor)
 
-	rowsResult, err := executor.Handle(context.Background(), statementRequest{
+	outcome, err := routery.InvokeRouteHandler(context.Background(), statementRequest{
 		Query: "SELECT value FROM widgets",
-	})
-	assertRowsCheckedAndClosed(t, rowsResult.Payload)
+	}, handler)
 	if err == nil {
 		t.Fatal("expected execute error")
+	}
+	if outcome.HasPayload {
+		assertRowsCheckedAndClosed(t, outcome.Payload)
 	}
 	if !errors.Is(err, queryErr) {
 		t.Fatalf("expected wrapped query error, got %v", err)
@@ -277,11 +297,11 @@ func TestExecutionErrorWrapsTxFailure(t *testing.T) {
 		_ = tx.Rollback()
 	})
 
-	executor := NewTxExecHandler[statementRequest](tx, statementExtractor)
-	_, executeErr := executor.Handle(context.Background(), statementRequest{
+	handler := NewTxExecRouteHandler[statementRequest](tx, statementExtractor)
+	_, executeErr := routery.InvokeRouteHandler(context.Background(), statementRequest{
 		Query: "UPDATE widgets SET active = ? WHERE id = ?",
 		Args:  []any{false, 1},
-	})
+	}, handler)
 	if executeErr == nil {
 		t.Fatal("expected execute error")
 	}
@@ -302,18 +322,21 @@ func TestRowsMustBeClosedByCaller(t *testing.T) {
 	t.Parallel()
 
 	db, state := openTestDB(t, testDriverConfig{})
-	executor := NewDBQueryHandler[statementRequest](db, statementExtractor)
+	handler := NewDBQueryRouteHandler[statementRequest](db, statementExtractor)
 
-	rowsResult, err := executor.Handle(context.Background(), statementRequest{
+	outcome, err := routery.InvokeRouteHandler(context.Background(), statementRequest{
 		Query: "SELECT value FROM widgets",
-	})
+	}, handler)
 	if err != nil {
 		t.Fatalf("unexpected execute error: %v", err)
+	}
+	if !outcome.HasPayload {
+		t.Fatal("expected rows payload")
 	}
 	if state.rowsClosedCount() != 0 {
 		t.Fatalf("unexpected rows closed count before close: got %d, want 0", state.rowsClosedCount())
 	}
-	closeRowsAndCheck(t, rowsResult.Payload)
+	closeRowsAndCheck(t, outcome.Payload)
 	if state.rowsClosedCount() != 1 {
 		t.Fatalf("unexpected rows closed count after close: got %d, want 1", state.rowsClosedCount())
 	}
@@ -323,15 +346,15 @@ func TestContextCancellationIsNotRetriedByDefaultPolicy(t *testing.T) {
 	t.Parallel()
 
 	db, _ := openTestDB(t, testDriverConfig{block: true})
-	executor := NewDBExecHandler[statementRequest](db, statementExtractor)
+	handler := NewDBExecRouteHandler[statementRequest](db, statementExtractor)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := executor.Handle(ctx, statementRequest{
+	_, err := routery.InvokeRouteHandler(ctx, statementRequest{
 		Query: "UPDATE widgets SET active = ? WHERE id = ?",
 		Args:  []any{false, 1},
-	})
+	}, handler)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context cancellation, got %v", err)
 	}

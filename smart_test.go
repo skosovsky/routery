@@ -13,24 +13,24 @@ func TestPredicateFallbackUsesSecondaryWhenPredicateMatches(t *testing.T) {
 	t.Parallel()
 
 	expectedErr := errors.New("primary")
-	executor := PredicateFallback[int, int](
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-			return zeroRouteResult[int](), expectedErr
+	handler := PredicateFallback[int, int](
+		FromFunc(func(context.Context, int) (int, error) {
+			return 0, expectedErr
 		}),
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-			return Handled(2), nil
+		FromFunc(func(context.Context, int) (int, error) {
+			return 2, nil
 		}),
 		func(err error) bool {
 			return errors.Is(err, expectedErr)
 		},
 	)
 
-	result, err := executor.Handle(context.Background(), 0)
+	outcome, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload != 2 {
-		t.Fatalf("unexpected result: got %d, want 2", result.Payload)
+	if !outcome.HasPayload || outcome.Payload != 2 {
+		t.Fatalf("unexpected result: got %d, want 2", outcome.Payload)
 	}
 }
 
@@ -38,37 +38,37 @@ func TestPredicateFallbackReturnsPrimaryErrorWhenPredicateMisses(t *testing.T) {
 	t.Parallel()
 
 	expectedErr := errors.New("primary")
-	executor := PredicateFallback[int, int](
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-			return zeroRouteResult[int](), expectedErr
+	handler := PredicateFallback[int, int](
+		FromFunc(func(context.Context, int) (int, error) {
+			return 0, expectedErr
 		}),
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-			return Handled(2), nil
+		FromFunc(func(context.Context, int) (int, error) {
+			return 2, nil
 		}),
 		func(error) bool {
 			return false
 		},
 	)
 
-	result, err := executor.Handle(context.Background(), 0)
+	outcome, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected primary error, got %v", err)
 	}
-	if result.Payload != 0 {
-		t.Fatalf("unexpected result: got %d, want 0", result.Payload)
+	if outcome.HasPayload {
+		t.Fatalf("expected no payload on error, got %d", outcome.Payload)
 	}
 }
 
 func TestPredicateFallbackReturnsConfigErrorForInvalidConfig(t *testing.T) {
 	t.Parallel()
 
-	_, err := PredicateFallback[int, int](
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-			return Handled(1), nil
+	_, err := InvokeRouteHandler(context.Background(), 0, PredicateFallback[int, int](
+		FromFunc(func(context.Context, int) (int, error) {
+			return 1, nil
 		}),
 		nil,
 		nil,
-	).Handle(context.Background(), 0)
+	))
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
@@ -81,22 +81,22 @@ func TestFirstCompletedReturnsFirstSuccessAndCancelsOthers(t *testing.T) {
 
 	cancelled := make(chan struct{}, 1)
 
-	slow := HandlerFunc[int, int](func(ctx context.Context, _ int) (RouteResult[int], error) {
+	slow := func(ctx context.Context, _ int, _ ResultRecorder[int]) error {
 		<-ctx.Done()
 		cancelled <- struct{}{}
-		return zeroRouteResult[int](), ctx.Err()
+		return ctx.Err()
+	}
+
+	fast := FromFunc(func(context.Context, int) (int, error) {
+		return 2, nil
 	})
 
-	fast := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-		return Handled(2), nil
-	})
-
-	result, err := FirstCompleted[int, int](slow, fast).Handle(context.Background(), 0)
+	outcome, err := InvokeRouteHandler(context.Background(), 0, FirstCompleted[int, int](slow, fast))
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if result.Payload != 2 {
-		t.Fatalf("unexpected result: got %d, want 2", result.Payload)
+	if !outcome.HasPayload || outcome.Payload != 2 {
+		t.Fatalf("unexpected result: got %d, want 2", outcome.Payload)
 	}
 
 	select {
@@ -114,15 +114,15 @@ func TestFirstCompletedJoinsErrorsInDeclarationOrder(t *testing.T) {
 	firstErr := errors.New("first")
 	secondErr := errors.New("second")
 
-	first := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	first := FromFunc(func(context.Context, int) (int, error) {
 		time.Sleep(slowDelay)
-		return zeroRouteResult[int](), firstErr
+		return 0, firstErr
 	})
-	second := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
-		return zeroRouteResult[int](), secondErr
+	second := FromFunc(func(context.Context, int) (int, error) {
+		return 0, secondErr
 	})
 
-	_, err := FirstCompleted[int, int](first, second).Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, FirstCompleted[int, int](first, second))
 	if err == nil {
 		t.Fatal("expected an aggregated error")
 	}
@@ -142,38 +142,93 @@ func TestFirstCompletedJoinsErrorsInDeclarationOrder(t *testing.T) {
 func TestFirstCompletedReturnsSentinelErrors(t *testing.T) {
 	t.Parallel()
 
-	_, err := FirstCompleted[int, int]().Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, FirstCompleted[int, int]())
 	if !errors.Is(err, ErrNoHandlers) {
 		t.Fatalf("expected ErrNoHandlers, got %v", err)
 	}
 
-	_, err = FirstCompleted[int, int](
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(1), nil }),
+	_, err = InvokeRouteHandler(context.Background(), 0, FirstCompleted[int, int](
+		FromFunc(func(context.Context, int) (int, error) { return 1, nil }),
 		nil,
-	).Handle(context.Background(), 0)
+	))
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
+	}
+}
+
+func TestFirstCompletedIgnoreDoesNotWinOverStop(t *testing.T) {
+	t.Parallel()
+
+	const slowDelay = 40 * time.Millisecond
+
+	slow := func(_ context.Context, _ int, rec ResultRecorder[string]) error {
+		time.Sleep(slowDelay)
+		rec.Stop("data", "")
+		return nil
+	}
+	fast := func(_ context.Context, _ int, rec ResultRecorder[string]) error {
+		rec.Ignore("skip")
+		return nil
+	}
+
+	outcome, err := InvokeRouteHandler(context.Background(), 0, FirstCompleted[int, string](slow, fast))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !outcome.HasPayload || outcome.Payload != "data" {
+		t.Fatalf("got %+v; want payload data", outcome)
+	}
+}
+
+func TestFirstCompletedAsyncWithPayloadWins(t *testing.T) {
+	t.Parallel()
+
+	handler := func(_ context.Context, _ int, rec ResultRecorder[string]) error {
+		rec.Async("accepted", "async")
+		return nil
+	}
+
+	outcome, err := InvokeRouteHandler(context.Background(), 0, FirstCompleted[int, string](handler))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !outcome.HasPayload || outcome.Payload != "accepted" {
+		t.Fatalf("got %+v; want accepted payload", outcome)
+	}
+}
+
+func TestFirstCompletedAllNextReturnsErrNoSuccessfulOutcome(t *testing.T) {
+	t.Parallel()
+
+	nextOnly := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		rec.Next("delegate")
+		return nil
+	}
+
+	_, err := InvokeRouteHandler(context.Background(), 0, FirstCompleted[int, int](nextOnly, nextOnly))
+	if !errors.Is(err, ErrNoSuccessfulOutcome) {
+		t.Fatalf("expected ErrNoSuccessfulOutcome, got %v", err)
 	}
 }
 
 func TestFirstCompletedReturnsExternalContextCancellation(t *testing.T) {
 	t.Parallel()
 
-	waitOnContext := HandlerFunc[int, int](func(ctx context.Context, _ int) (RouteResult[int], error) {
+	waitOnContext := func(ctx context.Context, _ int, _ ResultRecorder[int]) error {
 		<-ctx.Done()
-		return zeroRouteResult[int](), ctx.Err()
-	})
+		return ctx.Err()
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Millisecond)
 	defer cancel()
 
-	_, err := FirstCompleted[int, int](waitOnContext, waitOnContext).Handle(ctx, 0)
+	_, err := InvokeRouteHandler(ctx, 0, FirstCompleted[int, int](waitOnContext, waitOnContext))
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expected context deadline exceeded, got %v", err)
 	}
 }
 
-func TestWeightBasedRouterUsesConfiguredExecutors(t *testing.T) {
+func TestWeightBasedRouterUsesConfiguredRouteHandlers(t *testing.T) {
 	t.Parallel()
 
 	const threshold = 2 + 1
@@ -181,16 +236,16 @@ func TestWeightBasedRouterUsesConfiguredExecutors(t *testing.T) {
 	lightCalls := atomic.Int32{}
 	heavyCalls := atomic.Int32{}
 
-	light := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	light := FromFunc(func(context.Context, int) (int, error) {
 		lightCalls.Add(1)
-		return Handled(1), nil
+		return 1, nil
 	})
-	heavy := HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) {
+	heavy := FromFunc(func(context.Context, int) (int, error) {
 		heavyCalls.Add(1)
-		return Handled(2), nil
+		return 2, nil
 	})
 
-	executor := WeightBasedRouter[int, int](
+	handler := WeightBasedRouter[int, int](
 		func(context.Context, int) (int, error) {
 			return 2, nil
 		},
@@ -199,15 +254,15 @@ func TestWeightBasedRouterUsesConfiguredExecutors(t *testing.T) {
 		heavy,
 	)
 
-	lightResult, err := executor.Handle(context.Background(), 0)
+	lightOutcome, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if lightResult.Payload != 1 {
-		t.Fatalf("unexpected light result: got %d, want 1", lightResult.Payload)
+	if !lightOutcome.HasPayload || lightOutcome.Payload != 1 {
+		t.Fatalf("unexpected light result: got %d, want 1", lightOutcome.Payload)
 	}
 
-	executor = WeightBasedRouter[int, int](
+	handler = WeightBasedRouter[int, int](
 		func(context.Context, int) (int, error) {
 			return threshold, nil
 		},
@@ -216,12 +271,12 @@ func TestWeightBasedRouterUsesConfiguredExecutors(t *testing.T) {
 		heavy,
 	)
 
-	heavyResult, err := executor.Handle(context.Background(), 0)
+	heavyOutcome, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if err != nil {
 		t.Fatalf("execute returned unexpected error: %v", err)
 	}
-	if heavyResult.Payload != 2 {
-		t.Fatalf("unexpected heavy result: got %d, want 2", heavyResult.Payload)
+	if !heavyOutcome.HasPayload || heavyOutcome.Payload != 2 {
+		t.Fatalf("unexpected heavy result: got %d, want 2", heavyOutcome.Payload)
 	}
 	if lightCalls.Load() != 1 || heavyCalls.Load() != 1 {
 		t.Fatalf("unexpected call counts: light=%d heavy=%d", lightCalls.Load(), heavyCalls.Load())
@@ -232,25 +287,53 @@ func TestWeightBasedRouterReturnsExtractorErrors(t *testing.T) {
 	t.Parallel()
 
 	extractorErr := errors.New("extractor")
-	executor := WeightBasedRouter[int, int](
+	handler := WeightBasedRouter[int, int](
 		func(context.Context, int) (int, error) {
 			return 0, extractorErr
 		},
 		0,
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(1), nil }),
-		HandlerFunc[int, int](func(context.Context, int) (RouteResult[int], error) { return Handled(2), nil }),
+		FromFunc(func(context.Context, int) (int, error) { return 1, nil }),
+		FromFunc(func(context.Context, int) (int, error) { return 2, nil }),
 	)
 
-	_, err := executor.Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, handler)
 	if !errors.Is(err, extractorErr) {
 		t.Fatalf("expected extractor error, got %v", err)
+	}
+}
+
+func TestPredicateFallbackPrimaryNextThenErrorUsesCleanSecondary(t *testing.T) {
+	t.Parallel()
+
+	secondaryCalled := false
+	primary := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		rec.Next("dirty")
+		return errors.New("primary failed")
+	}
+	secondary := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
+		secondaryCalled = true
+		rec.Stop(11, "")
+		return nil
+	}
+
+	outcome, err := InvokeRouteHandler(context.Background(), 0, PredicateFallback(primary, secondary, func(error) bool {
+		return true
+	}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !secondaryCalled {
+		t.Fatal("expected secondary to run")
+	}
+	if !outcome.HasPayload || outcome.Payload != 11 {
+		t.Fatalf("got %+v; want payload 11", outcome)
 	}
 }
 
 func TestWeightBasedRouterReturnsConfigErrorForInvalidConfig(t *testing.T) {
 	t.Parallel()
 
-	_, err := WeightBasedRouter[int, int](nil, 0, nil, nil).Handle(context.Background(), 0)
+	_, err := InvokeRouteHandler(context.Background(), 0, WeightBasedRouter[int, int](nil, 0, nil, nil))
 	if !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}

@@ -24,20 +24,20 @@ func (f *fakeWriter) WriteMessages(ctx context.Context, msgs ...kafka.Message) e
 	return f.err
 }
 
-func TestNewProducerHandlerNil(t *testing.T) {
+func TestNewProducerRouteHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewProducerHandler(nil)
-	_, err := ex.Handle(context.Background(), PublishRequest{})
+	ex := NewProducerRouteHandler(nil)
+	_, err := routery.InvokeRouteHandler(context.Background(), PublishRequest{}, ex)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("want ErrInvalidConfig, got %v", err)
 	}
 }
 
-func TestNewProducerHandlerEmptyMessages(t *testing.T) {
+func TestNewProducerRouteHandlerEmptyMessages(t *testing.T) {
 	t.Parallel()
 	fw := &fakeWriter{}
-	ex := NewProducerHandler(fw)
-	_, err := ex.Handle(context.Background(), PublishRequest{})
+	ex := NewProducerRouteHandler(fw)
+	_, err := routery.InvokeRouteHandler(context.Background(), PublishRequest{}, ex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,13 +46,13 @@ func TestNewProducerHandlerEmptyMessages(t *testing.T) {
 	}
 }
 
-func TestNewProducerHandlerWrites(t *testing.T) {
+func TestNewProducerRouteHandlerWrites(t *testing.T) {
 	t.Parallel()
 	fw := &fakeWriter{}
-	ex := NewProducerHandler(fw)
-	_, err := ex.Handle(context.Background(), PublishRequest{
+	ex := NewProducerRouteHandler(fw)
+	_, err := routery.InvokeRouteHandler(context.Background(), PublishRequest{
 		Messages: []kafka.Message{{Value: []byte("a")}},
-	})
+	}, ex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,30 +61,30 @@ func TestNewProducerHandlerWrites(t *testing.T) {
 	}
 }
 
-func TestNewProducerHandlerPropagatesError(t *testing.T) {
+func TestNewProducerRouteHandlerPropagatesError(t *testing.T) {
 	t.Parallel()
 	want := errors.New("fail")
 	fw := &fakeWriter{err: want}
-	ex := NewProducerHandler(fw)
-	_, err := ex.Handle(context.Background(), PublishRequest{
+	ex := NewProducerRouteHandler(fw)
+	_, err := routery.InvokeRouteHandler(context.Background(), PublishRequest{
 		Messages: []kafka.Message{{}},
-	})
+	}, ex)
 	if !errors.Is(err, want) {
 		t.Fatalf("got %v", err)
 	}
 }
 
-func TestProducerExecutorConcurrent(t *testing.T) {
+func TestProducerRouteHandlerConcurrent(t *testing.T) {
 	t.Parallel()
 	fw := &fakeWriter{}
-	ex := NewProducerHandler(fw)
+	ex := NewProducerRouteHandler(fw)
 	const workers = 128
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			_, e := ex.Handle(context.Background(), PublishRequest{
+			_, e := routery.InvokeRouteHandler(context.Background(), PublishRequest{
 				Messages: []kafka.Message{{Value: []byte("x")}},
-			})
+			}, ex)
 			if e != nil {
 				t.Error(e)
 			}

@@ -3,6 +3,7 @@ package routerygrpc
 import (
 	"context"
 	"net"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -13,6 +14,8 @@ import (
 	"google.golang.org/grpc/interop/grpc_testing"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
+
+	"github.com/skosovsky/routery"
 )
 
 const bufSize = 1024 * 1024
@@ -94,6 +97,19 @@ func TestRetryStreamInterceptorOK(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = stream.CloseSend()
+}
+
+func TestRetryStreamInterceptorMissingPayload(t *testing.T) {
+	t.Parallel()
+
+	rec := routery.NewResultRecorder[grpc.ClientStream]()
+	_, err := clientStreamFromRecorder(rec)
+	if err == nil {
+		t.Fatal("expected error when recorder has no payload")
+	}
+	if !strings.Contains(err.Error(), "did not record payload") {
+		t.Fatalf("got err %v", err)
+	}
 }
 
 type flakyEmptyServer struct {

@@ -9,9 +9,9 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-func BenchmarkDBQueryExecutor(b *testing.B) {
+func BenchmarkDBQueryRouteHandler(b *testing.B) {
 	db, _ := openTestDB(b, testDriverConfig{})
-	executor := NewDBQueryHandler(
+	handler := NewDBQueryRouteHandler(
 		db,
 		func(_ context.Context, req statementRequest) (string, []any, error) {
 			return req.Query, req.Args, nil
@@ -27,19 +27,22 @@ func BenchmarkDBQueryExecutor(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		rowsResult, err := executor.Handle(context.Background(), request)
+		outcome, err := routery.InvokeRouteHandler(context.Background(), request, handler)
 		if err != nil {
 			b.Fatalf("unexpected query error: %v", err)
 		}
-		if rowsErr := drainRows(rowsResult.Payload); rowsErr != nil {
+		if !outcome.HasPayload {
+			b.Fatal("expected rows payload")
+		}
+		if rowsErr := drainRows(outcome.Payload); rowsErr != nil {
 			b.Fatalf("unexpected rows error: %v", rowsErr)
 		}
 	}
 }
 
-func BenchmarkDBExecExecutor(b *testing.B) {
+func BenchmarkDBExecRouteHandler(b *testing.B) {
 	db, _ := openTestDB(b, testDriverConfig{})
-	executor := NewDBExecHandler(
+	handler := NewDBExecRouteHandler(
 		db,
 		func(_ context.Context, req statementRequest) (string, []any, error) {
 			return req.Query, req.Args, nil
@@ -55,12 +58,15 @@ func BenchmarkDBExecExecutor(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		execResult, err := executor.Handle(context.Background(), request)
+		outcome, err := routery.InvokeRouteHandler(context.Background(), request, handler)
 		if err != nil {
 			b.Fatalf("unexpected exec error: %v", err)
 		}
 
-		if _, rowsErr := execResult.Payload.RowsAffected(); rowsErr != nil {
+		if !outcome.HasPayload {
+			b.Fatal("expected exec result payload")
+		}
+		if _, rowsErr := outcome.Payload.RowsAffected(); rowsErr != nil {
 			b.Fatalf("unexpected rows affected error: %v", rowsErr)
 		}
 	}
@@ -80,10 +86,10 @@ func BenchmarkDefaultRetryPolicyBadConn(b *testing.B) {
 	}
 }
 
-func BenchmarkRetryIfWithDBExecutor(b *testing.B) {
+func BenchmarkRetryIfWithDBRouteHandler(b *testing.B) {
 	db, _ := openTestDB(b, testDriverConfig{execErr: driver.ErrBadConn})
-	executor := routery.Apply(
-		NewDBExecHandler(
+	handler := routery.ApplyRoute(
+		NewDBExecRouteHandler(
 			db,
 			func(_ context.Context, req statementRequest) (string, []any, error) {
 				return req.Query, req.Args, nil
@@ -101,7 +107,7 @@ func BenchmarkRetryIfWithDBExecutor(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		_, _ = executor.Handle(context.Background(), request)
+		_, _ = routery.InvokeRouteHandler(context.Background(), request, handler)
 	}
 }
 

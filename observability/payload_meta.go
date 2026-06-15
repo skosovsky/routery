@@ -13,26 +13,29 @@ const (
 	shapeNil   = "nil"
 )
 
-// PayloadMeta is a serializable summary of RouteResult.Payload for telemetry.
+// PayloadMeta is a serializable summary of route payload for telemetry.
 type PayloadMeta struct {
 	Shape       string
 	Fingerprint string
 }
 
-// PayloadMetaFunc computes telemetry metadata for a route result payload.
-//
-// When nil, [DefaultPayloadMeta] is used (shape only, no payload inspection).
-type PayloadMetaFunc[Res any] func(ctx context.Context, result routery.RouteResult[Res]) PayloadMeta
+// PayloadMetaFunc computes telemetry metadata for a recorded route payload.
+type PayloadMetaFunc[Res any] func(ctx context.Context, rec routery.ResultRecorder[Res]) PayloadMeta
 
 // DefaultPayloadMeta returns shape-only metadata without reading payload contents.
-func DefaultPayloadMeta[Res any](_ context.Context, result routery.RouteResult[Res]) PayloadMeta {
-	if result.Status == routery.StatusIgnored || result.Status == routery.StatusNext {
+func DefaultPayloadMeta[Res any](_ context.Context, rec routery.ResultRecorder[Res]) PayloadMeta {
+	if rec.Action() == routery.ActionNext {
+		return PayloadMeta{Shape: shapeEmpty, Fingerprint: ""}
+	}
+
+	payload, ok := rec.Payload()
+	if !ok {
 		return PayloadMeta{Shape: shapeEmpty, Fingerprint: ""}
 	}
 
 	shape := shapeNil
-	if !isNilValue(result.Payload) {
-		shape = fmt.Sprintf("%T", result.Payload)
+	if !isNilValue(payload) {
+		shape = fmt.Sprintf("%T", payload)
 	}
 
 	return PayloadMeta{Shape: shape, Fingerprint: ""}
@@ -54,12 +57,12 @@ func isNilValue[Res any](payload Res) bool {
 
 func resolvePayloadMeta[Res any](
 	ctx context.Context,
-	result routery.RouteResult[Res],
+	rec routery.ResultRecorder[Res],
 	payloadMeta PayloadMetaFunc[Res],
 ) PayloadMeta {
 	if payloadMeta == nil {
-		return DefaultPayloadMeta(ctx, result)
+		return DefaultPayloadMeta(ctx, rec)
 	}
 
-	return payloadMeta(ctx, result)
+	return payloadMeta(ctx, rec)
 }

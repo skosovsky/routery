@@ -1,6 +1,6 @@
-// Package routerysql adapts database/sql handlers to routery contracts.
+// Package routerysql adapts database/sql [RouteHandler] values to routery contracts.
 //
-// Query handlers return [database/sql.Rows] payloads and callers must always close rows,
+// Query route handlers return [database/sql.Rows] payloads and callers must always close rows,
 // usually with defer rows.Close(), to avoid exhausting the connection pool.
 //
 // Transaction handlers are supported for timeout/logging/routing use-cases.

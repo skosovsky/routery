@@ -30,23 +30,23 @@ func (f *fakePut) PutObject(
 	return f.out, f.err
 }
 
-func TestNewPutObjectHandlerNil(t *testing.T) {
+func TestNewPutObjectRouteHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewPutObjectHandler(nil)
-	_, err := ex.Handle(context.Background(), &s3.PutObjectInput{})
+	ex := NewPutObjectRouteHandler(nil)
+	_, err := routery.InvokeRouteHandler(context.Background(), &s3.PutObjectInput{}, ex)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
 }
 
-func TestNewPutObjectHandlerOK(t *testing.T) {
+func TestNewPutObjectRouteHandlerOK(t *testing.T) {
 	t.Parallel()
 	fp := &fakePut{out: &s3.PutObjectOutput{}}
-	ex := NewPutObjectHandler(fp)
+	ex := NewPutObjectRouteHandler(fp)
 	b, k := "b", "k"
-	outResult, err := ex.Handle(context.Background(), &s3.PutObjectInput{Bucket: &b, Key: &k})
-	if err != nil || outResult.Payload != fp.out {
-		t.Fatalf("out=%v err=%v", outResult.Payload, err)
+	outcome, err := routery.InvokeRouteHandler(context.Background(), &s3.PutObjectInput{Bucket: &b, Key: &k}, ex)
+	if err != nil || !outcome.HasPayload || outcome.Payload != fp.out {
+		t.Fatalf("out=%v err=%v", outcome.Payload, err)
 	}
 	if fp.calls.Load() != 1 {
 		t.Fatalf("calls=%d", fp.calls.Load())
@@ -71,35 +71,35 @@ func (f *fakeGet) GetObject(
 	return f.out, f.err
 }
 
-func TestNewGetObjectHandlerNil(t *testing.T) {
+func TestNewGetObjectRouteHandlerNil(t *testing.T) {
 	t.Parallel()
-	ex := NewGetObjectHandler(nil)
-	_, err := ex.Handle(context.Background(), &s3.GetObjectInput{})
+	ex := NewGetObjectRouteHandler(nil)
+	_, err := routery.InvokeRouteHandler(context.Background(), &s3.GetObjectInput{}, ex)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
 }
 
-func TestNewGetObjectHandlerOK(t *testing.T) {
+func TestNewGetObjectRouteHandlerOK(t *testing.T) {
 	t.Parallel()
 	fg := &fakeGet{out: &s3.GetObjectOutput{}}
-	ex := NewGetObjectHandler(fg)
+	ex := NewGetObjectRouteHandler(fg)
 	b, k := "b", "k"
-	outResult, err := ex.Handle(context.Background(), &s3.GetObjectInput{Bucket: &b, Key: &k})
-	if err != nil || outResult.Payload != fg.out {
-		t.Fatalf("out=%v err=%v", outResult.Payload, err)
+	outcome, err := routery.InvokeRouteHandler(context.Background(), &s3.GetObjectInput{Bucket: &b, Key: &k}, ex)
+	if err != nil || !outcome.HasPayload || outcome.Payload != fg.out {
+		t.Fatalf("out=%v err=%v", outcome.Payload, err)
 	}
 }
 
-func TestPutExecutorConcurrent(t *testing.T) {
+func TestPutRouteHandlerConcurrent(t *testing.T) {
 	t.Parallel()
 	fp := &fakePut{out: &s3.PutObjectOutput{}}
-	ex := NewPutObjectHandler(fp)
+	ex := NewPutObjectRouteHandler(fp)
 	const workers = 128
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			_, e := ex.Handle(context.Background(), &s3.PutObjectInput{})
+			_, e := routery.InvokeRouteHandler(context.Background(), &s3.PutObjectInput{}, ex)
 			if e != nil {
 				t.Error(e)
 			}

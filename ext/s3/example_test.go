@@ -23,9 +23,9 @@ func (noopPut) PutObject(
 	return &s3.PutObjectOutput{}, nil
 }
 
-func ExampleNewPutObjectHandler_withRetryIf() {
-	base := routerys3.NewPutObjectHandler(noopPut{})
-	executor := routery.Apply(
+func ExampleNewPutObjectRouteHandler_withRetryIf() {
+	base := routerys3.NewPutObjectRouteHandler(noopPut{})
+	handler := routery.ApplyRoute(
 		base,
 		routery.RetryIf[*s3.PutObjectInput, *s3.PutObjectOutput](
 			2,
@@ -33,11 +33,11 @@ func ExampleNewPutObjectHandler_withRetryIf() {
 			routerys3.DefaultRetryPolicy[*s3.PutObjectInput],
 		),
 	)
-	outResult, err := executor.Handle(context.Background(), &s3.PutObjectInput{})
+	outcome, err := routery.InvokeRouteHandler(context.Background(), &s3.PutObjectInput{}, handler)
 	if err != nil {
 		fmt.Println("err", err)
 		return
 	}
-	fmt.Println(outResult.Payload != nil)
+	fmt.Println(outcome.HasPayload)
 	// Output: true
 }
