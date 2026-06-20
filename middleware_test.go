@@ -3,101 +3,184 @@ package routery
 import (
 	"context"
 	"errors"
-	"slices"
+	"sync"
 	"testing"
+	"time"
 )
 
-func TestApplyRouteAppliesMiddlewaresInReverseOrder(t *testing.T) {
-	t.Parallel()
-
-	callOrder := make([]string, 0, 2+2)
-
-	base := func(_ context.Context, _ int, rec ResultRecorder[int]) error {
-		callOrder = append(callOrder, "base")
-		rec.Stop(1, "")
-		return nil
-	}
-
-	first := func(next RouteHandler[int, int]) RouteHandler[int, int] {
-		return func(ctx context.Context, req int, rec ResultRecorder[int]) error {
-			callOrder = append(callOrder, "first-before")
-			err := next(ctx, req, rec)
-			callOrder = append(callOrder, "first-after")
-			return err
+func TestApplyRouteMiddlewareReceivesRouteMatch(t *testing.T) {
+	// Arrange.
+	var got RouteMatch
+	observed := func(next RouteHandler[routeRequest, testKind, testReason, string]) RouteHandler[routeRequest, testKind, testReason, string] {
+		return func(call RouteCall[routeRequest]) (RouteResult[testKind, testReason, string], error) {
+			got = call.Match
+			return next(call)
 		}
 	}
-
-	second := func(next RouteHandler[int, int]) RouteHandler[int, int] {
-		return func(ctx context.Context, req int, rec ResultRecorder[int]) error {
-			callOrder = append(callOrder, "second-before")
-			err := next(ctx, req, rec)
-			callOrder = append(callOrder, "second-after")
-			return err
-		}
-	}
-
-	handler := ApplyRoute(base, first, second)
-	_, err := InvokeRouteHandler(context.Background(), 0, handler)
+	handler := ApplyRoute(
+		func(RouteCall[routeRequest]) (RouteResult[testKind, testReason, string], error) {
+			return Handled(testKindHandled, testReasonHandled, "ok"), nil
+		},
+		observed,
+	)
+	router, err := NewRouteTable[routeRequest, testKind, testReason, string]().
+		Route("observed", 7, nil, handler).
+		Build()
 	if err != nil {
-		t.Fatalf("execute returned unexpected error: %v", err)
+		t.Fatalf("Build() error = %v", err)
 	}
 
-	expected := []string{"first-before", "second-before", "base", "second-after", "first-after"}
-	if !slices.Equal(callOrder, expected) {
-		t.Fatalf("unexpected call order: got %v, want %v", callOrder, expected)
+	// Act.
+	_, err = router.Dispatch(t.Context(), routeRequest{})
+
+	// Assert.
+	if err != nil {
+		t.Fatalf("Dispatch() error = %v", err)
+	}
+	if got.RouteID != "observed" || got.Priority != 7 {
+		t.Fatalf("middleware match = %#v, want observed priority 7", got)
 	}
 }
 
-func TestApplyRouteSkipsNilMiddlewares(t *testing.T) {
-	t.Parallel()
+func TestRetryIfRetriesOnlySystemErrors(t *testing.T) {
+	// Arrange.
+	attempts := 0
+	handler := ApplyRoute(
+		func(RouteCall[int]) (RouteResult[testKind, testReason, string], error) {
+			attempts++
+			if attempts == 1 {
+				return AbortResult[testKind, testReason, string](), errors.New("temporary")
+			}
+			return Handled(testKindHandled, testReasonHandled, "ok"), nil
+		},
+		RetryIf[int, testKind, testReason, string](2, 0, func(context.Context, int, error) bool {
+			return true
+		}),
+	)
 
-	called := false
+	// Act.
+	result, err := InvokeRouteHandler(t.Context(), 0, handler)
 
-	base := FromFunc(func(context.Context, int) (int, error) {
-		return 1, nil
+	// Assert.
+	if err != nil {
+		t.Fatalf("InvokeRouteHandler() error = %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("attempts = %d, want 2", attempts)
+	}
+	if result.Payload != "ok" {
+		t.Fatalf("Payload = %q, want ok", result.Payload)
+	}
+}
+
+func TestBulkheadRejectsWhenFull(t *testing.T) {
+	// Arrange.
+	started := make(chan struct{})
+	release := make(chan struct{})
+	handler := ApplyRoute(
+		func(RouteCall[int]) (RouteResult[testKind, testReason, string], error) {
+			close(started)
+			<-release
+			return Handled(testKindHandled, testReasonHandled, "ok"), nil
+		},
+		Bulkhead[int, testKind, testReason, string](1),
+	)
+	var group sync.WaitGroup
+	group.Go(func() {
+		_, _ = InvokeRouteHandler(t.Context(), 0, handler)
 	})
+	<-started
 
-	observed := func(next RouteHandler[int, int]) RouteHandler[int, int] {
-		return func(ctx context.Context, req int, rec ResultRecorder[int]) error {
-			called = true
-			return next(ctx, req, rec)
+	// Act.
+	_, err := InvokeRouteHandler(t.Context(), 0, handler)
+	close(release)
+	group.Wait()
+
+	// Assert.
+	if !errors.Is(err, ErrTooManyRequests) {
+		t.Fatalf("err = %v, want ErrTooManyRequests", err)
+	}
+}
+
+func TestCircuitBreakerOpensAfterFailures(t *testing.T) {
+	// Arrange.
+	handler := ApplyRoute(
+		func(RouteCall[int]) (RouteResult[testKind, testReason, string], error) {
+			return AbortResult[testKind, testReason, string](), errors.New("down")
+		},
+		CircuitBreaker[int, testKind, testReason, string](1, time.Minute, nil),
+	)
+
+	// Act.
+	_, firstErr := InvokeRouteHandler(t.Context(), 0, handler)
+	_, secondErr := InvokeRouteHandler(t.Context(), 0, handler)
+
+	// Assert.
+	if firstErr == nil {
+		t.Fatal("first err = nil, want failure")
+	}
+	if !errors.Is(secondErr, ErrCircuitOpen) {
+		t.Fatalf("second err = %v, want ErrCircuitOpen", secondErr)
+	}
+}
+
+func TestFirstCompletedReturnsFirstPayloadResult(t *testing.T) {
+	// Arrange.
+	slow := func(call RouteCall[int]) (RouteResult[testKind, testReason, string], error) {
+		select {
+		case <-time.After(50 * time.Millisecond):
+			return Handled(testKindHandled, testReasonHandled, "slow"), nil
+		case <-call.Context.Done():
+			return AbortResult[testKind, testReason, string](), call.Context.Err()
 		}
 	}
+	fast := func(RouteCall[int]) (RouteResult[testKind, testReason, string], error) {
+		return Handled(testKindHandled, testReasonHandled, "fast"), nil
+	}
+	handler := FirstCompleted(slow, fast)
 
-	handler := ApplyRoute(base, nil, observed, nil)
-	_, err := InvokeRouteHandler(context.Background(), 0, handler)
+	// Act.
+	result, err := InvokeRouteHandler(t.Context(), 0, handler)
+
+	// Assert.
 	if err != nil {
-		t.Fatalf("execute returned unexpected error: %v", err)
+		t.Fatalf("InvokeRouteHandler() error = %v", err)
 	}
-	if !called {
-		t.Fatal("expected non-nil middleware to be called")
-	}
-}
-
-func TestApplyRouteReturnsConfigErrorForNilBase(t *testing.T) {
-	t.Parallel()
-
-	handler := ApplyRoute[int, int](nil)
-	_, err := InvokeRouteHandler(context.Background(), 0, handler)
-	if !errors.Is(err, ErrInvalidConfig) {
-		t.Fatalf("expected ErrInvalidConfig, got %v", err)
+	if result.Payload != "fast" {
+		t.Fatalf("Payload = %q, want fast", result.Payload)
 	}
 }
 
-func TestApplyRouteReturnsConfigErrorWhenMiddlewareReturnsNil(t *testing.T) {
-	t.Parallel()
-
-	base := FromFunc(func(context.Context, int) (int, error) {
-		return 1, nil
-	})
-
-	broken := func(RouteHandler[int, int]) RouteHandler[int, int] {
-		return nil
+func TestFirstCompletedIgnoresActionNextWithPayload(t *testing.T) {
+	// Arrange.
+	nextWithPayload := func(RouteCall[int]) (RouteResult[testKind, testReason, string], error) {
+		return RouteResult[testKind, testReason, string]{
+			Action:     ActionNext,
+			Kind:       testKindIgnored,
+			Reason:     testReasonDelegate,
+			Payload:    "delegate",
+			HasPayload: true,
+			Match:      zeroRouteMatch(),
+		}, nil
 	}
+	terminal := func(call RouteCall[int]) (RouteResult[testKind, testReason, string], error) {
+		select {
+		case <-time.After(10 * time.Millisecond):
+			return Handled(testKindHandled, testReasonHandled, "terminal"), nil
+		case <-call.Context.Done():
+			return AbortResult[testKind, testReason, string](), call.Context.Err()
+		}
+	}
+	handler := FirstCompleted(nextWithPayload, terminal)
 
-	handler := ApplyRoute(base, broken)
-	_, err := InvokeRouteHandler(context.Background(), 0, handler)
-	if !errors.Is(err, ErrInvalidConfig) {
-		t.Fatalf("expected ErrInvalidConfig, got %v", err)
+	// Act.
+	result, err := InvokeRouteHandler(t.Context(), 0, handler)
+
+	// Assert.
+	if err != nil {
+		t.Fatalf("InvokeRouteHandler() error = %v", err)
+	}
+	if result.Payload != "terminal" {
+		t.Fatalf("Payload = %q, want terminal", result.Payload)
 	}
 }

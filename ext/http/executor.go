@@ -59,51 +59,51 @@ func (err *StatusError) Error() string {
 }
 
 // NewRouteHandler adapts a standard HTTP client to a routery route handler.
+//
+//nolint:bodyclose // Response bodies are returned through RouteResult or StatusError for caller ownership.
 func NewRouteHandler(
 	client *stdhttp.Client,
 	handlerOptions ...Option,
-) routery.RouteHandler[*stdhttp.Request, *stdhttp.Response] {
+) routery.BasicRouteHandler[*stdhttp.Request, *stdhttp.Response] {
 	if client == nil {
-		//nolint:bodyclose // No HTTP response is created in this branch.
 		return invalidRouteHandler(configError("http client is nil"))
 	}
 
 	opts := applyOptions(handlerOptions)
 	if opts.err != nil {
-		//nolint:bodyclose // No HTTP response is created in this branch.
 		return invalidRouteHandler(opts.err)
 	}
 
-	return func(ctx context.Context, request *stdhttp.Request, rec routery.ResultRecorder[*stdhttp.Response]) error {
+	return func(call routery.RouteCall[*stdhttp.Request]) (routery.BasicRouteResult[*stdhttp.Response], error) {
+		request := call.Request
 		if request == nil {
-			return configError("request is nil")
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response](),
+				configError("request is nil")
 		}
 
-		attemptRequest, err := cloneForAttempt(ctx, request, opts.maxReplayBodyBytes)
+		attemptRequest, err := cloneForAttempt(call.Context, request, opts.maxReplayBodyBytes)
 		if err != nil {
-			return err
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response](), err
 		}
 
-		//nolint:gosec // Caller provides the request target; this adapter must forward it unchanged.
 		response, executeErr := client.Do(attemptRequest)
 		if executeErr != nil {
 			if response != nil && response.Body != nil {
 				_ = response.Body.Close()
 			}
 
-			return executeErr
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response](), executeErr
 		}
 
 		if response.StatusCode < stdhttp.StatusOK || response.StatusCode >= stdhttp.StatusMultipleChoices {
-			return &StatusError{
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response](), &StatusError{
 				Request:  request,
 				Response: response,
 				Code:     response.StatusCode,
 			}
 		}
 
-		rec.Stop(response, "")
-		return nil
+		return routery.BasicHandled(response), nil
 	}
 }
 
@@ -196,22 +196,24 @@ func configError(detail string) error {
 	return fmt.Errorf("%w: %s", routery.ErrInvalidConfig, detail)
 }
 
+//nolint:bodyclose // Config-error handlers never create an HTTP response body.
 func invalidRouteHandler(
 	err error,
-) routery.RouteHandler[*stdhttp.Request, *stdhttp.Response] {
-	return func(context.Context, *stdhttp.Request, routery.ResultRecorder[*stdhttp.Response]) error {
-		return err
+) routery.BasicRouteHandler[*stdhttp.Request, *stdhttp.Response] {
+	return func(routery.RouteCall[*stdhttp.Request]) (routery.BasicRouteResult[*stdhttp.Response], error) {
+		return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response](), err
 	}
 }
 
 // Timeout limits HTTP execution time without cancelling response body reads.
-func Timeout(timeout time.Duration) routery.RouteMiddleware[*stdhttp.Request, *stdhttp.Response] {
+//
+//nolint:bodyclose // Response bodies remain caller-owned and are wrapped only to cancel the timer on Close.
+func Timeout(timeout time.Duration) routery.BasicRouteMiddleware[*stdhttp.Request, *stdhttp.Response] {
 	if timeout <= 0 {
 		return func(
-			next routery.RouteHandler[*stdhttp.Request, *stdhttp.Response],
-		) routery.RouteHandler[*stdhttp.Request, *stdhttp.Response] {
+			next routery.BasicRouteHandler[*stdhttp.Request, *stdhttp.Response],
+		) routery.BasicRouteHandler[*stdhttp.Request, *stdhttp.Response] {
 			if next == nil {
-				//nolint:bodyclose // No HTTP response is created in this branch.
 				return invalidRouteHandler(configError("timeout middleware requires non-nil next route handler"))
 			}
 
@@ -220,16 +222,14 @@ func Timeout(timeout time.Duration) routery.RouteMiddleware[*stdhttp.Request, *s
 	}
 
 	return func(
-		next routery.RouteHandler[*stdhttp.Request, *stdhttp.Response],
-	) routery.RouteHandler[*stdhttp.Request, *stdhttp.Response] {
+		next routery.BasicRouteHandler[*stdhttp.Request, *stdhttp.Response],
+	) routery.BasicRouteHandler[*stdhttp.Request, *stdhttp.Response] {
 		if next == nil {
-			//nolint:bodyclose // No HTTP response is created in this branch.
 			return invalidRouteHandler(configError("timeout middleware requires non-nil next route handler"))
 		}
 
-		//nolint:bodyclose // Response bodies are forwarded to the caller via ResultRecorder.
-		return func(ctx context.Context, req *stdhttp.Request, rec routery.ResultRecorder[*stdhttp.Response]) error {
-			timedCtx, cancel := context.WithTimeout(ctx, timeout)
+		return func(call routery.RouteCall[*stdhttp.Request]) (routery.BasicRouteResult[*stdhttp.Response], error) {
+			timedCtx, cancel := context.WithTimeout(call.Context, timeout)
 			defer func() {
 				if recovered := recover(); recovered != nil {
 					cancel()
@@ -237,18 +237,17 @@ func Timeout(timeout time.Duration) routery.RouteMiddleware[*stdhttp.Request, *s
 				}
 			}()
 
-			localRec := routery.NewResultRecorder[*stdhttp.Response]()
-			err := next(timedCtx, req, localRec)
+			result, err := next(call.WithContext(timedCtx))
 			if err != nil {
 				cancel()
-				return err
+				return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response]().
+					WithMatch(result.Match), err
 			}
 
-			payload, ok := localRec.Payload()
-			if !ok || payload == nil || payload.Body == nil || payload.Body == stdhttp.NoBody {
+			payload := result.Payload
+			if !result.HasPayload || payload == nil || payload.Body == nil || payload.Body == stdhttp.NoBody {
 				cancel()
-				routery.CopyRecorderOutcome(rec, localRec)
-				return nil
+				return result, nil
 			}
 
 			payload.Body = &cancelTimerBody{
@@ -256,8 +255,8 @@ func Timeout(timeout time.Duration) routery.RouteMiddleware[*stdhttp.Request, *s
 				cancelOnce: sync.Once{},
 				cancel:     cancel,
 			}
-			rec.Stop(payload, localRec.ReasonCode())
-			return nil
+			result.Payload = payload
+			return result, nil
 		}
 	}
 }

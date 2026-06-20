@@ -90,10 +90,13 @@ func BenchmarkRetryIfHTTP503Then200(b *testing.B) {
 	if err != nil {
 		b.Fatalf("failed to create request: %v", err)
 	}
-	handler := routery.ApplyRoute(
-		NewRouteHandler(client),
-		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
-	)
+	retry := routery.RetryIf[
+		*stdhttp.Request,
+		routery.BasicKind,
+		routery.BasicReason,
+		*stdhttp.Response,
+	](2, 0, DefaultRetryPolicy)
+	handler := routery.ApplyRoute(NewRouteHandler(client), retry)
 
 	b.ReportAllocs()
 	b.ResetTimer()

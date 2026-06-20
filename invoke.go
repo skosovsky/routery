@@ -2,17 +2,22 @@ package routery
 
 import "context"
 
-// InvokeRouteHandler runs a route handler and returns the recorded outcome and error.
+// InvokeRouteHandler runs a route handler and returns its typed result and error.
 // It is intended for tests and simple leaf invocations outside RouteTable.
-func InvokeRouteHandler[Req any, Res any](
+func InvokeRouteHandler[Req any, Kind comparable, Reason comparable, Payload any](
 	ctx context.Context,
 	req Req,
-	handler RouteHandler[Req, Res],
-) (RouteOutcome[Res], error) {
-	rec := NewResultRecorder[Res]()
-	if err := handler(ctx, req, rec); err != nil {
-		return abortOutcome[Res](), err
+	handler RouteHandler[Req, Kind, Reason, Payload],
+) (RouteResult[Kind, Reason, Payload], error) {
+	if handler == nil {
+		err := configError("route handler is nil")
+		return AbortResult[Kind, Reason, Payload](), err
 	}
 
-	return outcomeFromRecorder(rec), nil
+	result, err := handler(NewRouteCall(ctx, req))
+	if err != nil {
+		return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), err
+	}
+
+	return validateReturnedResult(result)
 }

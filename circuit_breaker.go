@@ -24,40 +24,44 @@ type circuitBreakerState struct {
 // CircuitBreaker wraps a route handler with a fail-fast circuit breaker.
 //
 // Only non-nil errors returned from route handlers can open the circuit.
-// Business dispositions such as ActionNext never affect breaker counters.
-func CircuitBreaker[Req any, Res any](
+// Business routing results such as ActionNext never affect breaker counters.
+func CircuitBreaker[Req any, Kind comparable, Reason comparable, Payload any](
 	failureThreshold int,
 	resetTimeout time.Duration,
 	isFailure func(error) bool,
-) RouteMiddleware[Req, Res] {
+) RouteMiddleware[Req, Kind, Reason, Payload] {
 	if failureThreshold < 1 {
-		return func(RouteHandler[Req, Res]) RouteHandler[Req, Res] {
-			return invalidRouteHandler[Req, Res](configError("circuit breaker failure threshold must be at least 1"))
+		return func(RouteHandler[Req, Kind, Reason, Payload]) RouteHandler[Req, Kind, Reason, Payload] {
+			return invalidRouteHandler[Req, Kind, Reason, Payload](
+				configError("circuit breaker failure threshold must be at least 1"),
+			)
 		}
 	}
 	if resetTimeout < 0 {
-		return func(RouteHandler[Req, Res]) RouteHandler[Req, Res] {
-			return invalidRouteHandler[Req, Res](configError("circuit breaker reset timeout must be non-negative"))
+		return func(RouteHandler[Req, Kind, Reason, Payload]) RouteHandler[Req, Kind, Reason, Payload] {
+			return invalidRouteHandler[Req, Kind, Reason, Payload](
+				configError("circuit breaker reset timeout must be non-negative"),
+			)
 		}
 	}
 
 	//nolint:exhaustruct // zero values are intentional for counters, mutex, and timestamps.
 	st := &circuitBreakerState{state: cbClosed}
-	return func(next RouteHandler[Req, Res]) RouteHandler[Req, Res] {
+	return func(next RouteHandler[Req, Kind, Reason, Payload]) RouteHandler[Req, Kind, Reason, Payload] {
 		if next == nil {
-			return invalidRouteHandler[Req, Res](
+			return invalidRouteHandler[Req, Kind, Reason, Payload](
 				configError("circuit breaker middleware requires non-nil next route handler"),
 			)
 		}
 
-		return func(ctx context.Context, req Req, rec ResultRecorder[Res]) error {
+		return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
 			if err := st.beforeRequest(resetTimeout); err != nil {
-				return err
+				return AbortResult[Kind, Reason, Payload](), err
 			}
 
-			err := next(ctx, req, rec)
+			result, err := next(call)
 			st.afterRequest(err, isFailure, failureThreshold)
-			return err
+			return result, err
 		}
 	}
 }

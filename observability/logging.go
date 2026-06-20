@@ -9,73 +9,91 @@ import (
 )
 
 // Outcome is a serializable summary of a route handler invocation for logging.
-type Outcome struct {
-	Action      routery.RouteAction
-	ReasonCode  string
-	PayloadMeta PayloadMeta
+type Outcome[Kind comparable, Reason comparable] struct {
+	Action routery.RouteAction
+	Kind   Kind
+	Reason Reason
+	Match  routery.RouteMatch
 }
 
 // Event describes one route handler invocation.
-type Event[Req any, Res any] struct {
-	Name      string
-	StartTime time.Time
-	Duration  time.Duration
-	Request   Req
-	Outcome   Outcome
-	Err       error
+type Event[Req any, Kind comparable, Reason comparable, Payload any] struct {
+	Name        string
+	StartTime   time.Time
+	Duration    time.Duration
+	Request     Req
+	Outcome     Outcome[Kind, Reason]
+	PayloadMeta PayloadMeta
+	Err         error
 }
 
 // EventHandler handles events produced by Logging middleware.
-type EventHandler[Req any, Res any] func(ctx context.Context, event Event[Req, Res])
+type EventHandler[Req any, Kind comparable, Reason comparable, Payload any] func(
+	ctx context.Context,
+	event Event[Req, Kind, Reason, Payload],
+)
 
 // Logging emits one event after each wrapped route handler call.
-func Logging[Req any, Res any](
+func Logging[Req any, Kind comparable, Reason comparable, Payload any](
 	name string,
-	handler EventHandler[Req, Res],
-	payloadMeta PayloadMetaFunc[Res],
-) routery.RouteMiddleware[Req, Res] {
+	handler EventHandler[Req, Kind, Reason, Payload],
+	payloadMeta PayloadMetaFunc[Kind, Reason, Payload],
+) routery.RouteMiddleware[Req, Kind, Reason, Payload] {
 	if handler == nil {
-		return func(next routery.RouteHandler[Req, Res]) routery.RouteHandler[Req, Res] {
+		return func(
+			next routery.RouteHandler[Req, Kind, Reason, Payload],
+		) routery.RouteHandler[Req, Kind, Reason, Payload] {
 			if next == nil {
-				return invalidRouteHandler[Req, Res]("logging middleware requires non-nil next route handler")
+				return invalidRouteHandler[Req, Kind, Reason, Payload](
+					"logging middleware requires non-nil next route handler",
+				)
 			}
 			return next
 		}
 	}
 
-	return func(next routery.RouteHandler[Req, Res]) routery.RouteHandler[Req, Res] {
+	return func(
+		next routery.RouteHandler[Req, Kind, Reason, Payload],
+	) routery.RouteHandler[Req, Kind, Reason, Payload] {
 		if next == nil {
-			return invalidRouteHandler[Req, Res]("logging middleware requires non-nil next route handler")
+			return invalidRouteHandler[Req, Kind, Reason, Payload](
+				"logging middleware requires non-nil next route handler",
+			)
 		}
 
-		return func(ctx context.Context, req Req, rec routery.ResultRecorder[Res]) error {
+		return func(call routery.RouteCall[Req]) (routery.RouteResult[Kind, Reason, Payload], error) {
 			start := time.Now()
-			handleErr := next(ctx, req, rec)
-			action := rec.Action()
+			result, handleErr := next(call)
 			if handleErr != nil {
-				action = routery.ActionAbort
+				result = routery.AbortResult[Kind, Reason, Payload]().WithMatch(call.Match)
+			} else if result.Match.RouteID == "" && len(result.Match.Path) == 0 {
+				result = result.WithMatch(call.Match)
 			}
-			handler(ctx, Event[Req, Res]{
+			handler(call.Context, Event[Req, Kind, Reason, Payload]{
 				Name:      name,
 				StartTime: start,
 				Duration:  time.Since(start),
-				Request:   req,
-				Outcome: Outcome{
-					Action:      action,
-					ReasonCode:  rec.ReasonCode(),
-					PayloadMeta: resolvePayloadMeta(ctx, rec, payloadMeta),
+				Request:   call.Request,
+				Outcome: Outcome[Kind, Reason]{
+					Action: result.Action,
+					Kind:   result.Kind,
+					Reason: result.Reason,
+					Match:  result.Match,
 				},
-				Err: handleErr,
+				PayloadMeta: resolvePayloadMeta(result, payloadMeta),
+				Err:         handleErr,
 			})
-			return handleErr
+			return result, handleErr
 		}
 	}
 }
 
-func invalidRouteHandler[Req any, Res any](detail string) routery.RouteHandler[Req, Res] {
+func invalidRouteHandler[Req any, Kind comparable, Reason comparable, Payload any](
+	detail string,
+) routery.RouteHandler[Req, Kind, Reason, Payload] {
 	err := fmt.Errorf("%w: %s", routery.ErrInvalidConfig, detail)
 
-	return func(context.Context, Req, routery.ResultRecorder[Res]) error {
-		return err
+	return func(routery.RouteCall[Req]) (routery.RouteResult[Kind, Reason, Payload], error) {
+		return routery.AbortResult[Kind, Reason, Payload](), err
 	}
 }

@@ -13,71 +13,64 @@ type ErrorPredicate func(error) bool
 type WeightExtractor[Req any] func(ctx context.Context, req Req) (int, error)
 
 // PredicateFallback executes secondary only when shouldFallback returns true for a system error.
-func PredicateFallback[Req any, Res any](
-	primary RouteHandler[Req, Res],
-	secondary RouteHandler[Req, Res],
+func PredicateFallback[Req any, Kind comparable, Reason comparable, Payload any](
+	primary RouteHandler[Req, Kind, Reason, Payload],
+	secondary RouteHandler[Req, Kind, Reason, Payload],
 	shouldFallback ErrorPredicate,
-) RouteHandler[Req, Res] {
+) RouteHandler[Req, Kind, Reason, Payload] {
 	if primary == nil || secondary == nil {
-		return invalidRouteHandler[Req, Res](
+		return invalidRouteHandler[Req, Kind, Reason, Payload](
 			configError("predicate fallback requires non-nil primary and secondary route handlers"),
 		)
 	}
 	if shouldFallback == nil {
-		return invalidRouteHandler[Req, Res](configError("predicate fallback requires a non-nil predicate"))
+		return invalidRouteHandler[Req, Kind, Reason, Payload](
+			configError("predicate fallback requires a non-nil predicate"),
+		)
 	}
 
-	return func(ctx context.Context, req Req, rec ResultRecorder[Res]) error {
-		localPrimary := NewResultRecorder[Res]()
-		err := primary(ctx, req, localPrimary)
+	return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
+		result, err := primary(call)
 		if err == nil {
-			CopyRecorderOutcome(rec, localPrimary)
-			return nil
+			return result, nil
 		}
 		if !shouldFallback(err) {
-			return err
+			return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), err
 		}
 
-		localSecondary := NewResultRecorder[Res]()
-		if err := secondary(ctx, req, localSecondary); err != nil {
-			return err
-		}
-		CopyRecorderOutcome(rec, localSecondary)
-
-		return nil
+		return secondary(call)
 	}
 }
 
-// FirstCompleted runs route handlers in parallel and merges the first successful stop outcome.
+// FirstCompleted runs route handlers in parallel and returns the first successful payload result.
 //
-// A handler wins only when it returns nil and records a payload via Stop or Async.
-// Ignore and Next do not win. When multiple handlers record payload, the first
-// completion order wins, not registration order.
-func FirstCompleted[Req any, Res any](handlers ...RouteHandler[Req, Res]) RouteHandler[Req, Res] {
+// A handler wins only when it returns nil and returns a payload. Terminal results without
+// payload and ActionNext do not win. Completion order wins, not registration order.
+func FirstCompleted[Req any, Kind comparable, Reason comparable, Payload any](
+	handlers ...RouteHandler[Req, Kind, Reason, Payload],
+) RouteHandler[Req, Kind, Reason, Payload] {
 	validated, err := validateRouteHandlers(handlers, "first completed")
 	if err != nil {
-		return invalidRouteHandler[Req, Res](err)
+		return invalidRouteHandler[Req, Kind, Reason, Payload](err)
 	}
 
-	return func(ctx context.Context, req Req, rec ResultRecorder[Res]) error {
-		derivedCtx, cancel := context.WithCancel(ctx)
+	return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
+		derivedCtx, cancel := context.WithCancel(call.Context)
 		defer cancel()
 
-		safeRec := newThreadSafeRecorder(rec)
-		results := make(chan firstCompletedResult[Res], len(validated))
+		results := make(chan firstCompletedResult[Kind, Reason, Payload], len(validated))
 		var group sync.WaitGroup
 
 		for index, handler := range validated {
 			group.Add(1)
-			go func(handlerIndex int, current RouteHandler[Req, Res]) {
+			go func(handlerIndex int, current RouteHandler[Req, Kind, Reason, Payload]) {
 				defer group.Done()
 
-				localRec := NewResultRecorder[Res]()
-				handleErr := current(derivedCtx, req, localRec)
-				results <- firstCompletedResult[Res]{
-					index:    handlerIndex,
-					recorder: localRec,
-					err:      handleErr,
+				result, handleErr := current(call.withContext(derivedCtx))
+				results <- firstCompletedResult[Kind, Reason, Payload]{
+					index:  handlerIndex,
+					result: result,
+					err:    handleErr,
 				}
 			}(index, handler)
 		}
@@ -87,61 +80,76 @@ func FirstCompleted[Req any, Res any](handlers ...RouteHandler[Req, Res]) RouteH
 			close(results)
 		}()
 
-		allErrors := make([]error, len(validated))
-
-		for result := range results {
-			if result.err == nil {
-				if _, ok := result.recorder.Payload(); ok {
-					CopyRecorderOutcome(safeRec, result.recorder)
-					cancel()
-					return nil
-				}
-			}
-			if result.err != nil {
-				allErrors[result.index] = result.err
-			}
-		}
-
-		joined := errors.Join(allErrors...)
-		if joined != nil {
-			return joined
-		}
-
-		return ErrNoSuccessfulOutcome
+		return collectFirstCompletedResult(results, len(validated), cancel)
 	}
 }
 
+func collectFirstCompletedResult[Kind comparable, Reason comparable, Payload any](
+	results <-chan firstCompletedResult[Kind, Reason, Payload],
+	handlerCount int,
+	cancel context.CancelFunc,
+) (RouteResult[Kind, Reason, Payload], error) {
+	allErrors := make([]error, handlerCount)
+	var last RouteResult[Kind, Reason, Payload]
+
+	for result := range results {
+		if result.err != nil {
+			allErrors[result.index] = result.err
+			continue
+		}
+
+		validated, err := validateReturnedResult(result.result)
+		if err != nil {
+			return validated, err
+		}
+		last = validated
+		if last.Action != ActionNext && last.HasPayload {
+			cancel()
+			return last, nil
+		}
+	}
+
+	joined := errors.Join(allErrors...)
+	if joined != nil {
+		return AbortResult[Kind, Reason, Payload]().WithMatch(last.Match), joined
+	}
+
+	return AbortResult[Kind, Reason, Payload]().WithMatch(last.Match), ErrNoSuccessfulOutcome
+}
+
 // WeightBasedRouter routes requests using user-provided weight extraction.
-func WeightBasedRouter[Req any, Res any](
+func WeightBasedRouter[Req any, Kind comparable, Reason comparable, Payload any](
 	extractor WeightExtractor[Req],
 	threshold int,
-	lightweight RouteHandler[Req, Res],
-	heavyweight RouteHandler[Req, Res],
-) RouteHandler[Req, Res] {
+	lightweight RouteHandler[Req, Kind, Reason, Payload],
+	heavyweight RouteHandler[Req, Kind, Reason, Payload],
+) RouteHandler[Req, Kind, Reason, Payload] {
 	if extractor == nil {
-		return invalidRouteHandler[Req, Res](configError("weight router requires a non-nil extractor"))
+		return invalidRouteHandler[Req, Kind, Reason, Payload](
+			configError("weight router requires a non-nil extractor"),
+		)
 	}
 	if lightweight == nil || heavyweight == nil {
-		return invalidRouteHandler[Req, Res](
+		return invalidRouteHandler[Req, Kind, Reason, Payload](
 			configError("weight router requires non-nil lightweight and heavyweight route handlers"),
 		)
 	}
 
-	return func(ctx context.Context, req Req, rec ResultRecorder[Res]) error {
-		weight, err := extractor(ctx, req)
+	return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
+		weight, err := extractor(call.Context, call.Request)
 		if err != nil {
-			return err
+			return AbortResult[Kind, Reason, Payload](), err
 		}
 		if weight < threshold {
-			return lightweight(ctx, req, rec)
+			return lightweight(call)
 		}
 
-		return heavyweight(ctx, req, rec)
+		return heavyweight(call)
 	}
 }
 
-type firstCompletedResult[Res any] struct {
-	index    int
-	recorder ResultRecorder[Res]
-	err      error
+type firstCompletedResult[Kind comparable, Reason comparable, Payload any] struct {
+	index  int
+	result RouteResult[Kind, Reason, Payload]
+	err    error
 }

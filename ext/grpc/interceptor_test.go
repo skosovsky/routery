@@ -102,12 +102,11 @@ func TestRetryStreamInterceptorOK(t *testing.T) {
 func TestRetryStreamInterceptorMissingPayload(t *testing.T) {
 	t.Parallel()
 
-	rec := routery.NewResultRecorder[grpc.ClientStream]()
-	_, err := clientStreamFromRecorder(rec)
+	_, err := clientStreamFromResult(routery.BasicRouteResult[grpc.ClientStream]{})
 	if err == nil {
-		t.Fatal("expected error when recorder has no payload")
+		t.Fatal("expected error when result has no payload")
 	}
-	if !strings.Contains(err.Error(), "did not record payload") {
+	if !strings.Contains(err.Error(), "did not return payload") {
 		t.Fatalf("got err %v", err)
 	}
 }

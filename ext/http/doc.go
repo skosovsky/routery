@@ -1,6 +1,6 @@
 // Package routeryhttp adapts net/http clients to routery [RouteHandler] values.
 //
-// The adapter records *http.Response payloads for successful (2xx) calls. For non-2xx responses it returns *StatusError; inspect the
+// The adapter returns *http.Response payloads for successful (2xx) calls. For non-2xx responses it returns *StatusError; inspect the
 // response body via StatusError.Response while using routery.RetryIf with DefaultRetryPolicy.
 //
 // NewRouteHandler makes request bodies replayable. When a request has Body but no

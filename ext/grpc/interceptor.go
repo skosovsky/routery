@@ -21,20 +21,22 @@ func RetryUnaryInterceptor(opts InterceptorOptions) grpc.UnaryClientInterceptor 
 	attempts, backoff, pred := normalizeInterceptorOpts(opts)
 
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, callOpts ...grpc.CallOption) error {
-		base := routery.RouteHandler[any, struct{}](
-			func(ctx context.Context, reqVal any, rec routery.ResultRecorder[struct{}]) error {
-				err := invoker(ctx, method, reqVal, reply, cc, callOpts...)
+		base := routery.BasicRouteHandler[any, struct{}](
+			func(call routery.RouteCall[any]) (routery.BasicRouteResult[struct{}], error) {
+				err := invoker(call.Context, method, call.Request, reply, cc, callOpts...)
 				if err != nil {
-					return err
+					return routery.AbortResult[routery.BasicKind, routery.BasicReason, struct{}](), err
 				}
 
-				rec.Stop(struct{}{}, "")
-				return nil
+				return routery.BasicHandled(struct{}{}), nil
 			},
 		)
-		wrapped := routery.ApplyRoute(base, routery.RetryIf[any, struct{}](attempts, backoff, pred))
-		rec := routery.NewResultRecorder[struct{}]()
-		return wrapped(ctx, req, rec)
+		wrapped := routery.ApplyRoute(
+			base,
+			routery.RetryIf[any, routery.BasicKind, routery.BasicReason, struct{}](attempts, backoff, pred),
+		)
+		_, err := routery.InvokeRouteHandler(ctx, req, wrapped)
+		return err
 	}
 }
 
@@ -56,37 +58,38 @@ func RetryStreamInterceptor(opts InterceptorOptions) grpc.StreamClientIntercepto
 		streamer grpc.Streamer,
 		callOpts ...grpc.CallOption,
 	) (grpc.ClientStream, error) {
-		streamHandler := routery.RouteHandler[struct{}, grpc.ClientStream](
-			func(ctx context.Context, _ struct{}, rec routery.ResultRecorder[grpc.ClientStream]) error {
-				stream, err := streamer(ctx, desc, cc, method, callOpts...)
+		streamHandler := routery.BasicRouteHandler[struct{}, grpc.ClientStream](
+			func(call routery.RouteCall[struct{}]) (routery.BasicRouteResult[grpc.ClientStream], error) {
+				stream, err := streamer(call.Context, desc, cc, method, callOpts...)
 				if err != nil {
-					return err
+					return routery.AbortResult[routery.BasicKind, routery.BasicReason, grpc.ClientStream](), err
 				}
 
-				rec.Stop(stream, "")
-				return nil
+				return routery.BasicHandled(stream), nil
 			},
 		)
-		wrapped := routery.ApplyRoute(
-			streamHandler,
-			routery.RetryIf[struct{}, grpc.ClientStream](attempts, backoff, streamPred),
-		)
-		rec := routery.NewResultRecorder[grpc.ClientStream]()
-		if err := wrapped(ctx, struct{}{}, rec); err != nil {
+		retry := routery.RetryIf[
+			struct{},
+			routery.BasicKind,
+			routery.BasicReason,
+			grpc.ClientStream,
+		](attempts, backoff, streamPred)
+		wrapped := routery.ApplyRoute(streamHandler, retry)
+		result, err := routery.InvokeRouteHandler(ctx, struct{}{}, wrapped)
+		if err != nil {
 			return nil, err
 		}
 
-		return clientStreamFromRecorder(rec)
+		return clientStreamFromResult(result)
 	}
 }
 
-func clientStreamFromRecorder(rec routery.ResultRecorder[grpc.ClientStream]) (grpc.ClientStream, error) {
-	stream, ok := rec.Payload()
-	if !ok {
-		return nil, configError("stream interceptor did not record payload")
+func clientStreamFromResult(result routery.BasicRouteResult[grpc.ClientStream]) (grpc.ClientStream, error) {
+	if !result.HasPayload {
+		return nil, configError("stream interceptor did not return payload")
 	}
 
-	return stream, nil
+	return result.Payload, nil
 }
 
 func normalizeInterceptorOpts(opts InterceptorOptions) (int, time.Duration, routery.RetryPredicate[any]) {

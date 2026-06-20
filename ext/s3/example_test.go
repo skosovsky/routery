@@ -27,7 +27,7 @@ func ExampleNewPutObjectRouteHandler_withRetryIf() {
 	base := routerys3.NewPutObjectRouteHandler(noopPut{})
 	handler := routery.ApplyRoute(
 		base,
-		routery.RetryIf[*s3.PutObjectInput, *s3.PutObjectOutput](
+		routery.RetryIf[*s3.PutObjectInput, routery.BasicKind, routery.BasicReason, *s3.PutObjectOutput](
 			2,
 			0,
 			routerys3.DefaultRetryPolicy[*s3.PutObjectInput],

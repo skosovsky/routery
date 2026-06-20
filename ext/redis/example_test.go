@@ -25,10 +25,13 @@ func ExampleNewStringRouteHandler_withRetryIf() {
 		return client.Get(ctx, fmt.Sprintf("user:%d", id)), nil
 	})
 
-	handler := routery.ApplyRoute(
-		base,
-		routery.RetryIf[int, string](3, 0, routeryredis.DefaultRetryPolicy[int]),
-	)
+	retry := routery.RetryIf[
+		int,
+		routery.BasicKind,
+		routery.BasicReason,
+		string,
+	](3, 0, routeryredis.DefaultRetryPolicy[int])
+	handler := routery.ApplyRoute(base, retry)
 
 	outcome, err := routery.InvokeRouteHandler(context.Background(), 1, handler)
 	if err != nil {

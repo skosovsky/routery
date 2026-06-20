@@ -69,7 +69,7 @@ func (err *ExecutionError) Unwrap() error {
 func NewDBQueryRouteHandler[Req any](
 	db *sql.DB,
 	extractor StatementExtractor[Req],
-) routery.RouteHandler[Req, *sql.Rows] {
+) routery.BasicRouteHandler[Req, *sql.Rows] {
 	if db == nil {
 		return invalidRouteHandler[Req, *sql.Rows](configError("db is nil"))
 	}
@@ -81,7 +81,7 @@ func NewDBQueryRouteHandler[Req any](
 func NewDBExecRouteHandler[Req any](
 	db *sql.DB,
 	extractor StatementExtractor[Req],
-) routery.RouteHandler[Req, sql.Result] {
+) routery.BasicRouteHandler[Req, sql.Result] {
 	if db == nil {
 		return invalidRouteHandler[Req, sql.Result](configError("db is nil"))
 	}
@@ -93,7 +93,7 @@ func NewDBExecRouteHandler[Req any](
 func NewTxQueryRouteHandler[Req any](
 	tx *sql.Tx,
 	extractor StatementExtractor[Req],
-) routery.RouteHandler[Req, *sql.Rows] {
+) routery.BasicRouteHandler[Req, *sql.Rows] {
 	if tx == nil {
 		return invalidRouteHandler[Req, *sql.Rows](configError("tx is nil"))
 	}
@@ -105,7 +105,7 @@ func NewTxQueryRouteHandler[Req any](
 func NewTxExecRouteHandler[Req any](
 	tx *sql.Tx,
 	extractor StatementExtractor[Req],
-) routery.RouteHandler[Req, sql.Result] {
+) routery.BasicRouteHandler[Req, sql.Result] {
 	if tx == nil {
 		return invalidRouteHandler[Req, sql.Result](configError("tx is nil"))
 	}
@@ -125,29 +125,27 @@ func newQueryRouteHandler[Req any](
 	runner queryRunner,
 	inTransaction bool,
 	extractor StatementExtractor[Req],
-) routery.RouteHandler[Req, *sql.Rows] {
+) routery.BasicRouteHandler[Req, *sql.Rows] {
 	if extractor == nil {
 		return invalidRouteHandler[Req, *sql.Rows](configError("statement extractor is nil"))
 	}
 
-	return func(ctx context.Context, req Req, rec routery.ResultRecorder[*sql.Rows]) error {
-		query, args, err := extractor(ctx, req)
+	return func(call routery.RouteCall[Req]) (routery.BasicRouteResult[*sql.Rows], error) {
+		query, args, err := extractor(call.Context, call.Request)
 		if err != nil {
-			return err
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *sql.Rows](), err
 		}
 
-		//nolint:rowserrcheck // Caller closes rows and checks Err after iteration.
-		rows, queryErr := runner.QueryContext(ctx, query, args...)
+		rows, queryErr := runner.QueryContext(call.Context, query, args...)
 		if queryErr != nil {
-			return &ExecutionError{
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *sql.Rows](), &ExecutionError{
 				Operation:     OperationQuery,
 				InTransaction: inTransaction,
 				Err:           queryErr,
 			}
 		}
 
-		rec.Stop(rows, "")
-		return nil
+		return routery.BasicHandled(rows), nil
 	}
 }
 
@@ -155,28 +153,27 @@ func newExecRouteHandler[Req any](
 	runner execRunner,
 	inTransaction bool,
 	extractor StatementExtractor[Req],
-) routery.RouteHandler[Req, sql.Result] {
+) routery.BasicRouteHandler[Req, sql.Result] {
 	if extractor == nil {
 		return invalidRouteHandler[Req, sql.Result](configError("statement extractor is nil"))
 	}
 
-	return func(ctx context.Context, req Req, rec routery.ResultRecorder[sql.Result]) error {
-		query, args, err := extractor(ctx, req)
+	return func(call routery.RouteCall[Req]) (routery.BasicRouteResult[sql.Result], error) {
+		query, args, err := extractor(call.Context, call.Request)
 		if err != nil {
-			return err
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, sql.Result](), err
 		}
 
-		result, execErr := runner.ExecContext(ctx, query, args...)
+		result, execErr := runner.ExecContext(call.Context, query, args...)
 		if execErr != nil {
-			return &ExecutionError{
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, sql.Result](), &ExecutionError{
 				Operation:     OperationExec,
 				InTransaction: inTransaction,
 				Err:           execErr,
 			}
 		}
 
-		rec.Stop(result, "")
-		return nil
+		return routery.BasicHandled(result), nil
 	}
 }
 
@@ -184,8 +181,8 @@ func configError(detail string) error {
 	return fmt.Errorf("%w: %s", routery.ErrInvalidConfig, detail)
 }
 
-func invalidRouteHandler[Req any, Res any](err error) routery.RouteHandler[Req, Res] {
-	return func(context.Context, Req, routery.ResultRecorder[Res]) error {
-		return err
+func invalidRouteHandler[Req any, Res any](err error) routery.BasicRouteHandler[Req, Res] {
+	return func(routery.RouteCall[Req]) (routery.BasicRouteResult[Res], error) {
+		return routery.AbortResult[routery.BasicKind, routery.BasicReason, Res](), err
 	}
 }

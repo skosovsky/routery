@@ -1,32 +1,34 @@
 package routery
 
-import "context"
-
 // Bulkhead limits concurrent executions of the wrapped route handler using a semaphore.
 //
 // If the semaphore is full, the handler returns [ErrTooManyRequests] without blocking.
-func Bulkhead[Req any, Res any](limit int) RouteMiddleware[Req, Res] {
+func Bulkhead[Req any, Kind comparable, Reason comparable, Payload any](
+	limit int,
+) RouteMiddleware[Req, Kind, Reason, Payload] {
 	if limit <= 0 {
-		return func(RouteHandler[Req, Res]) RouteHandler[Req, Res] {
-			return invalidRouteHandler[Req, Res](configError("bulkhead limit must be positive"))
+		return func(RouteHandler[Req, Kind, Reason, Payload]) RouteHandler[Req, Kind, Reason, Payload] {
+			return invalidRouteHandler[Req, Kind, Reason, Payload](configError("bulkhead limit must be positive"))
 		}
 	}
 
 	sema := make(chan struct{}, limit)
-	return func(next RouteHandler[Req, Res]) RouteHandler[Req, Res] {
+	return func(next RouteHandler[Req, Kind, Reason, Payload]) RouteHandler[Req, Kind, Reason, Payload] {
 		if next == nil {
-			return invalidRouteHandler[Req, Res](configError("bulkhead middleware requires non-nil next route handler"))
+			return invalidRouteHandler[Req, Kind, Reason, Payload](
+				configError("bulkhead middleware requires non-nil next route handler"),
+			)
 		}
 
-		return func(ctx context.Context, req Req, rec ResultRecorder[Res]) error {
+		return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
 			select {
 			case sema <- struct{}{}:
 				defer func() { <-sema }()
-				return next(ctx, req, rec)
-			case <-ctx.Done():
-				return ctx.Err()
+				return next(call)
+			case <-call.Context.Done():
+				return AbortResult[Kind, Reason, Payload](), call.Context.Err()
 			default:
-				return ErrTooManyRequests
+				return AbortResult[Kind, Reason, Payload](), ErrTooManyRequests
 			}
 		}
 	}

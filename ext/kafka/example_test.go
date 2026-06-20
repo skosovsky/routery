@@ -26,7 +26,7 @@ func ExampleNewProducerRouteHandler_withRetryIf() {
 
 	handler := routery.ApplyRoute(
 		base,
-		routery.RetryIf[routerykafka.PublishRequest, struct{}](
+		routery.RetryIf[routerykafka.PublishRequest, routery.BasicKind, routery.BasicReason, struct{}](
 			2,
 			0,
 			routerykafka.DefaultRetryPolicy[routerykafka.PublishRequest],

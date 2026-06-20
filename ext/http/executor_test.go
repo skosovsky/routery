@@ -260,10 +260,13 @@ func TestRetryIfWithDefaultRetryPolicyPost503NoGetBodyRetries(t *testing.T) {
 	}
 	request.GetBody = nil
 
-	handler := routery.ApplyRoute(
-		NewRouteHandler(server.Client()),
-		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
-	)
+	retry := routery.RetryIf[
+		*stdhttp.Request,
+		routery.BasicKind,
+		routery.BasicReason,
+		*stdhttp.Response,
+	](2, 0, DefaultRetryPolicy)
+	handler := routery.ApplyRoute(NewRouteHandler(server.Client()), retry)
 
 	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if !outcome.HasPayload {
@@ -416,10 +419,13 @@ func TestNewRouteHandlerMaxReplayBodyBytesUnlimited(t *testing.T) {
 	}
 	request.GetBody = nil
 
-	handler := routery.ApplyRoute(
-		NewRouteHandler(server.Client(), WithMaxReplayBodyBytes(0)),
-		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
-	)
+	retry := routery.RetryIf[
+		*stdhttp.Request,
+		routery.BasicKind,
+		routery.BasicReason,
+		*stdhttp.Response,
+	](2, 0, DefaultRetryPolicy)
+	handler := routery.ApplyRoute(NewRouteHandler(server.Client(), WithMaxReplayBodyBytes(0)), retry)
 
 	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if !outcome.HasPayload {
@@ -584,10 +590,13 @@ func TestRetryIfWithDefaultRetryPolicyKeepsFinalBodyOpen(t *testing.T) {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	handler := routery.ApplyRoute(
-		NewRouteHandler(client),
-		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
-	)
+	retry := routery.RetryIf[
+		*stdhttp.Request,
+		routery.BasicKind,
+		routery.BasicReason,
+		*stdhttp.Response,
+	](2, 0, DefaultRetryPolicy)
+	handler := routery.ApplyRoute(NewRouteHandler(client), retry)
 
 	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if executeErr == nil {
@@ -625,31 +634,33 @@ func TestRetryIfClosesIntermediateStatusBodies(t *testing.T) {
 	attempts := 0
 	request := httptest.NewRequest(stdhttp.MethodGet, "/", nil)
 
-	base := func(_ context.Context, _ *stdhttp.Request, rec routery.ResultRecorder[*stdhttp.Response]) error {
+	base := func(routery.RouteCall[*stdhttp.Request]) (routery.BasicRouteResult[*stdhttp.Response], error) {
 		attempts++
 		if attempts == 1 {
 			response := &stdhttp.Response{
 				StatusCode: stdhttp.StatusServiceUnavailable,
 				Body:       closeCounter,
 			}
-			return &StatusError{
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response](), &StatusError{
 				Request:  request,
 				Response: response,
 				Code:     stdhttp.StatusServiceUnavailable,
 			}
 		}
 
-		rec.Stop(&stdhttp.Response{
+		return routery.BasicHandled(&stdhttp.Response{
 			StatusCode: stdhttp.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("ok")),
-		}, "")
-		return nil
+		}), nil
 	}
 
-	handler := routery.ApplyRoute(
-		base,
-		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, DefaultRetryPolicy),
-	)
+	retry := routery.RetryIf[
+		*stdhttp.Request,
+		routery.BasicKind,
+		routery.BasicReason,
+		*stdhttp.Response,
+	](2, 0, DefaultRetryPolicy)
+	handler := routery.ApplyRoute(base, retry)
 
 	outcome, err := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if !outcome.HasPayload {

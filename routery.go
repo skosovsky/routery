@@ -24,7 +24,7 @@ var ErrCircuitOpen = errors.New("routery: circuit breaker open")
 // ErrTooManyRequests indicates that a bulkhead semaphore has no capacity left.
 var ErrTooManyRequests = errors.New("routery: too many concurrent requests")
 
-// ErrNoSuccessfulOutcome indicates that no handler recorded a payload outcome.
+// ErrNoSuccessfulOutcome indicates that no handler returned a payload outcome.
 var ErrNoSuccessfulOutcome = errors.New("routery: no successful outcome")
 
 func configError(detail string) error {

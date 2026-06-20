@@ -17,10 +17,13 @@ func ExampleNewUnaryRouteHandler_withRetryIf() {
 		return x * 2, nil
 	})
 
-	handler := routery.ApplyRoute(
-		base,
-		routery.RetryIf[int, int](2, 0, func(context.Context, int, error) bool { return false }),
-	)
+	retry := routery.RetryIf[
+		int,
+		routery.BasicKind,
+		routery.BasicReason,
+		int,
+	](2, 0, func(context.Context, int, error) bool { return false })
+	handler := routery.ApplyRoute(base, retry)
 
 	outcome, err := routery.InvokeRouteHandler(context.Background(), 21, handler)
 	if err != nil {

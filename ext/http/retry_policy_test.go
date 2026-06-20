@@ -361,10 +361,13 @@ func TestRetryIfWithDefaultRetryPolicyThree503Then200(t *testing.T) {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	handler := routery.ApplyRoute(
-		NewRouteHandler(server.Client()),
-		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](4, 0, DefaultRetryPolicy),
-	)
+	retry := routery.RetryIf[
+		*stdhttp.Request,
+		routery.BasicKind,
+		routery.BasicReason,
+		*stdhttp.Response,
+	](4, 0, DefaultRetryPolicy)
+	handler := routery.ApplyRoute(NewRouteHandler(server.Client()), retry)
 
 	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if !outcome.HasPayload {
@@ -406,10 +409,13 @@ func TestRetryIfClosesAllIntermediateStatusBodies(t *testing.T) {
 	if reqErr != nil {
 		t.Fatalf("failed to create request: %v", reqErr)
 	}
-	handler := routery.ApplyRoute(
-		NewRouteHandler(client),
-		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](4, 0, DefaultRetryPolicy),
-	)
+	retry := routery.RetryIf[
+		*stdhttp.Request,
+		routery.BasicKind,
+		routery.BasicReason,
+		*stdhttp.Response,
+	](4, 0, DefaultRetryPolicy)
+	handler := routery.ApplyRoute(NewRouteHandler(client), retry)
 
 	outcome, err := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if !outcome.HasPayload {
@@ -463,10 +469,13 @@ func TestRetryIfContextCanceledDuringBackoffStopsRetries(t *testing.T) {
 		cancel()
 	}()
 
-	handler := routery.ApplyRoute(
-		NewRouteHandler(server.Client()),
-		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](3, time.Second, DefaultRetryPolicy),
-	)
+	retry := routery.RetryIf[
+		*stdhttp.Request,
+		routery.BasicKind,
+		routery.BasicReason,
+		*stdhttp.Response,
+	](3, time.Second, DefaultRetryPolicy)
+	handler := routery.ApplyRoute(NewRouteHandler(server.Client()), retry)
 
 	outcome, executeErr := routery.InvokeRouteHandler(ctx, request, handler)
 	if !errors.Is(executeErr, context.Canceled) {

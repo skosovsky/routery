@@ -1,7 +1,6 @@
 package observability
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 
@@ -19,29 +18,28 @@ type PayloadMeta struct {
 	Fingerprint string
 }
 
-// PayloadMetaFunc computes telemetry metadata for a recorded route payload.
-type PayloadMetaFunc[Res any] func(ctx context.Context, rec routery.ResultRecorder[Res]) PayloadMeta
+// PayloadMetaFunc computes telemetry metadata for a route result.
+type PayloadMetaFunc[Kind comparable, Reason comparable, Payload any] func(
+	result routery.RouteResult[Kind, Reason, Payload],
+) PayloadMeta
 
 // DefaultPayloadMeta returns shape-only metadata without reading payload contents.
-func DefaultPayloadMeta[Res any](_ context.Context, rec routery.ResultRecorder[Res]) PayloadMeta {
-	if rec.Action() == routery.ActionNext {
-		return PayloadMeta{Shape: shapeEmpty, Fingerprint: ""}
-	}
-
-	payload, ok := rec.Payload()
-	if !ok {
+func DefaultPayloadMeta[Kind comparable, Reason comparable, Payload any](
+	result routery.RouteResult[Kind, Reason, Payload],
+) PayloadMeta {
+	if result.Action == routery.ActionNext || !result.HasPayload {
 		return PayloadMeta{Shape: shapeEmpty, Fingerprint: ""}
 	}
 
 	shape := shapeNil
-	if !isNilValue(payload) {
-		shape = fmt.Sprintf("%T", payload)
+	if !isNilValue(result.Payload) {
+		shape = fmt.Sprintf("%T", result.Payload)
 	}
 
 	return PayloadMeta{Shape: shape, Fingerprint: ""}
 }
 
-func isNilValue[Res any](payload Res) bool {
+func isNilValue[Payload any](payload Payload) bool {
 	value := reflect.ValueOf(payload)
 	if !value.IsValid() {
 		return true
@@ -55,14 +53,13 @@ func isNilValue[Res any](payload Res) bool {
 	}
 }
 
-func resolvePayloadMeta[Res any](
-	ctx context.Context,
-	rec routery.ResultRecorder[Res],
-	payloadMeta PayloadMetaFunc[Res],
+func resolvePayloadMeta[Kind comparable, Reason comparable, Payload any](
+	result routery.RouteResult[Kind, Reason, Payload],
+	payloadMeta PayloadMetaFunc[Kind, Reason, Payload],
 ) PayloadMeta {
 	if payloadMeta == nil {
-		return DefaultPayloadMeta(ctx, rec)
+		return DefaultPayloadMeta(result)
 	}
 
-	return payloadMeta(ctx, rec)
+	return payloadMeta(result)
 }

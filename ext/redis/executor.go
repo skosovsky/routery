@@ -23,7 +23,7 @@ func NewRouteHandler[Req any, Res any](
 	client *redis.Client,
 	extractor CommandExtractor[Req],
 	scan ScanResult[Res],
-) routery.RouteHandler[Req, Res] {
+) routery.BasicRouteHandler[Req, Res] {
 	if client == nil {
 		return invalidRouteHandler[Req, Res](configError("redis client is nil"))
 	}
@@ -34,30 +34,30 @@ func NewRouteHandler[Req any, Res any](
 		return invalidRouteHandler[Req, Res](configError("scan result function is nil"))
 	}
 
-	return func(ctx context.Context, req Req, rec routery.ResultRecorder[Res]) error {
-		cmd, err := extractor(ctx, req)
+	return func(call routery.RouteCall[Req]) (routery.BasicRouteResult[Res], error) {
+		cmd, err := extractor(call.Context, call.Request)
 		if err != nil {
-			return err
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, Res](), err
 		}
 		if cmd == nil {
-			return configError("command extractor returned nil command")
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, Res](),
+				configError("command extractor returned nil command")
 		}
 
 		cmdErr := cmd.Err()
 		if errors.Is(cmdErr, redis.Nil) {
-			return redis.Nil
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, Res](), redis.Nil
 		}
 		if cmdErr != nil {
-			return cmdErr
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, Res](), cmdErr
 		}
 
-		result, scanErr := scan(ctx, cmd)
+		result, scanErr := scan(call.Context, cmd)
 		if scanErr != nil {
-			return scanErr
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, Res](), scanErr
 		}
 
-		rec.Stop(result, "")
-		return nil
+		return routery.BasicHandled(result), nil
 	}
 }
 
@@ -65,7 +65,7 @@ func NewRouteHandler[Req any, Res any](
 func NewStringRouteHandler[Req any](
 	client *redis.Client,
 	extractor CommandExtractor[Req],
-) routery.RouteHandler[Req, string] {
+) routery.BasicRouteHandler[Req, string] {
 	return NewRouteHandler(client, extractor, func(_ context.Context, cmd redis.Cmder) (string, error) {
 		sc, ok := cmd.(*redis.StringCmd)
 		if !ok {
@@ -79,8 +79,8 @@ func configError(detail string) error {
 	return fmt.Errorf("%w: %s", routery.ErrInvalidConfig, detail)
 }
 
-func invalidRouteHandler[Req any, Res any](err error) routery.RouteHandler[Req, Res] {
-	return func(context.Context, Req, routery.ResultRecorder[Res]) error {
-		return err
+func invalidRouteHandler[Req any, Res any](err error) routery.BasicRouteHandler[Req, Res] {
+	return func(routery.RouteCall[Req]) (routery.BasicRouteResult[Res], error) {
+		return routery.AbortResult[routery.BasicKind, routery.BasicReason, Res](), err
 	}
 }

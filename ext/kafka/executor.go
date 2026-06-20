@@ -20,22 +20,20 @@ type MessageWriter interface {
 }
 
 // NewProducerRouteHandler wraps w so each dispatch calls [MessageWriter.WriteMessages].
-func NewProducerRouteHandler(w MessageWriter) routery.RouteHandler[PublishRequest, struct{}] {
+func NewProducerRouteHandler(w MessageWriter) routery.BasicRouteHandler[PublishRequest, struct{}] {
 	if w == nil {
 		return invalidRouteHandler(configError("kafka writer is nil"))
 	}
 
-	return func(ctx context.Context, req PublishRequest, rec routery.ResultRecorder[struct{}]) error {
-		if len(req.Messages) == 0 {
-			rec.Stop(struct{}{}, "")
-			return nil
+	return func(call routery.RouteCall[PublishRequest]) (routery.BasicRouteResult[struct{}], error) {
+		if len(call.Request.Messages) == 0 {
+			return routery.BasicHandled(struct{}{}), nil
 		}
-		if err := w.WriteMessages(ctx, req.Messages...); err != nil {
-			return err
+		if err := w.WriteMessages(call.Context, call.Request.Messages...); err != nil {
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, struct{}](), err
 		}
 
-		rec.Stop(struct{}{}, "")
-		return nil
+		return routery.BasicHandled(struct{}{}), nil
 	}
 }
 
@@ -43,8 +41,8 @@ func configError(detail string) error {
 	return fmt.Errorf("%w: %s", routery.ErrInvalidConfig, detail)
 }
 
-func invalidRouteHandler(err error) routery.RouteHandler[PublishRequest, struct{}] {
-	return func(context.Context, PublishRequest, routery.ResultRecorder[struct{}]) error {
-		return err
+func invalidRouteHandler(err error) routery.BasicRouteHandler[PublishRequest, struct{}] {
+	return func(routery.RouteCall[PublishRequest]) (routery.BasicRouteResult[struct{}], error) {
+		return routery.AbortResult[routery.BasicKind, routery.BasicReason, struct{}](), err
 	}
 }

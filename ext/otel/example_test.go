@@ -19,7 +19,10 @@ func ExampleTracing() {
 		return 42, nil
 	})
 
-	handler := routery.ApplyRoute(base, routeryotel.Tracing[int, int](tracer, "work"))
+	handler := routery.ApplyRoute(
+		base,
+		routeryotel.Tracing[int, routery.BasicKind, routery.BasicReason, int](tracer, "work"),
+	)
 	outcome, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
 	fmt.Println(outcome.Payload, err == nil)
 	// Output: 42 true

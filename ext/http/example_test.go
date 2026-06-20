@@ -29,10 +29,13 @@ func ExampleNewRouteHandler_withRetryIf() {
 
 	request, _ := stdhttp.NewRequestWithContext(context.Background(), stdhttp.MethodGet, server.URL, nil)
 
-	handler := routery.ApplyRoute(
-		routeryhttp.NewRouteHandler(server.Client()),
-		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, routeryhttp.DefaultRetryPolicy),
-	)
+	retry := routery.RetryIf[
+		*stdhttp.Request,
+		routery.BasicKind,
+		routery.BasicReason,
+		*stdhttp.Response,
+	](2, 0, routeryhttp.DefaultRetryPolicy)
+	handler := routery.ApplyRoute(routeryhttp.NewRouteHandler(server.Client()), retry)
 
 	outcome, err := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if err != nil {
@@ -59,10 +62,13 @@ func ExampleNewRouteHandler_retryExhausted() {
 
 	request, _ := stdhttp.NewRequestWithContext(context.Background(), stdhttp.MethodGet, server.URL, nil)
 
-	handler := routery.ApplyRoute(
-		routeryhttp.NewRouteHandler(server.Client()),
-		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, routeryhttp.DefaultRetryPolicy),
-	)
+	retry := routery.RetryIf[
+		*stdhttp.Request,
+		routery.BasicKind,
+		routery.BasicReason,
+		*stdhttp.Response,
+	](2, 0, routeryhttp.DefaultRetryPolicy)
+	handler := routery.ApplyRoute(routeryhttp.NewRouteHandler(server.Client()), retry)
 
 	outcome, err := routery.InvokeRouteHandler(context.Background(), request, handler)
 	if outcome.HasPayload {
@@ -98,9 +104,15 @@ func ExampleTimeout_withRetryIf() {
 
 	request, _ := stdhttp.NewRequestWithContext(context.Background(), stdhttp.MethodGet, server.URL, nil)
 
+	retry := routery.RetryIf[
+		*stdhttp.Request,
+		routery.BasicKind,
+		routery.BasicReason,
+		*stdhttp.Response,
+	](2, 0, routeryhttp.DefaultRetryPolicy)
 	handler := routery.ApplyRoute(
 		routeryhttp.NewRouteHandler(server.Client()),
-		routery.RetryIf[*stdhttp.Request, *stdhttp.Response](2, 0, routeryhttp.DefaultRetryPolicy),
+		retry,
 		routeryhttp.Timeout(500*time.Millisecond),
 	)
 

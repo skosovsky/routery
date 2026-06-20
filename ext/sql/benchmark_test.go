@@ -95,7 +95,11 @@ func BenchmarkRetryIfWithDBRouteHandler(b *testing.B) {
 				return req.Query, req.Args, nil
 			},
 		),
-		routery.RetryIf[statementRequest, sql.Result](2, 0, DefaultRetryPolicy[statementRequest]),
+		routery.RetryIf[statementRequest, routery.BasicKind, routery.BasicReason, sql.Result](
+			2,
+			0,
+			DefaultRetryPolicy[statementRequest],
+		),
 	)
 
 	request := statementRequest{

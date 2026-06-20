@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"go.mongodb.org/mongo-driver/mongo"
+	driversession "go.mongodb.org/mongo-driver/x/mongo/driver/session"
 )
 
 // TransactionalRequest allows request types to opt out of retries when they represent work
@@ -12,12 +13,16 @@ type TransactionalRequest interface {
 	MongoInTransaction() bool
 }
 
+type clientSessionProvider interface {
+	ClientSession() *driversession.Client
+}
+
 func inMongoTransaction(ctx context.Context) bool {
 	sess := mongo.SessionFromContext(ctx)
 	if sess == nil {
 		return false
 	}
-	xs, ok := sess.(mongo.XSession) //nolint:staticcheck // read TransactionRunning from driver session.
+	xs, ok := sess.(clientSessionProvider)
 	if !ok {
 		return false
 	}
