@@ -27,6 +27,21 @@ var ErrTooManyRequests = errors.New("routery: too many concurrent requests")
 // ErrNoSuccessfulOutcome indicates that no handler returned a payload outcome.
 var ErrNoSuccessfulOutcome = errors.New("routery: no successful outcome")
 
+// ErrDuplicateRoute indicates that a mutable registry already contains the route id.
+var ErrDuplicateRoute = errors.New("routery: duplicate route")
+
+// ErrRouteNotFound indicates that a mutable registry does not contain the route id.
+var ErrRouteNotFound = errors.New("routery: route not found")
+
+// ErrInvalidRouteID indicates that a route id cannot be normalized into a non-empty id.
+var ErrInvalidRouteID = errors.New("routery: invalid route id")
+
+// ErrConflictingPrefixPolicy indicates incompatible prefix ordering policies in one registry snapshot.
+var ErrConflictingPrefixPolicy = errors.New("routery: conflicting prefix policy")
+
+// ErrStaleSnapshot indicates that a caller-provided freshness policy rejected a snapshot.
+var ErrStaleSnapshot = errors.New("routery: stale snapshot")
+
 func configError(detail string) error {
 	return fmt.Errorf("%w: %s", ErrInvalidConfig, detail)
 }

@@ -24,6 +24,11 @@ application framework.
 - `RouteAction`: control flow only — `ActionNext`, `ActionStop`, `ActionAbort`.
 - `RouteTable[Req, Kind, Reason, Payload]` + `Router.Dispatch`: declarative routing with priority, nested tables, fallback, keyed routes, and decision routes.
 - `OutcomeSink[Kind, Reason, Payload]`: explicit event sink for observed dispatches via `DispatchWithSink`.
+- `OutcomeProjector[Kind, Reason, Payload, Projection]`: converts canonical route results into caller-owned projections.
+- `ErrorPolicy[Kind, Reason, Payload, Projection]`: maps dispatch/projection/system errors without forcing string reason codes.
+- `RouteBinding[Branch, Binding]`: typed branch and payload binding with route snapshot and caller freshness data.
+- `DecisionTable[Input, Action, Reason]`: ordered typed decision table for recovery/preflight-style routing.
+- `RouteRegistry[Req, Kind, Reason, Payload]`: runtime registration with immutable dispatch snapshots.
 - `RouteMiddleware[Req, Kind, Reason, Payload]`: composable decorator for route handlers.
 - `ApplyRoute(base, mws...)`: middleware composition helper.
 - `RetryPredicate[Req]`: `func(ctx context.Context, req Req, err error) bool` for use with `RetryIf`.
@@ -46,7 +51,58 @@ Routing primitives:
 - `OnKey(table, extractor).Exact(...)`
 - `OnStringKey(table, extractor).Prefix(...).LongestPrefixWins()`
 - `OnDecision(table, classifier).Case(...)`
+- `OnDecisionTable(table, decisions).Case(...)`
 - `MatchDecisionReason[T](match)` for reading typed classifier reasons from decision-route metadata
+
+Projection and binding primitives:
+
+- `DispatchAndProject(ctx, router, req, projector, policy)` for canonical dispatch + caller-owned projection.
+- `DefaultProjectionMeta(result)` for action, kind, reason, route match, and safe payload type metadata.
+- `NewRouteBinding(branch, binding, match, inputFingerprint, revision)` for route-owned binding snapshots.
+- `ValidateSnapshotFreshness(snapshot, current, policy)` for caller-defined stale/rebind checks.
+
+Use projection when application code currently has local helpers such as
+`ToXResult(RouteResult)` and `RouteErrorToXResult(error)`. Keep dispatch canonical,
+then centralize projection and error mapping at the boundary:
+
+```go
+type Projection struct {
+    Action  routery.RouteAction
+    RouteID routery.RouteID
+}
+
+projector := routery.OutcomeProjectorFunc[Kind, Reason, Payload, Projection](
+    func(result routery.RouteResult[Kind, Reason, Payload]) (
+        Projection,
+        routery.ProjectionMeta[Kind, Reason],
+        error,
+    ) {
+        meta := routery.DefaultProjectionMeta(result)
+        return Projection{Action: meta.Action, RouteID: meta.Match.RouteID}, meta, nil
+    },
+)
+
+policy := routery.ErrorPolicyFunc[Kind, Reason, Payload, Projection](
+    func(routeErr routery.RouteError[Kind, Reason, Payload]) (Projection, error) {
+        return Projection{Action: routeErr.Result.Action, RouteID: routeErr.Match.RouteID}, nil
+    },
+)
+
+projection, meta, err := routery.DispatchAndProject(ctx, router, req, projector, policy)
+_ = projection
+_ = meta
+_ = err
+```
+
+The projector owns successful result shape. The policy owns dispatch/projection/system
+failure mapping. Neither path mutates routing state or encodes valid routing outcomes as
+`error`.
+
+Mutable route registration:
+
+- `NewRouteRegistry[Req, Kind, Reason, Payload]()` creates an empty registry.
+- `NewRouteSpec(...)`, `ExactRouteSpec(...)`, `PrefixRouteSpec(...)`, and `LongestPrefixRouteSpec(...)` create generic route specs.
+- `registry.Snapshot()` returns an immutable `RouteTableSnapshot`; concurrent dispatch never observes a partially rebuilt table.
 
 Observability primitives are provided in `routery/observability` via callback-based middleware. Events include action, typed kind, typed reason, `RouteMatch`, and serializable `PayloadMeta` (shape/fingerprint) for safe telemetry.
 

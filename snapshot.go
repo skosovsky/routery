@@ -2,6 +2,7 @@ package routery
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"io"
 )
@@ -25,10 +26,9 @@ func (snapshot *RouteSnapshot[TState]) IsStale(currentFingerprint string) bool {
 func FingerprintSHA256(parts ...[]byte) string {
 	hasher := sha256.New()
 	for _, part := range parts {
-		if len(part) == 0 {
-			continue
-		}
-
+		var size [8]byte
+		binary.BigEndian.PutUint64(size[:], uint64(len(part)))
+		_, _ = hasher.Write(size[:])
 		_, _ = hasher.Write(part)
 	}
 

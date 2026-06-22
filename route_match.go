@@ -8,6 +8,7 @@ const (
 	MatchKindExact     MatchKind = "exact"
 	MatchKindPrefix    MatchKind = "prefix"
 	MatchKindDecision  MatchKind = "decision"
+	MatchKindTable     MatchKind = "decision_table"
 	MatchKindFallback  MatchKind = "fallback"
 )
 
