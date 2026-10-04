@@ -45,7 +45,7 @@ func CircuitBreaker[Req any, Kind comparable, Reason comparable, Payload any](
 		}
 	}
 
-	//nolint:exhaustruct // zero values are intentional for counters, mutex, and timestamps.
+	//nolint:exhaustruct_v5 // zero values are intentional for counters, mutex, and timestamps.
 	st := &circuitBreakerState{state: cbClosed}
 	return func(next RouteHandler[Req, Kind, Reason, Payload]) RouteHandler[Req, Kind, Reason, Payload] {
 		if next == nil {

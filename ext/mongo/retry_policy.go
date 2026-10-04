@@ -43,8 +43,7 @@ func DefaultRetryPolicy[Req any](ctx context.Context, req Req, err error) bool {
 		return true
 	}
 
-	var we mongo.WriteException
-	if errors.As(err, &we) {
+	if we, ok := errors.AsType[mongo.WriteException](err); ok {
 		for _, e := range we.WriteErrors {
 			if isMongoAuthOrValidationCode(e.Code) {
 				return false

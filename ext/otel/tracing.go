@@ -2,7 +2,6 @@ package routeryotel
 
 import (
 	"fmt"
-	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -11,10 +10,32 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-// Tracing records one span around each call to the wrapped route handler.
+const (
+	defaultSpanName = "routery.handle"
+	actionAttribute = "routery.action"
+)
+
+// TraceResult borrows canonical metadata for an explicit host-owned projection.
+// It deliberately excludes the request, payload and resource ownership.
+type TraceResult[Kind comparable, Reason comparable] struct {
+	Action routery.RouteAction
+	Kind   Kind
+	Reason Reason
+	Match  routery.RouteMatch
+	Err    error
+}
+
+// AttributeProjection returns host-allowlisted, bounded attributes. It must not
+// publish secrets or arbitrary caller values. routery.action is reserved.
+type AttributeProjection[Kind comparable, Reason comparable] func(TraceResult[Kind, Reason]) []attribute.KeyValue
+
+// Tracing records one span around each call, not the returned resource lifetime.
+// A nil projection publishes only canonical action and bounded error status.
+// An empty spanName uses a fixed name; explicit names must be safe host labels.
 func Tracing[Req any, Kind comparable, Reason comparable, Payload any](
 	tracer trace.Tracer,
 	spanName string,
+	projection AttributeProjection[Kind, Reason],
 ) routery.RouteMiddleware[Req, Kind, Reason, Payload] {
 	if tracer == nil {
 		return func(routery.RouteHandler[Req, Kind, Reason, Payload]) routery.RouteHandler[Req, Kind, Reason, Payload] {
@@ -36,72 +57,42 @@ func Tracing[Req any, Kind comparable, Reason comparable, Payload any](
 		return func(call routery.RouteCall[Req]) (routery.RouteResult[Kind, Reason, Payload], error) {
 			name := spanName
 			if name == "" {
-				name = spanNameFromMatch(call.Match)
+				name = defaultSpanName
 			}
 
 			ctx, span := tracer.Start(call.Context, name)
 			defer span.End()
 
 			result, err := next(call.WithContext(ctx))
-			if err != nil {
-				result = routery.AbortResult[Kind, Reason, Payload]().WithMatch(call.Match)
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-			} else if result.Match.RouteID == "" && len(result.Match.Path) == 0 {
+			result, err = routery.ValidateRouteResult(result, err)
+			if result.Match.RouteID == "" && len(result.Match.Path) == 0 {
 				result = result.WithMatch(call.Match)
 			}
+			if err != nil {
+				span.SetStatus(codes.Error, "route failed")
+			}
 
-			setResultAttributes(span, result)
+			setProjectedAttributes(span, projection, TraceResult[Kind, Reason]{
+				Action: result.Action, Kind: result.Kind, Reason: result.Reason,
+				Match: result.Match, Err: err,
+			})
+			span.SetAttributes(attribute.String(actionAttribute, string(result.Action)))
 			return result, err
 		}
 	}
 }
 
-func spanNameFromMatch(match routery.RouteMatch) string {
-	if len(match.Path) == 0 && match.RouteID == "" {
-		return "routery.handle"
-	}
-	if len(match.Path) == 0 {
-		return "routery.route." + string(match.RouteID)
-	}
-
-	return "routery.route." + matchPath(match.Path)
-}
-
-func matchPath(path []routery.RouteID) string {
-	if len(path) == 0 {
-		return ""
-	}
-
-	parts := make([]string, len(path))
-	for index, routeID := range path {
-		parts[index] = string(routeID)
-	}
-
-	return strings.Join(parts, ".")
-}
-
-func setResultAttributes[Kind comparable, Reason comparable, Payload any](
+func setProjectedAttributes[Kind comparable, Reason comparable](
 	span trace.Span,
-	result routery.RouteResult[Kind, Reason, Payload],
+	projection AttributeProjection[Kind, Reason],
+	result TraceResult[Kind, Reason],
 ) {
-	span.SetAttributes(
-		attribute.String("routery.action", string(result.Action)),
-		attribute.String("routery.kind", fmt.Sprint(result.Kind)),
-		attribute.String("routery.reason", fmt.Sprint(result.Reason)),
-		attribute.String("routery.route.id", string(result.Match.RouteID)),
-		attribute.String("routery.route.path", matchPath(result.Match.Path)),
-		attribute.String("routery.match.kind", string(result.Match.Kind)),
-		attribute.Int("routery.route.priority", result.Match.Priority),
-		attribute.Int("routery.route.depth", result.Match.Depth),
-	)
-	if result.Match.Key != "" {
-		span.SetAttributes(attribute.String("routery.match.key", result.Match.Key))
+	if projection == nil {
+		return
 	}
-	if result.Match.Prefix != "" {
-		span.SetAttributes(attribute.String("routery.match.prefix", result.Match.Prefix))
-	}
-	if result.Match.Remainder != "" {
-		span.SetAttributes(attribute.String("routery.match.remainder", result.Match.Remainder))
+	for _, attr := range projection(result) {
+		if attr.Key != actionAttribute {
+			span.SetAttributes(attr)
+		}
 	}
 }

@@ -14,10 +14,10 @@ func InvokeRouteHandler[Req any, Kind comparable, Reason comparable, Payload any
 		return AbortResult[Kind, Reason, Payload](), err
 	}
 
-	result, err := handler(NewRouteCall(ctx, req))
-	if err != nil {
-		return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), err
+	call := NewRouteCall(ctx, req)
+	if err := call.Context.Err(); err != nil {
+		return AbortResult[Kind, Reason, Payload](), err
 	}
-
-	return validateReturnedResult(result)
+	result, err := handler(call)
+	return ValidateRouteResult(result, err)
 }

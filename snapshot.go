@@ -7,7 +7,9 @@ import (
 	"io"
 )
 
-// RouteSnapshot captures immutable routing state together with a fingerprint.
+// RouteSnapshot captures routing state together with a fingerprint.
+// The caller must freeze or copy mutable state before publication: this generic
+// container does not make maps, slices or pointer-referenced data immutable.
 type RouteSnapshot[TState any] struct {
 	Fingerprint string
 	State       TState

@@ -20,11 +20,19 @@ func Fallback[Req any, Kind comparable, Reason comparable, Payload any](
 	}
 
 	return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
+		if err := call.Context.Err(); err != nil {
+			return AbortResult[Kind, Reason, Payload](), err
+		}
 		result, err := primary(call)
 		if err == nil {
 			return result, nil
 		}
 
+		if cancelErr := call.Context.Err(); cancelErr != nil {
+			_ = result.Lifetime.Close()
+			return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), cancelErr
+		}
+		_ = result.Lifetime.Close()
 		return secondary(call)
 	}
 }
@@ -105,9 +113,19 @@ func Timeout[Req any, Kind comparable, Reason comparable, Payload any](
 
 		return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
 			timedCtx, cancel := context.WithTimeout(call.Context, timeout)
-			defer cancel()
-
-			return next(call.withContext(timedCtx))
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					cancel()
+					panic(recovered)
+				}
+			}()
+			result, err := next(call.withContext(timedCtx))
+			if result.Lifetime == nil {
+				cancel()
+			} else {
+				result.Lifetime.OnClose(cancel)
+			}
+			return result, err
 		}
 	}
 }
@@ -128,6 +146,9 @@ func executeWithRetry[Req any, Kind comparable, Reason comparable, Payload any](
 	var lastErr error
 
 	for attemptIndex := range attempts {
+		if err := call.Context.Err(); err != nil {
+			return AbortResult[Kind, Reason, Payload](), err
+		}
 		result, err := next(call)
 		if err == nil {
 			return result, nil
@@ -136,9 +157,13 @@ func executeWithRetry[Req any, Kind comparable, Reason comparable, Payload any](
 		lastErr = err
 		isFinalAttempt := attemptIndex == attempts-1
 		if isFinalAttempt || !predicate(call.Context, call.Request, lastErr) {
-			return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), lastErr
+			return result, lastErr
 		}
 
+		_ = result.Lifetime.Close()
+		if err := call.Context.Err(); err != nil {
+			return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), err
+		}
 		if wait > 0 {
 			if err := sleepWithContext(call.Context, wait); err != nil {
 				return AbortResult[Kind, Reason, Payload](), err

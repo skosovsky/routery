@@ -2,6 +2,7 @@ package routery
 
 import (
 	"context"
+	"slices"
 	"strconv"
 )
 
@@ -83,8 +84,7 @@ func ApplyRoute[Req any, Kind comparable, Reason comparable, Payload any](
 		return invalidRouteHandler[Req, Kind, Reason, Payload](configError("base route handler is nil"))
 	}
 
-	for index := len(mws) - 1; index >= 0; index-- {
-		middleware := mws[index]
+	for _, middleware := range slices.Backward(mws) {
 		if middleware == nil {
 			continue
 		}
@@ -129,7 +129,8 @@ func FromResultFunc[Req any, Kind comparable, Reason comparable, Payload any](
 	return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
 		result, err := fn(call.Context, call.Request)
 		if err != nil {
-			return AbortResult[Kind, Reason, Payload](), err
+			result.Action = ActionAbort
+			return result, err
 		}
 
 		return result, nil

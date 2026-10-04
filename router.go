@@ -59,10 +59,16 @@ func dispatchTable[Req any, Kind comparable, Reason comparable, Payload any](
 	depth int,
 	sink OutcomeSink[Kind, Reason, Payload],
 ) (RouteResult[Kind, Reason, Payload], error) {
+	if err := call.Context.Err(); err != nil {
+		return AbortResult[Kind, Reason, Payload](), err
+	}
 	var lastNext RouteResult[Kind, Reason, Payload]
 	hasNext := false
 
 	for _, entry := range table.routes {
+		if err := call.Context.Err(); err != nil {
+			return AbortResult[Kind, Reason, Payload](), err
+		}
 		result, terminal, err := dispatchEntry(call, entry, parentPath, depth, sink)
 		if err != nil {
 			return result, err
@@ -71,12 +77,19 @@ func dispatchTable[Req any, Kind comparable, Reason comparable, Payload any](
 			return result, nil
 		}
 		if result.Action == ActionNext {
+			if closeErr := result.Lifetime.Close(); closeErr != nil {
+				result.Action = ActionAbort
+				return result, closeErr
+			}
 			lastNext = result
 			hasNext = true
 		}
 	}
 
 	if table.fallback != nil {
+		if err := call.Context.Err(); err != nil {
+			return AbortResult[Kind, Reason, Payload](), err
+		}
 		return dispatchFallback(call, table.fallback, parentPath, depth, sink)
 	}
 
@@ -121,7 +134,8 @@ func dispatchHandler[Req any, Kind comparable, Reason comparable, Payload any](
 ) (RouteResult[Kind, Reason, Payload], bool, error) {
 	result, err := handler(call.withMatch(match))
 	if err != nil {
-		result = AbortResult[Kind, Reason, Payload]().WithMatch(match)
+		result.Action = ActionAbort
+		result = result.WithMatch(match)
 		emitRouteEvent(sink, match, result, err)
 		return result, true, err
 	}
@@ -151,7 +165,8 @@ func dispatchFallback[Req any, Kind comparable, Reason comparable, Payload any](
 	match := fallbackMatch(parentPath, depth)
 	result, err := fallback(call.withMatch(match))
 	if err != nil {
-		result = AbortResult[Kind, Reason, Payload]().WithMatch(match)
+		result.Action = ActionAbort
+		result = result.WithMatch(match)
 		emitRouteEvent(sink, match, result, err)
 		return result, err
 	}

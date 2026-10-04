@@ -8,7 +8,50 @@ import (
 	stdhttp "net/http"
 	"net/url"
 	"strings"
+
+	"github.com/skosovsky/routery"
 )
+
+// ReplaySafety is caller-owned evidence, independent of request body replayability.
+type ReplaySafety uint8
+
+const (
+	UnsafeReplay ReplaySafety = iota
+	ProvenNotExecuted
+	VerifiedDeduplication
+)
+
+// RetryPolicy adds explicit replay evidence for non-idempotent requests.
+// A header or status code alone is not evidence. The callback belongs to the host.
+func RetryPolicy(
+	evidence func(context.Context, *stdhttp.Request, error) ReplaySafety,
+) routery.RetryPredicate[*stdhttp.Request] {
+	return func(ctx context.Context, request *stdhttp.Request, err error) bool {
+		if DefaultRetryPolicy(ctx, request, err) {
+			return true
+		}
+		if evidence == nil || ctx.Err() != nil || err == nil || !isReplayableRequest(request) ||
+			errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return false
+		}
+		var statusErr *StatusError
+		if errors.As(err, &statusErr) {
+			if !IsRetryableStatus(statusErr.Code) {
+				return false
+			}
+		} else if !isRetryableTransportError(err) {
+			return false
+		}
+		safety := evidence(ctx, request, err)
+		if safety != ProvenNotExecuted && safety != VerifiedDeduplication {
+			return false
+		}
+		if statusErr != nil && statusErr.Response != nil && statusErr.Response.Body != nil {
+			_ = statusErr.Response.Body.Close()
+		}
+		return true
+	}
+}
 
 // IsRetryableStatus reports whether code is retryable by the default policy.
 func IsRetryableStatus(code int) bool {
@@ -29,7 +72,9 @@ func IsRetryableStatus(code int) bool {
 // request-method and request-body replay safety checks. The original request
 // passed to the handler must be supplied as req (the same value RetryIf forwards).
 func DefaultRetryPolicy(ctx context.Context, req *stdhttp.Request, err error) bool {
-	_ = ctx
+	if ctx.Err() != nil {
+		return false
+	}
 	if err == nil {
 		return false
 	}
@@ -37,8 +82,7 @@ func DefaultRetryPolicy(ctx context.Context, req *stdhttp.Request, err error) bo
 		return false
 	}
 
-	var statusErr *StatusError
-	if errors.As(err, &statusErr) {
+	if statusErr, ok := errors.AsType[*StatusError](err); ok {
 		return shouldRetryStatus(req, statusErr)
 	}
 
@@ -55,7 +99,7 @@ func shouldRetryStatus(req *stdhttp.Request, err *StatusError) bool {
 		effective = err.Request
 	}
 
-	if !isStatusMethodRetryable(effective, err.Code) || !isReplayableRequest(effective) {
+	if !isStatusMethodRetryable(effective) || !isReplayableRequest(effective) {
 		return false
 	}
 
@@ -85,8 +129,7 @@ func isRetryableTransportError(err error) bool {
 		return false
 	}
 
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
+	if urlErr, ok := errors.AsType[*url.Error](err); ok {
 		return isRetryableTransportError(urlErr.Err)
 	}
 
@@ -115,16 +158,8 @@ func isIdempotentMethod(method string) bool {
 	}
 }
 
-func isStatusMethodRetryable(request *stdhttp.Request, statusCode int) bool {
-	method := normalizeMethod(request)
-	if isIdempotentMethod(method) {
-		return true
-	}
-	if method == stdhttp.MethodPost || method == stdhttp.MethodPatch {
-		return statusCode == stdhttp.StatusServiceUnavailable
-	}
-
-	return false
+func isStatusMethodRetryable(request *stdhttp.Request) bool {
+	return isIdempotentMethod(normalizeMethod(request))
 }
 
 func isReplayableRequest(request *stdhttp.Request) bool {

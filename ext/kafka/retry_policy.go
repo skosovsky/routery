@@ -19,8 +19,7 @@ func DefaultRetryPolicy[Req any](_ context.Context, _ Req, err error) bool {
 		return false
 	}
 
-	var ke kafka.Error
-	if errors.As(err, &ke) {
+	if ke, ok := errors.AsType[kafka.Error](err); ok {
 		switch ke {
 		case kafka.MessageSizeTooLarge,
 			kafka.UnknownTopicOrPartition,

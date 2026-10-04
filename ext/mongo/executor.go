@@ -46,7 +46,13 @@ func NewFindRouteHandler(coll FindRunner) routery.BasicRouteHandler[FindRequest,
 			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *mongo.Cursor](), err
 		}
 
-		return routery.BasicHandled(cursor), nil
+		result := routery.BasicHandled(cursor)
+		if cursor != nil {
+			result.Lifetime = routery.NewLifetime(func() error {
+				return cursor.Close(context.WithoutCancel(call.Context))
+			})
+		}
+		return result, nil
 	}
 }
 

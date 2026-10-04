@@ -1,7 +1,9 @@
 // Package routerysql adapts database/sql [RouteHandler] values to routery contracts.
 //
 // Query route handlers return [database/sql.Rows] payloads and callers must always close rows,
-// usually with defer rows.Close(), to avoid exhausting the connection pool.
+// through result.Lifetime.Close(), to release both rows and routing callbacks.
+// Calling rows.Close() alone does not notify routing lifetime callbacks. In particular,
+// FirstCompleted and Timeout retain the winning query context until the lifetime closes.
 //
 // Transaction handlers are supported for timeout/logging/routing use-cases.
 // Retrying single statements inside an existing [database/sql.Tx] is intentionally not

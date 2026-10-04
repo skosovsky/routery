@@ -14,9 +14,13 @@ func Chain[Req any, Kind comparable, Reason comparable, Payload any](
 	return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
 		var last RouteResult[Kind, Reason, Payload]
 		for _, handler := range validated {
+			if err := call.Context.Err(); err != nil {
+				return AbortResult[Kind, Reason, Payload](), err
+			}
 			result, err := handler(call)
 			if err != nil {
-				return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), err
+				result.Action = ActionAbort
+				return result, err
 			}
 			result, err = validateReturnedResult(result)
 			if err != nil {
@@ -26,6 +30,7 @@ func Chain[Req any, Kind comparable, Reason comparable, Payload any](
 			if result.Action != ActionNext {
 				return result, nil
 			}
+			_ = result.Lifetime.Close()
 		}
 
 		if last.Action == ActionNext {

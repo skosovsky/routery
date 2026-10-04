@@ -3,6 +3,7 @@ package routerys3
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
@@ -55,8 +56,24 @@ func NewGetObjectRouteHandler(api GetObjectAPI) routery.BasicRouteHandler[*s3.Ge
 			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *s3.GetObjectOutput](), err
 		}
 
-		return routery.BasicHandled(output), nil
+		result := routery.BasicHandled(output)
+		if output != nil && output.Body != nil {
+			life := routery.NewLifetime(output.Body.Close)
+			output.Body = &ownedBody{ReadCloser: output.Body, life: life}
+			result.Lifetime = life
+		}
+		return result, nil
 	}
+}
+
+type ownedBody struct {
+	io.ReadCloser
+
+	life *routery.Lifetime
+}
+
+func (body *ownedBody) Close() error {
+	return body.life.Close()
 }
 
 func configError(detail string) error {

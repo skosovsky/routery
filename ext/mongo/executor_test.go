@@ -14,8 +14,9 @@ import (
 )
 
 type fakeFind struct {
-	calls atomic.Int32
-	err   error
+	calls  atomic.Int32
+	cursor *mongo.Cursor
+	err    error
 }
 
 func (f *fakeFind) Find(ctx context.Context, filter any, opts ...*options.FindOptions) (*mongo.Cursor, error) {
@@ -23,7 +24,39 @@ func (f *fakeFind) Find(ctx context.Context, filter any, opts ...*options.FindOp
 	_ = ctx
 	_ = filter
 	_ = opts
-	return nil, f.err
+	return f.cursor, f.err
+}
+
+func TestCursorResultHasExplicitOwnership(t *testing.T) {
+	t.Parallel()
+	// Arrange.
+	cursor, err := mongo.NewCursorFromDocuments([]any{map[string]any{"value": "document"}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := &fakeFind{cursor: cursor}
+	var closed atomic.Int32
+	// Act.
+	result, err := routery.InvokeRouteHandler(context.Background(), FindRequest{},
+		routery.FirstCompleted(NewFindRouteHandler(api)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = result.Lifetime.Close() })
+	// Assert.
+	if result.Lifetime == nil || !cursor.Next(context.Background()) {
+		t.Fatal("cursor winner is not owned/readable")
+	}
+	result.Lifetime.OnClose(func() { closed.Add(1) })
+	if err := result.Lifetime.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := result.Lifetime.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if closed.Load() != 1 || cursor.Next(context.Background()) {
+		t.Fatalf("cursor close callbacks=%d", closed.Load())
+	}
 }
 
 func TestNewFindRouteHandlerNil(t *testing.T) {

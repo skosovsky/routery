@@ -247,8 +247,7 @@ func TestExtractorErrorIsReturnedWithoutWrapping(t *testing.T) {
 		t.Fatalf("expected extractor error, got %v", err)
 	}
 
-	var executionErr *ExecutionError
-	if errors.As(err, &executionErr) {
+	if _, ok := errors.AsType[*ExecutionError](err); ok {
 		t.Fatalf("did not expect ExecutionError wrapper, got %v", err)
 	}
 }
@@ -339,6 +338,37 @@ func TestRowsMustBeClosedByCaller(t *testing.T) {
 	closeRowsAndCheck(t, outcome.Payload)
 	if state.rowsClosedCount() != 1 {
 		t.Fatalf("unexpected rows closed count after close: got %d, want 1", state.rowsClosedCount())
+	}
+}
+
+func TestQueryRaceWinnerRetainsRows(t *testing.T) {
+	t.Parallel()
+	// Arrange.
+	db, state := openTestDB(t, testDriverConfig{})
+	handler := routery.FirstCompleted(NewDBQueryRouteHandler[statementRequest](db, statementExtractor))
+	// Act.
+	result, err := routery.InvokeRouteHandler(context.Background(), statementRequest{
+		Query: "SELECT value FROM widgets",
+	}, handler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = result.Lifetime.Close() })
+	// Assert.
+	if result.Lifetime == nil || !result.Payload.Next() {
+		t.Fatalf("winner rows not readable: %v", result.Payload.Err())
+	}
+	if err := result.Payload.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if err := result.Lifetime.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := result.Lifetime.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if state.rowsClosedCount() != 1 {
+		t.Fatalf("rows closed %d times", state.rowsClosedCount())
 	}
 }
 

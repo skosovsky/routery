@@ -56,9 +56,8 @@ func Metrics[Req any, Kind comparable, Reason comparable, Payload any](
 
 			start := time.Now()
 			result, handleErr := next(call)
-			if handleErr != nil {
-				result = routery.AbortResult[Kind, Reason, Payload]().WithMatch(call.Match)
-			} else if result.Match.RouteID == "" && len(result.Match.Path) == 0 {
+			result, handleErr = routery.ValidateRouteResult(result, handleErr)
+			if result.Match.RouteID == "" && len(result.Match.Path) == 0 {
 				result = result.WithMatch(call.Match)
 			}
 

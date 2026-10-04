@@ -75,6 +75,6 @@ func FuzzCloneForAttemptNoPanics(f *testing.F) {
 			}
 		}
 
-		_, _ = cloneForAttempt(context.Background(), request, defaultMaxReplayBodyBytes)
+		_, _ = cloneForAttempt(context.Background(), request)
 	})
 }

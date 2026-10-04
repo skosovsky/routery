@@ -7,7 +7,6 @@ import (
 	stdhttp "net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -72,7 +71,7 @@ func TestTimeoutCancelOnBodyClose(t *testing.T) {
 			close(done)
 		}()
 
-		return routery.BasicHandled(&stdhttp.Response{
+		return ownedHTTPTestResult(&stdhttp.Response{
 			StatusCode: stdhttp.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("body")),
 		}), nil
@@ -208,7 +207,7 @@ func TestTimeoutDoubleCloseSafe(t *testing.T) {
 	t.Parallel()
 
 	base := func(routery.RouteCall[*stdhttp.Request]) (routery.BasicRouteResult[*stdhttp.Response], error) {
-		return routery.BasicHandled(&stdhttp.Response{
+		return ownedHTTPTestResult(&stdhttp.Response{
 			StatusCode: stdhttp.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("body")),
 		}), nil
@@ -234,26 +233,83 @@ func TestTimeoutDoubleCloseSafe(t *testing.T) {
 	}
 }
 
-func TestCancelTimerBodyCancelOnce(t *testing.T) {
+func TestHTTPBodyAndLifetimeShareExactlyOnceCleanup(t *testing.T) {
 	t.Parallel()
 
+	// Arrange.
 	var cancels atomic.Int32
-	body := &cancelTimerBody{
-		ReadCloser: io.NopCloser(strings.NewReader("body")),
-		cancelOnce: sync.Once{},
-		cancel: func() {
-			cancels.Add(1)
-		},
-	}
+	result := ownedHTTPTestResult(&stdhttp.Response{Body: io.NopCloser(strings.NewReader("body"))})
+	result.Lifetime.OnClose(func() { cancels.Add(1) })
 
-	if err := body.Close(); err != nil {
-		t.Fatalf("first close returned unexpected error: %v", err)
+	// Act.
+	firstErr := result.Payload.Body.Close()
+	secondErr := result.Lifetime.Close()
+	// Assert.
+	if firstErr != nil {
+		t.Fatalf("first close returned unexpected error: %v", firstErr)
 	}
-	if err := body.Close(); err != nil {
-		t.Fatalf("second close returned unexpected error: %v", err)
+	if secondErr != nil {
+		t.Fatalf("second close returned unexpected error: %v", secondErr)
 	}
 	if cancels.Load() != 1 {
 		t.Fatalf("unexpected cancel count: got %d, want 1", cancels.Load())
+	}
+}
+
+func ownedHTTPTestResult(response *stdhttp.Response) routery.BasicRouteResult[*stdhttp.Response] {
+	life := routery.NewLifetime(response.Body.Close)
+	response.Body = &ownedBody{ReadCloser: response.Body, life: life}
+	result := routery.BasicHandled(response)
+	result.Lifetime = life
+	return result
+}
+
+func TestHTTPTimeoutDoesNotInferOwnershipFromBody(t *testing.T) {
+	// Arrange.
+	body := io.NopCloser(strings.NewReader("body"))
+	t.Cleanup(func() { _ = body.Close() })
+	contexts := make(chan context.Context, 1)
+	base := func(call routery.RouteCall[*stdhttp.Request]) (routery.BasicRouteResult[*stdhttp.Response], error) {
+		contexts <- call.Context
+		return routery.BasicHandled(&stdhttp.Response{Body: body}), nil
+	}
+	// Act.
+	result, err := routery.InvokeRouteHandler(t.Context(), httptest.NewRequest(stdhttp.MethodGet, "/", nil),
+		Timeout(time.Second)(base))
+	timedCtx := <-contexts
+	// Assert.
+	if err != nil || result.Lifetime != nil || result.Payload.Body != body {
+		t.Fatal("timeout inferred or rewrote body ownership")
+	}
+	if !errors.Is(timedCtx.Err(), context.Canceled) {
+		t.Fatal("result without explicit lifetime retained timed context")
+	}
+}
+
+func TestHTTPTimeoutRetainsOwnedPartialResultOnError(t *testing.T) {
+	// Arrange.
+	failure := errors.New("partial response")
+	cleanupErr := errors.New("cleanup failure")
+	closes := 0
+	life := routery.NewLifetime(func() error { closes++; return cleanupErr })
+	t.Cleanup(func() { _ = life.Close() })
+	contexts := make(chan context.Context, 1)
+	base := func(call routery.RouteCall[*stdhttp.Request]) (routery.BasicRouteResult[*stdhttp.Response], error) {
+		contexts <- call.Context
+		result := routery.BasicHandled(&stdhttp.Response{StatusCode: stdhttp.StatusOK, Body: stdhttp.NoBody})
+		result.Lifetime = life
+		return result, failure
+	}
+	// Act.
+	result, err := routery.InvokeRouteHandler(t.Context(), httptest.NewRequest(stdhttp.MethodGet, "/", nil),
+		Timeout(time.Second)(base))
+	timedCtx := <-contexts
+	// Assert.
+	if !errors.Is(err, failure) || !result.HasPayload || result.Lifetime != life || timedCtx.Err() != nil {
+		t.Fatal("timeout lost or cancelled partial owned response")
+	}
+	if !errors.Is(result.Lifetime.Close(), cleanupErr) || closes != 1 || !errors.Is(timedCtx.Err(), context.Canceled) {
+		t.Fatal("partial lifetime did not release timer and preserve cleanup error")
 	}
 }
 
@@ -336,7 +392,7 @@ func TestTimeoutDoesNotCloneRequestShadowGuard(t *testing.T) {
 	}
 }
 
-func TestTimeoutWithRetryIfPost503NoGetBodyBodyReplayed(t *testing.T) {
+func TestTimeoutWithRetryIfPreparedPutBodyReplayed(t *testing.T) {
 	t.Parallel()
 
 	const payload = "payload"
@@ -364,7 +420,7 @@ func TestTimeoutWithRetryIfPost503NoGetBodyBodyReplayed(t *testing.T) {
 
 	request, err := stdhttp.NewRequestWithContext(
 		context.Background(),
-		stdhttp.MethodPost,
+		stdhttp.MethodPut,
 		server.URL,
 		strings.NewReader(payload),
 	)
@@ -372,6 +428,10 @@ func TestTimeoutWithRetryIfPost503NoGetBodyBodyReplayed(t *testing.T) {
 		t.Fatalf("failed to create request: %v", err)
 	}
 	request.GetBody = nil
+	request, err = PrepareRequest(request)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	retry := routery.RetryIf[
 		*stdhttp.Request,

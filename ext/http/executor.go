@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	stdhttp "net/http"
-	"sync"
 	"time"
 
 	"github.com/skosovsky/routery"
@@ -18,7 +17,7 @@ const defaultMaxReplayBodyBytes int64 = 10 << 20
 // ErrReplayBodyTooLarge indicates that a request body cannot be buffered safely.
 var ErrReplayBodyTooLarge = errors.New("routery/ext/http: replay body exceeds limit")
 
-// Option configures the HTTP route handler.
+// Option configures request preparation.
 type Option func(*options)
 
 type options struct {
@@ -51,10 +50,6 @@ func (err *StatusError) Error() string {
 		return "routery/ext/http: status error"
 	}
 
-	if err.Response != nil {
-		return fmt.Sprintf("routery/ext/http: unexpected status %d (%s)", err.Code, err.Response.Status)
-	}
-
 	return fmt.Sprintf("routery/ext/http: unexpected status %d", err.Code)
 }
 
@@ -63,15 +58,9 @@ func (err *StatusError) Error() string {
 //nolint:bodyclose // Response bodies are returned through RouteResult or StatusError for caller ownership.
 func NewRouteHandler(
 	client *stdhttp.Client,
-	handlerOptions ...Option,
 ) routery.BasicRouteHandler[*stdhttp.Request, *stdhttp.Response] {
 	if client == nil {
 		return invalidRouteHandler(configError("http client is nil"))
-	}
-
-	opts := applyOptions(handlerOptions)
-	if opts.err != nil {
-		return invalidRouteHandler(opts.err)
 	}
 
 	return func(call routery.RouteCall[*stdhttp.Request]) (routery.BasicRouteResult[*stdhttp.Response], error) {
@@ -81,7 +70,7 @@ func NewRouteHandler(
 				configError("request is nil")
 		}
 
-		attemptRequest, err := cloneForAttempt(call.Context, request, opts.maxReplayBodyBytes)
+		attemptRequest, err := cloneForAttempt(call.Context, request)
 		if err != nil {
 			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response](), err
 		}
@@ -95,15 +84,21 @@ func NewRouteHandler(
 			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response](), executeErr
 		}
 
+		life := routery.NewLifetime(response.Body.Close)
+		response.Body = &ownedBody{ReadCloser: response.Body, life: life}
 		if response.StatusCode < stdhttp.StatusOK || response.StatusCode >= stdhttp.StatusMultipleChoices {
-			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response](), &StatusError{
+			result := routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response]()
+			result.Lifetime = life
+			return result, &StatusError{
 				Request:  request,
 				Response: response,
 				Code:     response.StatusCode,
 			}
 		}
 
-		return routery.BasicHandled(response), nil
+		result := routery.BasicHandled(response)
+		result.Lifetime = life
+		return result, nil
 	}
 }
 
@@ -124,8 +119,10 @@ func applyOptions(handlerOptions []Option) options {
 func cloneForAttempt(
 	ctx context.Context,
 	request *stdhttp.Request,
-	maxReplayBodyBytes int64,
 ) (*stdhttp.Request, error) {
+	if request.Body != nil && request.Body != stdhttp.NoBody && request.GetBody == nil {
+		return nil, configError("body requires PrepareRequest before dispatch")
+	}
 	cloned := request.Clone(ctx)
 
 	if request.GetBody == nil {
@@ -133,9 +130,7 @@ func cloneForAttempt(
 			return cloned, nil
 		}
 
-		if err := materializeBody(request, maxReplayBodyBytes); err != nil {
-			return nil, err
-		}
+		return cloned, nil
 	}
 
 	body, err := request.GetBody()
@@ -153,43 +148,72 @@ func cloneForAttempt(
 	return cloned, nil
 }
 
-func materializeBody(request *stdhttp.Request, maxReplayBodyBytes int64) error {
-	bodyBytes, err := readAllLimited(request.Body, maxReplayBodyBytes)
-	_ = request.Body.Close()
+// PrepareRequest consumes an unprepared body once before retries or parallel dispatch.
+// The returned template must remain immutable; GetBody must be concurrency-safe.
+// Original request fields are never modified. A body consumed here is always closed.
+func PrepareRequest(request *stdhttp.Request, preparationOptions ...Option) (*stdhttp.Request, error) {
+	if request == nil {
+		return nil, configError("request is nil")
+	}
+	opts := applyOptions(preparationOptions)
+	if opts.err != nil {
+		return nil, opts.err
+	}
+	prepared := request.Clone(request.Context())
+	if request.GetBody != nil || request.Body == nil || request.Body == stdhttp.NoBody {
+		return prepared, nil
+	}
+	bodyBytes, err := readAllLimited(request.Body, opts.maxReplayBodyBytes)
+	closeErr := request.Body.Close()
 	if err != nil {
-		request.Body = stdhttp.NoBody
-		request.GetBody = func() (io.ReadCloser, error) {
-			return nil, err
-		}
-		request.ContentLength = 0
-
-		return err
+		return nil, err
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("routery/ext/http: close original body: %w", closeErr)
 	}
 
-	request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-	request.GetBody = func() (io.ReadCloser, error) {
+	prepared.Body = stdhttp.NoBody
+	prepared.GetBody = func() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(bodyBytes)), nil
 	}
-	request.ContentLength = int64(len(bodyBytes))
+	prepared.ContentLength = int64(len(bodyBytes))
 
-	return nil
+	return prepared, nil
 }
 
 func readAllLimited(body io.Reader, maxReplayBodyBytes int64) ([]byte, error) {
 	reader := body
 	if maxReplayBodyBytes > 0 {
-		reader = io.LimitReader(body, maxReplayBodyBytes+1)
+		// Avoid overflow for the largest supported limit.
+		reader = io.LimitReader(body, maxReplayBodyBytes)
 	}
 
 	bodyBytes, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("routery/ext/http: read body: %w", err)
 	}
-	if maxReplayBodyBytes > 0 && int64(len(bodyBytes)) > maxReplayBodyBytes {
-		return nil, fmt.Errorf("%w: %w", routery.ErrInvalidConfig, ErrReplayBodyTooLarge)
+	if maxReplayBodyBytes > 0 && int64(len(bodyBytes)) == maxReplayBodyBytes {
+		var extra [1]byte
+		count, readErr := io.ReadFull(body, extra[:])
+		if count > 0 {
+			return nil, fmt.Errorf("%w: %w", routery.ErrInvalidConfig, ErrReplayBodyTooLarge)
+		}
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			return nil, fmt.Errorf("routery/ext/http: read body: %w", readErr)
+		}
 	}
 
 	return bodyBytes, nil
+}
+
+type ownedBody struct {
+	io.ReadCloser
+
+	life *routery.Lifetime
+}
+
+func (body *ownedBody) Close() error {
+	return body.life.Close()
 }
 
 func configError(detail string) error {
@@ -205,71 +229,10 @@ func invalidRouteHandler(
 	}
 }
 
-// Timeout limits HTTP execution time without cancelling response body reads.
+// Timeout limits HTTP execution through the generic explicit Lifetime contract.
+// Resource handlers must attach a Lifetime; it retains the timed context until Close.
 //
-//nolint:bodyclose // Response bodies remain caller-owned and are wrapped only to cancel the timer on Close.
+//nolint:bodyclose // Generic specialization transfers owned responses to the caller, not this middleware.
 func Timeout(timeout time.Duration) routery.BasicRouteMiddleware[*stdhttp.Request, *stdhttp.Response] {
-	if timeout <= 0 {
-		return func(
-			next routery.BasicRouteHandler[*stdhttp.Request, *stdhttp.Response],
-		) routery.BasicRouteHandler[*stdhttp.Request, *stdhttp.Response] {
-			if next == nil {
-				return invalidRouteHandler(configError("timeout middleware requires non-nil next route handler"))
-			}
-
-			return next
-		}
-	}
-
-	return func(
-		next routery.BasicRouteHandler[*stdhttp.Request, *stdhttp.Response],
-	) routery.BasicRouteHandler[*stdhttp.Request, *stdhttp.Response] {
-		if next == nil {
-			return invalidRouteHandler(configError("timeout middleware requires non-nil next route handler"))
-		}
-
-		return func(call routery.RouteCall[*stdhttp.Request]) (routery.BasicRouteResult[*stdhttp.Response], error) {
-			timedCtx, cancel := context.WithTimeout(call.Context, timeout)
-			defer func() {
-				if recovered := recover(); recovered != nil {
-					cancel()
-					panic(recovered)
-				}
-			}()
-
-			result, err := next(call.WithContext(timedCtx))
-			if err != nil {
-				cancel()
-				return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response]().
-					WithMatch(result.Match), err
-			}
-
-			payload := result.Payload
-			if !result.HasPayload || payload == nil || payload.Body == nil || payload.Body == stdhttp.NoBody {
-				cancel()
-				return result, nil
-			}
-
-			payload.Body = &cancelTimerBody{
-				ReadCloser: payload.Body,
-				cancelOnce: sync.Once{},
-				cancel:     cancel,
-			}
-			result.Payload = payload
-			return result, nil
-		}
-	}
-}
-
-type cancelTimerBody struct {
-	io.ReadCloser
-
-	cancelOnce sync.Once
-	cancel     context.CancelFunc
-}
-
-func (body *cancelTimerBody) Close() error {
-	defer body.cancelOnce.Do(body.cancel)
-
-	return body.ReadCloser.Close()
+	return routery.Timeout[*stdhttp.Request, routery.BasicKind, routery.BasicReason, *stdhttp.Response](timeout)
 }

@@ -32,16 +32,14 @@ func DefaultRetryPolicy[Req any](_ context.Context, _ Req, err error) bool {
 		return false
 	}
 
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
 		code := strings.ToLower(apiErr.ErrorCode())
 		if strings.Contains(code, "slowdown") || strings.Contains(code, "503") {
 			return true
 		}
 	}
 
-	var respErr *smithyhttp.ResponseError
-	if errors.As(err, &respErr) {
+	if respErr, ok := errors.AsType[*smithyhttp.ResponseError](err); ok {
 		switch respErr.HTTPStatusCode() {
 		case httpNotFound, httpForbidden, httpBadRequest:
 			return false

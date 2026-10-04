@@ -107,96 +107,53 @@ func TestNewRouteHandlerWrapsNon2xxAsStatusError(t *testing.T) {
 	}
 }
 
-func TestCloneForAttemptNoGetBodyBuffersAndReplays(t *testing.T) {
-	t.Parallel()
-
-	const payload = "payload"
-
-	request, err := stdhttp.NewRequestWithContext(
-		context.Background(),
-		stdhttp.MethodPost,
-		"http://example.com",
-		strings.NewReader(payload),
-	)
+func TestPrepareRequestBuffersWithoutMutatingOriginal(t *testing.T) {
+	// Arrange.
+	source := &auditReadCloser{Reader: strings.NewReader("payload")}
+	request := mustNewRequest(t, stdhttp.MethodPut, nil)
+	request.Body, request.GetBody, request.ContentLength = source, nil, 0
+	// Act.
+	prepared, err := PrepareRequest(request)
 	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
+		t.Fatal(err)
 	}
-	request.GetBody = nil
-	request.ContentLength = 0
-
-	firstClone, err := cloneForAttempt(context.Background(), request, defaultMaxReplayBodyBytes)
+	first, err := cloneForAttempt(t.Context(), prepared)
 	if err != nil {
-		t.Fatalf("first cloneForAttempt returned error: %v", err)
+		t.Fatal(err)
 	}
-	secondClone, err := cloneForAttempt(context.Background(), request, defaultMaxReplayBodyBytes)
+	second, err := cloneForAttempt(t.Context(), prepared)
 	if err != nil {
-		t.Fatalf("second cloneForAttempt returned error: %v", err)
+		t.Fatal(err)
 	}
-	defer firstClone.Body.Close()
-	defer secondClone.Body.Close()
-
-	firstBody, err := io.ReadAll(firstClone.Body)
-	if err != nil {
-		t.Fatalf("failed to read first clone body: %v", err)
+	defer first.Body.Close()
+	defer second.Body.Close()
+	a, _ := io.ReadAll(first.Body)
+	b, _ := io.ReadAll(second.Body)
+	// Assert.
+	if string(a) != "payload" || string(b) != "payload" || first.Body == second.Body {
+		t.Fatalf("independent payloads: %q %q", a, b)
 	}
-	secondBody, err := io.ReadAll(secondClone.Body)
-	if err != nil {
-		t.Fatalf("failed to read second clone body: %v", err)
+	if request.GetBody != nil || request.ContentLength != 0 || request.Body != source {
+		t.Fatal("original fields mutated")
 	}
-
-	if string(firstBody) != payload {
-		t.Fatalf("unexpected first body: %q", string(firstBody))
-	}
-	if string(secondBody) != payload {
-		t.Fatalf("unexpected second body: %q", string(secondBody))
-	}
-	if request.GetBody == nil {
-		t.Fatal("expected original request GetBody to be set")
-	}
-	if firstClone.GetBody == nil {
-		t.Fatal("expected first clone GetBody to be set")
-	}
-	if secondClone.GetBody == nil {
-		t.Fatal("expected second clone GetBody to be set")
-	}
-	if request.Body == nil {
-		t.Fatal("expected original request Body to be restored")
-	}
-	if request.ContentLength != int64(len(payload)) {
-		t.Fatalf("unexpected content length: got %d, want %d", request.ContentLength, len(payload))
+	if source.closes.Load() != 1 || prepared.ContentLength != 7 {
+		t.Fatal("ownership or length")
 	}
 }
 
-func TestMaterializeBodyContentLengthMismatch(t *testing.T) {
-	t.Parallel()
-
-	const payload = "payload"
-
-	request, err := stdhttp.NewRequestWithContext(
-		context.Background(),
-		stdhttp.MethodPost,
-		"http://example.com",
-		strings.NewReader(payload),
-	)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
+func TestPrepareRequestCorrectsTemplateLength(t *testing.T) {
+	// Arrange.
+	request := mustNewRequest(t, stdhttp.MethodPut, strings.NewReader("payload"))
 	request.GetBody = nil
 	request.ContentLength = 999
-
-	cloned, err := cloneForAttempt(context.Background(), request, defaultMaxReplayBodyBytes)
+	// Act.
+	prepared, err := PrepareRequest(request)
+	// Assert.
 	if err != nil {
-		t.Fatalf("cloneForAttempt returned error: %v", err)
+		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		_ = cloned.Body.Close()
-	})
-
-	if request.ContentLength != int64(len(payload)) {
-		t.Fatalf("unexpected original content length: got %d, want %d", request.ContentLength, len(payload))
-	}
-	if cloned.ContentLength != int64(len(payload)) {
-		t.Fatalf("unexpected cloned content length: got %d, want %d", cloned.ContentLength, len(payload))
+	if prepared.ContentLength != 7 || request.ContentLength != 999 {
+		t.Fatal("length contract")
 	}
 }
 
@@ -208,7 +165,7 @@ func TestCloneForAttemptNoBodyNoMutation(t *testing.T) {
 		t.Fatalf("failed to create request: %v", err)
 	}
 
-	cloned, cloneErr := cloneForAttempt(context.Background(), request, defaultMaxReplayBodyBytes)
+	cloned, cloneErr := cloneForAttempt(context.Background(), request)
 	if cloneErr != nil {
 		t.Fatalf("cloneForAttempt returned error: %v", cloneErr)
 	}
@@ -223,149 +180,67 @@ func TestCloneForAttemptNoBodyNoMutation(t *testing.T) {
 	}
 }
 
-func TestRetryIfWithDefaultRetryPolicyPost503NoGetBodyRetries(t *testing.T) {
-	t.Parallel()
-
-	const payload = "payload"
-
-	var attempts atomic.Int32
-	seenBodies := make(chan string, 2)
-	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Errorf("failed to read request body: %v", err)
-		}
-		_ = r.Body.Close()
-		seenBodies <- string(body)
-
-		if attempts.Add(1) == 1 {
-			w.WriteHeader(stdhttp.StatusServiceUnavailable)
-			_, _ = w.Write([]byte("retry"))
-			return
-		}
-
-		w.WriteHeader(stdhttp.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	}))
-	t.Cleanup(server.Close)
-
-	request, err := stdhttp.NewRequestWithContext(
-		context.Background(),
-		stdhttp.MethodPost,
-		server.URL,
-		strings.NewReader(payload),
-	)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
+func TestDefaultRetryNeverDuplicatesCommittedPostOrPatch(t *testing.T) {
+	for _, method := range []string{stdhttp.MethodPost, stdhttp.MethodPatch} {
+		t.Run(method, func(t *testing.T) {
+			// Arrange.
+			var writes atomic.Int32
+			server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+				writes.Add(1)
+				w.WriteHeader(stdhttp.StatusServiceUnavailable)
+			}))
+			defer server.Close()
+			request, _ := stdhttp.NewRequestWithContext(t.Context(), method, server.URL, strings.NewReader("write"))
+			handler := routery.ApplyRoute(
+				NewRouteHandler(server.Client()),
+				routery.RetryIf[*stdhttp.Request, routery.BasicKind, routery.BasicReason, *stdhttp.Response](
+					2,
+					0,
+					DefaultRetryPolicy,
+				),
+			)
+			// Act.
+			_, err := routery.InvokeRouteHandler(t.Context(), request, handler)
+			var statusErr *StatusError
+			// Assert.
+			if !errors.As(err, &statusErr) || writes.Load() != 1 {
+				t.Fatalf("writes=%d err=%v", writes.Load(), err)
+			}
+			statusErr.Response.Body.Close()
+		})
 	}
-	request.GetBody = nil
+}
 
-	retry := routery.RetryIf[
-		*stdhttp.Request,
-		routery.BasicKind,
-		routery.BasicReason,
-		*stdhttp.Response,
-	](2, 0, DefaultRetryPolicy)
-	handler := routery.ApplyRoute(NewRouteHandler(server.Client()), retry)
-
-	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
-	if !outcome.HasPayload {
-		t.Fatal("expected route payload")
-	}
-	response := outcome.Payload
-	if executeErr != nil {
-		t.Fatalf("execute returned unexpected error: %v", executeErr)
-	}
-	t.Cleanup(func() {
-		_ = response.Body.Close()
-	})
-
-	if attempts.Load() != 2 {
-		t.Fatalf("unexpected attempt count: got %d, want 2", attempts.Load())
-	}
-	for attempt := 1; attempt <= 2; attempt++ {
-		got := <-seenBodies
-		if got != payload {
-			t.Fatalf("unexpected body at attempt %d: %q", attempt, got)
+func TestPrepareRequestFailurePreventsDispatch(t *testing.T) {
+	for _, source := range []io.Reader{strings.NewReader("too large"), failingReader{err: errors.New("read failed")}} {
+		// Arrange.
+		request := mustNewRequest(t, stdhttp.MethodPut, nil)
+		body := &auditReadCloser{Reader: source}
+		request.Body = body
+		// Act.
+		prepared, err := PrepareRequest(request, WithMaxReplayBodyBytes(2))
+		// Assert.
+		if err == nil || prepared != nil || body.closes.Load() != 1 {
+			t.Fatalf("prepared=%v err=%v closes=%d", prepared, err, body.closes.Load())
 		}
 	}
 }
 
-func TestNewRouteHandlerMaxReplayBodyBytesExceeded(t *testing.T) {
-	t.Parallel()
-
-	const (
-		maxReplayBytes = 8
-		bodyBytes      = 64
-	)
-
-	var attempts atomic.Int32
-	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
-		attempts.Add(1)
-		w.WriteHeader(stdhttp.StatusOK)
-	}))
-	t.Cleanup(server.Close)
-
-	request, err := stdhttp.NewRequestWithContext(
-		context.Background(),
-		stdhttp.MethodPost,
-		server.URL,
-		strings.NewReader(strings.Repeat("x", bodyBytes)),
-	)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
+func TestUnpreparedBodyRejectedBeforeTransport(t *testing.T) {
+	// Arrange.
+	var calls atomic.Int32
+	client := &stdhttp.Client{Transport: roundTripperFunc(func(*stdhttp.Request) (*stdhttp.Response, error) {
+		calls.Add(1)
+		return nil, errors.New("unexpected transport")
+	})}
+	request := mustNewRequest(t, stdhttp.MethodPut, io.NopCloser(strings.NewReader("payload")))
+	// Act.
+	_, err := routery.InvokeRouteHandler(t.Context(), request, NewRouteHandler(client))
+	// Assert.
+	if !errors.Is(err, routery.ErrInvalidConfig) || calls.Load() != 0 {
+		t.Fatalf("calls=%d err=%v", calls.Load(), err)
 	}
-	request.GetBody = nil
-
-	_, executeErr := routery.InvokeRouteHandler(
-		context.Background(),
-		request,
-		NewRouteHandler(server.Client(), WithMaxReplayBodyBytes(maxReplayBytes)),
-	)
-	if !errors.Is(executeErr, ErrReplayBodyTooLarge) {
-		t.Fatalf("expected ErrReplayBodyTooLarge, got %v", executeErr)
-	}
-	if attempts.Load() != 0 {
-		t.Fatalf("unexpected server attempts: got %d, want 0", attempts.Load())
-	}
-}
-
-func TestNewRouteHandlerMaxReplayBodyBytesExceededIsSticky(t *testing.T) {
-	t.Parallel()
-
-	const (
-		maxReplayBytes = 8
-		bodyBytes      = 64
-	)
-
-	var attempts atomic.Int32
-	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
-		attempts.Add(1)
-		w.WriteHeader(stdhttp.StatusOK)
-	}))
-	t.Cleanup(server.Close)
-
-	request, err := stdhttp.NewRequestWithContext(
-		context.Background(),
-		stdhttp.MethodPost,
-		server.URL,
-		strings.NewReader(strings.Repeat("x", bodyBytes)),
-	)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
-	request.GetBody = nil
-
-	handler := NewRouteHandler(server.Client(), WithMaxReplayBodyBytes(maxReplayBytes))
-	for attempt := 1; attempt <= 2; attempt++ {
-		_, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
-		if !errors.Is(executeErr, ErrReplayBodyTooLarge) {
-			t.Fatalf("attempt %d: expected ErrReplayBodyTooLarge, got %v", attempt, executeErr)
-		}
-	}
-	if attempts.Load() != 0 {
-		t.Fatalf("unexpected server attempts: got %d, want 0", attempts.Load())
-	}
+	request.Body.Close()
 }
 
 func TestReadAllLimitedWrapsUnlimitedReadError(t *testing.T) {
@@ -381,71 +256,15 @@ func TestReadAllLimitedWrapsUnlimitedReadError(t *testing.T) {
 	}
 }
 
-func TestNewRouteHandlerMaxReplayBodyBytesUnlimited(t *testing.T) {
-	t.Parallel()
-
-	const largePayloadSize = 1 << 20
-
-	payload := strings.Repeat("x", largePayloadSize)
-	var attempts atomic.Int32
-	seenSizes := make(chan int, 2)
-	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Errorf("failed to read request body: %v", err)
-		}
-		_ = r.Body.Close()
-		seenSizes <- len(body)
-
-		if attempts.Add(1) == 1 {
-			w.WriteHeader(stdhttp.StatusServiceUnavailable)
-			_, _ = w.Write([]byte("retry"))
-			return
-		}
-
-		w.WriteHeader(stdhttp.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	}))
-	t.Cleanup(server.Close)
-
-	request, err := stdhttp.NewRequestWithContext(
-		context.Background(),
-		stdhttp.MethodPost,
-		server.URL,
-		strings.NewReader(payload),
-	)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
-	request.GetBody = nil
-
-	retry := routery.RetryIf[
-		*stdhttp.Request,
-		routery.BasicKind,
-		routery.BasicReason,
-		*stdhttp.Response,
-	](2, 0, DefaultRetryPolicy)
-	handler := routery.ApplyRoute(NewRouteHandler(server.Client(), WithMaxReplayBodyBytes(0)), retry)
-
-	outcome, executeErr := routery.InvokeRouteHandler(context.Background(), request, handler)
-	if !outcome.HasPayload {
-		t.Fatal("expected route payload")
-	}
-	response := outcome.Payload
-	if executeErr != nil {
-		t.Fatalf("execute returned unexpected error: %v", executeErr)
-	}
-	t.Cleanup(func() {
-		_ = response.Body.Close()
-	})
-
-	if attempts.Load() != 2 {
-		t.Fatalf("unexpected attempt count: got %d, want 2", attempts.Load())
-	}
-	for attempt := 1; attempt <= 2; attempt++ {
-		got := <-seenSizes
-		if got != largePayloadSize {
-			t.Fatalf("unexpected body size at attempt %d: got %d, want %d", attempt, got, largePayloadSize)
+func TestPrepareRequestUnlimitedAndExactLimit(t *testing.T) {
+	for _, limit := range []int64{0, 7} {
+		// Arrange.
+		request := mustNewRequest(t, stdhttp.MethodPut, io.NopCloser(strings.NewReader("payload")))
+		// Act.
+		prepared, err := PrepareRequest(request, WithMaxReplayBodyBytes(limit))
+		// Assert.
+		if err != nil || prepared.ContentLength != 7 {
+			t.Fatalf("limit=%d err=%v", limit, err)
 		}
 	}
 }
@@ -693,6 +512,23 @@ func TestIsRetryableStatus(t *testing.T) {
 
 type trackingReadCloser struct {
 	closes atomic.Int32
+}
+
+type auditReadCloser struct {
+	io.Reader
+
+	closes atomic.Int32
+}
+
+func (body *auditReadCloser) Close() error {
+	body.closes.Add(1)
+	return nil
+}
+
+type roundTripperFunc func(*stdhttp.Request) (*stdhttp.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(request *stdhttp.Request) (*stdhttp.Response, error) {
+	return fn(request)
 }
 
 func (body *trackingReadCloser) Read([]byte) (int, error) {

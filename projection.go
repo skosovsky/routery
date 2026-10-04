@@ -21,6 +21,9 @@ type ProjectionMeta[Kind comparable, Reason comparable] struct {
 	Reason  Reason
 	Match   RouteMatch
 	Payload PayloadMeta
+	// Lifetime is the canonical result's owner, preserved even on projection errors.
+	// The caller closes it after consuming or discarding the projection.
+	Lifetime *Lifetime
 }
 
 // OutcomeProjector converts a canonical RouteResult into a caller-owned projection.
@@ -39,7 +42,7 @@ func (fn OutcomeProjectorFunc[Kind, Reason, Payload, Projection]) Project(
 ) (Projection, ProjectionMeta[Kind, Reason], error) {
 	if fn == nil {
 		var projection Projection
-		return projection, ProjectionMeta[Kind, Reason]{}, configError("outcome projector is nil")
+		return projection, DefaultProjectionMeta(result), configError("outcome projector is nil")
 	}
 
 	return fn(result)
@@ -89,10 +92,11 @@ func DefaultProjectionMeta[Kind comparable, Reason comparable, Payload any](
 	result RouteResult[Kind, Reason, Payload],
 ) ProjectionMeta[Kind, Reason] {
 	return ProjectionMeta[Kind, Reason]{
-		Action: result.Action,
-		Kind:   result.Kind,
-		Reason: result.Reason,
-		Match:  result.Match,
+		Action:   result.Action,
+		Kind:     result.Kind,
+		Reason:   result.Reason,
+		Match:    result.Match,
+		Lifetime: result.Lifetime,
 		Payload: PayloadMeta{
 			HasPayload: result.HasPayload,
 			Type:       payloadType(result.Payload, result.HasPayload),
@@ -107,14 +111,19 @@ func ProjectRouteResult[Kind comparable, Reason comparable, Payload any, Project
 ) (Projection, ProjectionMeta[Kind, Reason], error) {
 	if projector == nil {
 		var projection Projection
-		return projection, ProjectionMeta[Kind, Reason]{}, configError("outcome projector is nil")
+		return projection, DefaultProjectionMeta(result), configError("outcome projector is nil")
 	}
 
-	return projector.Project(result)
+	projection, meta, err := projector.Project(result)
+	// Metadata customization cannot replace the canonical resource owner.
+	meta.Lifetime = result.Lifetime
+	return projection, meta, err
 }
 
 // DispatchAndProject dispatches a request, projects the canonical result, and delegates
 // dispatch/projection failures to policy when one is provided.
+// On every return path, meta.Lifetime transfers the canonical owner to the caller,
+// who must close it even if dispatch, projection or error mapping failed.
 func DispatchAndProject[Req any, Kind comparable, Reason comparable, Payload any, Projection any](
 	ctx context.Context,
 	router Router[Req, Kind, Reason, Payload],

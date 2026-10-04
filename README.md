@@ -2,6 +2,33 @@
 
 `routery` is a zero-dependency, generic routing and resiliency library for Go.
 
+Optional execution policies are specified in [the public contract](docs/execution-contracts.md).
+The implementation checklist is [task 8](docs/task8-checklist.md). The `policy` packages
+compose eligibility, ranking, affinity, attempt lifecycle and host-owned quota ports;
+model facts live in the opt-in `policy/model` adapter.
+Caller changes and correctness breaks are described in [the migration guide](docs/migration.md).
+Executable model and ordinary-operation compositions live in
+[the boundary examples](policy/execution/example_test.go); both use independent caller types
+and run without SDKs, storage or observability.
+
+`policy/execution.Boundary` composes a single physical attempt with explicit lifecycle
+facts, freshness checks, optional host admission and resource-bound settlement.
+It does not infer remote outcome from local errors or perform implicit retries.
+`policy/execution.Sequence` adds opt-in retry/fallback with caller failure classes,
+explicit replay evidence, scoped scheduling inputs and a trace of physical attempts.
+The host builds each next request/binding; partial output and unknown outcome remain
+explicit. Nested attempts must be accounted by the host or marked unobservable.
+`policy/execution.Race` adds bounded concurrency and caller acceptance over independent
+attempts. Duplication needs explicit cost/replay/effect evidence; the default profile
+does not accept a stream handle or first fragment. Late results remain in its journal.
+
+Resource results carry an optional `Lifetime`. Close it (or the adapter's response
+body) when done. Parallel handlers have independent contexts; the winner's context
+stays alive until its resource closes. Value payloads require no ownership hook.
+HTTP requests with bodies lacking `GetBody` must pass through `PrepareRequest`
+before retry or fan-out; handlers never mutate the original request.
+POST/PATCH retries need an explicit `RetryPolicy` with verified replay evidence.
+
 It routes calls shaped as:
 
 ```go
@@ -20,6 +47,7 @@ application framework.
 
 - `RouteHandler[Req, Kind, Reason, Payload]`: generic execution contract returning a typed `RouteResult`.
 - `RouteResult[Kind, Reason, Payload]`: separates engine action, caller-defined terminal kind, caller-defined reason, payload, and route metadata.
+- `ValidateRouteResult(result, err)`: canonical action/error validation retaining owned partial payload, match and lifetime; does not invoke a handler.
 - `RouteCall[Req]`: explicit handler input with `Context`, `Request`, and `Match`.
 - `RouteAction`: control flow only — `ActionNext`, `ActionStop`, `ActionAbort`.
 - `RouteTable[Req, Kind, Reason, Payload]` + `Router.Dispatch`: declarative routing with priority, nested tables, fallback, keyed routes, and decision routes.
@@ -57,9 +85,14 @@ Routing primitives:
 Projection and binding primitives:
 
 - `DispatchAndProject(ctx, router, req, projector, policy)` for canonical dispatch + caller-owned projection.
-- `DefaultProjectionMeta(result)` for action, kind, reason, route match, and safe payload type metadata.
+- `DefaultProjectionMeta(result)` for action, kind, reason, route match, safe payload type metadata, and the shared resource `Lifetime`.
 - `NewRouteBinding(branch, binding, match, inputFingerprint, revision)` for route-owned binding snapshots.
 - `ValidateSnapshotFreshness(snapshot, current, policy)` for caller-defined stale/rebind checks.
+
+`ProjectRouteResult` and `DispatchAndProject` preserve the canonical owner in
+`ProjectionMeta.Lifetime`, including dispatch/projection errors and error-policy
+mapping. Close that lifetime after consuming or discarding the projection, even
+when an error was returned. A custom projector cannot clear or replace this owner.
 
 Use projection when application code currently has local helpers such as
 `ToXResult(RouteResult)` and `RouteErrorToXResult(error)`. Keep dispatch canonical,

@@ -145,7 +145,9 @@ func newQueryRouteHandler[Req any](
 			}
 		}
 
-		return routery.BasicHandled(rows), nil
+		result := routery.BasicHandled(rows)
+		result.Lifetime = routery.NewLifetime(func() error { return rows.Close() })
+		return result, nil
 	}
 }
 

@@ -44,6 +44,7 @@ type RouteResult[Kind comparable, Reason comparable, Payload any] struct {
 	Payload    Payload
 	HasPayload bool
 	Match      RouteMatch
+	Lifetime   *Lifetime
 }
 
 // BasicRouteResult is a convenience result for adapters that do not need custom Kind or Reason types.
@@ -62,6 +63,7 @@ func Handled[Kind comparable, Reason comparable, Payload any](
 		Payload:    payload,
 		HasPayload: true,
 		Match:      zeroRouteMatch(),
+		Lifetime:   nil,
 	}
 }
 
@@ -78,6 +80,7 @@ func Ignored[Kind comparable, Reason comparable, Payload any](
 		Payload:    payload,
 		HasPayload: false,
 		Match:      zeroRouteMatch(),
+		Lifetime:   nil,
 	}
 }
 
@@ -94,6 +97,7 @@ func Async[Kind comparable, Reason comparable, Payload any](
 		Payload:    payload,
 		HasPayload: true,
 		Match:      zeroRouteMatch(),
+		Lifetime:   nil,
 	}
 }
 
@@ -110,6 +114,7 @@ func Next[Kind comparable, Reason comparable, Payload any](
 		Payload:    payload,
 		HasPayload: false,
 		Match:      zeroRouteMatch(),
+		Lifetime:   nil,
 	}
 }
 
@@ -125,14 +130,22 @@ func AbortResult[Kind comparable, Reason comparable, Payload any]() RouteResult[
 		Payload:    payload,
 		HasPayload: false,
 		Match:      zeroRouteMatch(),
+		Lifetime:   nil,
 	}
 }
 
-func abortWithoutError[Kind comparable, Reason comparable, Payload any](
-	match RouteMatch,
+// ValidateRouteResult applies the canonical routing action/error contract.
+// Errors retain owned partial payload and metadata while setting ActionAbort.
+// Invalid actions or Abort without error return ErrInvalidConfig without closing
+// the original Lifetime. This helper does not invoke a route or infer remote outcome.
+func ValidateRouteResult[Kind comparable, Reason comparable, Payload any](
+	result RouteResult[Kind, Reason, Payload], err error,
 ) (RouteResult[Kind, Reason, Payload], error) {
-	return AbortResult[Kind, Reason, Payload]().WithMatch(match),
-		configError("route returned abort action without error")
+	if err != nil {
+		result.Action = ActionAbort
+		return result, err
+	}
+	return validateReturnedResult(result)
 }
 
 func validateReturnedResult[Kind comparable, Reason comparable, Payload any](
@@ -142,10 +155,10 @@ func validateReturnedResult[Kind comparable, Reason comparable, Payload any](
 	case ActionNext, ActionStop:
 		return result, nil
 	case ActionAbort:
-		return abortWithoutError[Kind, Reason, Payload](result.Match)
+		return result, configError("route returned abort action without error")
 	default:
-		return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match),
-			configError("unexpected route action: " + string(result.Action))
+		result.Action = ActionAbort
+		return result, configError("unexpected route action")
 	}
 }
 

@@ -30,14 +30,22 @@ func PredicateFallback[Req any, Kind comparable, Reason comparable, Payload any]
 	}
 
 	return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
+		if err := call.Context.Err(); err != nil {
+			return AbortResult[Kind, Reason, Payload](), err
+		}
 		result, err := primary(call)
 		if err == nil {
 			return result, nil
 		}
 		if !shouldFallback(err) {
-			return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), err
+			return result, err
 		}
 
+		if cancelErr := call.Context.Err(); cancelErr != nil {
+			_ = result.Lifetime.Close()
+			return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), cancelErr
+		}
+		_ = result.Lifetime.Close()
 		return secondary(call)
 	}
 }
@@ -55,18 +63,27 @@ func FirstCompleted[Req any, Kind comparable, Reason comparable, Payload any](
 	}
 
 	return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
-		derivedCtx, cancel := context.WithCancel(call.Context)
-		defer cancel()
+		if err := call.Context.Err(); err != nil {
+			return AbortResult[Kind, Reason, Payload](), err
+		}
 
 		results := make(chan firstCompletedResult[Kind, Reason, Payload], len(validated))
 		var group sync.WaitGroup
+		cancels := make([]context.CancelFunc, len(validated))
 
 		for index, handler := range validated {
+			branchCtx, cancel := context.WithCancel(call.Context)
+			cancels[index] = cancel
 			group.Add(1)
 			go func(handlerIndex int, current RouteHandler[Req, Kind, Reason, Payload]) {
 				defer group.Done()
 
-				result, handleErr := current(call.withContext(derivedCtx))
+				branchCall := NewRouteCall(branchCtx, call.Request).withMatch(cloneRouteMatch(call.Match))
+				var result RouteResult[Kind, Reason, Payload]
+				handleErr := branchCtx.Err()
+				if handleErr == nil {
+					result, handleErr = current(branchCall)
+				}
 				results <- firstCompletedResult[Kind, Reason, Payload]{
 					index:  handlerIndex,
 					result: result,
@@ -80,41 +97,84 @@ func FirstCompleted[Req any, Kind comparable, Reason comparable, Payload any](
 			close(results)
 		}()
 
-		return collectFirstCompletedResult(results, len(validated), cancel)
+		return collectFirstCompletedResult(call.Context, results, cancels)
 	}
 }
 
 func collectFirstCompletedResult[Kind comparable, Reason comparable, Payload any](
+	ctx context.Context,
 	results <-chan firstCompletedResult[Kind, Reason, Payload],
-	handlerCount int,
-	cancel context.CancelFunc,
+	cancels []context.CancelFunc,
 ) (RouteResult[Kind, Reason, Payload], error) {
-	allErrors := make([]error, handlerCount)
+	allErrors := make([]error, len(cancels))
 	var last RouteResult[Kind, Reason, Payload]
+	winner := -1
+	defer func() {
+		releaseFirstCompleted(cancels, winner, results)
+	}()
 
-	for result := range results {
+	for {
+		result, ok, readErr := readFirstCompleted(ctx, results)
+		if readErr != nil {
+			return AbortResult[Kind, Reason, Payload](), readErr
+		}
+		if !ok {
+			joined := errors.Join(allErrors...)
+			if joined == nil {
+				joined = ErrNoSuccessfulOutcome
+			}
+			return AbortResult[Kind, Reason, Payload]().WithMatch(last.Match), joined
+		}
 		if result.err != nil {
 			allErrors[result.index] = result.err
+			_ = result.result.Lifetime.Close()
 			continue
 		}
 
 		validated, err := validateReturnedResult(result.result)
 		if err != nil {
+			_ = result.result.Lifetime.Close()
 			return validated, err
 		}
 		last = validated
 		if last.Action != ActionNext && last.HasPayload {
-			cancel()
+			if last.Lifetime != nil {
+				winner = result.index
+				last.Lifetime.OnClose(cancels[winner])
+			}
 			return last, nil
 		}
+		_ = last.Lifetime.Close()
 	}
+}
 
-	joined := errors.Join(allErrors...)
-	if joined != nil {
-		return AbortResult[Kind, Reason, Payload]().WithMatch(last.Match), joined
+func releaseFirstCompleted[Kind comparable, Reason comparable, Payload any](
+	cancels []context.CancelFunc,
+	winner int,
+	results <-chan firstCompletedResult[Kind, Reason, Payload],
+) {
+	for index, cancel := range cancels {
+		if index != winner {
+			cancel()
+		}
 	}
+	go func() {
+		for late := range results {
+			_ = late.result.Lifetime.Close()
+		}
+	}()
+}
 
-	return AbortResult[Kind, Reason, Payload]().WithMatch(last.Match), ErrNoSuccessfulOutcome
+func readFirstCompleted[Kind comparable, Reason comparable, Payload any](
+	ctx context.Context,
+	results <-chan firstCompletedResult[Kind, Reason, Payload],
+) (firstCompletedResult[Kind, Reason, Payload], bool, error) {
+	select {
+	case <-ctx.Done():
+		return firstCompletedResult[Kind, Reason, Payload]{}, false, ctx.Err()
+	case result, ok := <-results:
+		return result, ok, nil
+	}
 }
 
 // WeightBasedRouter routes requests using user-provided weight extraction.

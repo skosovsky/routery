@@ -64,9 +64,8 @@ func Logging[Req any, Kind comparable, Reason comparable, Payload any](
 		return func(call routery.RouteCall[Req]) (routery.RouteResult[Kind, Reason, Payload], error) {
 			start := time.Now()
 			result, handleErr := next(call)
-			if handleErr != nil {
-				result = routery.AbortResult[Kind, Reason, Payload]().WithMatch(call.Match)
-			} else if result.Match.RouteID == "" && len(result.Match.Path) == 0 {
+			result, handleErr = routery.ValidateRouteResult(result, handleErr)
+			if result.Match.RouteID == "" && len(result.Match.Path) == 0 {
 				result = result.WithMatch(call.Match)
 			}
 			handler(call.Context, Event[Req, Kind, Reason, Payload]{

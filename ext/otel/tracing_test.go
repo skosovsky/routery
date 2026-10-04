@@ -24,7 +24,7 @@ func TestTracingRecordsSpanAndStatus(t *testing.T) {
 	})
 	handler := routery.ApplyRoute(
 		base,
-		Tracing[int, routery.BasicKind, routery.BasicReason, int](tracer, "op"),
+		Tracing[int, routery.BasicKind, routery.BasicReason, int](tracer, "op", nil),
 	)
 
 	// Act.
@@ -48,7 +48,7 @@ func TestTracingRecordsSpanAndStatus(t *testing.T) {
 	}
 }
 
-func TestTracingSuccessRecordsTypedAttributes(t *testing.T) {
+func TestTracingSuccessUsesSafeDefaults(t *testing.T) {
 	t.Parallel()
 
 	// Arrange.
@@ -60,7 +60,7 @@ func TestTracingSuccessRecordsTypedAttributes(t *testing.T) {
 	}
 	handler := routery.ApplyRoute(
 		base,
-		Tracing[int, routery.BasicKind, routery.BasicReason, int](tracer, ""),
+		Tracing[int, routery.BasicKind, routery.BasicReason, int](tracer, "", nil),
 	)
 	call := routery.NewRouteCall(context.Background(), 0)
 	call.Match = routery.RouteMatch{
@@ -89,8 +89,8 @@ func TestTracingSuccessRecordsTypedAttributes(t *testing.T) {
 	if exporter.spans[0].errored {
 		t.Fatal("did not expect error status")
 	}
-	if exporter.spans[0].name != "routery.route.primary" {
-		t.Fatalf("span name = %q, want routery.route.primary", exporter.spans[0].name)
+	if exporter.spans[0].name != "routery.handle" {
+		t.Fatalf("span name = %q, want routery.handle", exporter.spans[0].name)
 	}
 	if exporter.spans[0].action != string(routery.ActionStop) {
 		t.Fatalf("got action attr %q; want stop", exporter.spans[0].action)
@@ -98,7 +98,7 @@ func TestTracingSuccessRecordsTypedAttributes(t *testing.T) {
 	if exporter.spans[0].reason != string(routery.BasicReasonNone) {
 		t.Fatalf("got reason attr %q; want empty", exporter.spans[0].reason)
 	}
-	if exporter.spans[0].routeID != "primary" || exporter.spans[0].matchKind != string(routery.MatchKindExact) {
+	if exporter.spans[0].routeID != "" || exporter.spans[0].matchKind != "" {
 		t.Fatalf("span route attrs = %#v", exporter.spans[0])
 	}
 }
@@ -115,7 +115,7 @@ func TestTracingRecordsActionNext(t *testing.T) {
 	}
 	handler := routery.ApplyRoute(
 		base,
-		Tracing[int, routery.BasicKind, routery.BasicReason, int](tracer, "next"),
+		Tracing[int, routery.BasicKind, routery.BasicReason, int](tracer, "next", nil),
 	)
 
 	// Act.
@@ -131,8 +131,8 @@ func TestTracingRecordsActionNext(t *testing.T) {
 	if exporter.spans[0].action != string(routery.ActionNext) {
 		t.Fatalf("got action attr %q; want next", exporter.spans[0].action)
 	}
-	if exporter.spans[0].reason != "delegate" {
-		t.Fatalf("got reason attr %q; want delegate", exporter.spans[0].reason)
+	if exporter.spans[0].reason != "" {
+		t.Fatalf("got reason attr %q; want no automatic reason", exporter.spans[0].reason)
 	}
 }
 
@@ -145,7 +145,7 @@ func TestTracingNilTracer(t *testing.T) {
 	})
 	handler := routery.ApplyRoute(
 		base,
-		Tracing[int, routery.BasicKind, routery.BasicReason, int](nil, "x"),
+		Tracing[int, routery.BasicKind, routery.BasicReason, int](nil, "x", nil),
 	)
 
 	// Act.
@@ -164,7 +164,7 @@ func TestTracingNilNext(t *testing.T) {
 	exporter := &spyExporter{}
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
 	tracer := tp.Tracer("test")
-	handler := Tracing[int, routery.BasicKind, routery.BasicReason, int](tracer, "x")(nil)
+	handler := Tracing[int, routery.BasicKind, routery.BasicReason, int](tracer, "x", nil)(nil)
 
 	// Act.
 	_, err := routery.InvokeRouteHandler(context.Background(), 0, handler)

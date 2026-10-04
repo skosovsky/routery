@@ -3,6 +3,8 @@ package routerys3
 import (
 	"context"
 	"errors"
+	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -16,6 +18,66 @@ type fakePut struct {
 	calls atomic.Int32
 	out   *s3.PutObjectOutput
 	err   error
+}
+
+type contextBody struct {
+	ctx    context.Context
+	reader *strings.Reader
+	closes atomic.Int32
+}
+
+func (body *contextBody) Read(data []byte) (int, error) {
+	if err := body.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return body.reader.Read(data)
+}
+
+func (body *contextBody) Close() error {
+	body.closes.Add(1)
+	return nil
+}
+
+type ownedGet struct {
+	body *contextBody
+}
+
+func (api *ownedGet) GetObject(ctx context.Context, _ *s3.GetObjectInput,
+	_ ...func(*s3.Options),
+) (*s3.GetObjectOutput, error) {
+	api.body.ctx = ctx
+	return &s3.GetObjectOutput{Body: api.body}, nil
+}
+
+func TestGetWinnerOwnsStreamUntilClose(t *testing.T) {
+	t.Parallel()
+	// Arrange.
+	body := &contextBody{reader: strings.NewReader("complete object")}
+	api := &ownedGet{body: body}
+	handler := routery.FirstCompleted(NewGetObjectRouteHandler(api))
+	// Act.
+	result, err := routery.InvokeRouteHandler(context.Background(), &s3.GetObjectInput{}, handler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = result.Lifetime.Close() })
+	data, readErr := io.ReadAll(result.Payload.Body)
+	// Assert.
+	if readErr != nil || string(data) != "complete object" || result.Lifetime == nil {
+		t.Fatalf("stream data=%q error=%v lifetime=%v", data, readErr, result.Lifetime)
+	}
+	if body.ctx.Err() != nil || body.closes.Load() != 0 {
+		t.Fatal("winner closed before caller finished reading")
+	}
+	if err := result.Payload.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := result.Lifetime.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if body.closes.Load() != 1 || !errors.Is(body.ctx.Err(), context.Canceled) {
+		t.Fatalf("closes=%d context=%v", body.closes.Load(), body.ctx.Err())
+	}
 }
 
 func (f *fakePut) PutObject(

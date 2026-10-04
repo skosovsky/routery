@@ -37,7 +37,7 @@ func ExampleNewDBQueryRouteHandler() {
 		fmt.Println("unexpected", "no payload")
 		return
 	}
-	if rowsErr := drainRowsForExample(outcome.Payload); rowsErr != nil {
+	if rowsErr := drainRowsForExample(outcome.Payload, outcome.Lifetime); rowsErr != nil {
 		fmt.Println("unexpected", rowsErr)
 		return
 	}
@@ -104,7 +104,7 @@ func ExampleWeightBasedRouter_masterReplica() {
 		fmt.Println("unexpected", "no payload")
 		return
 	}
-	if rowsErr := drainRowsForExample(shortOutcome.Payload); rowsErr != nil {
+	if rowsErr := drainRowsForExample(shortOutcome.Payload, shortOutcome.Lifetime); rowsErr != nil {
 		fmt.Println("unexpected", rowsErr)
 		return
 	}
@@ -120,7 +120,7 @@ func ExampleWeightBasedRouter_masterReplica() {
 		fmt.Println("unexpected", "no payload")
 		return
 	}
-	if rowsErr := drainRowsForExample(longOutcome.Payload); rowsErr != nil {
+	if rowsErr := drainRowsForExample(longOutcome.Payload, longOutcome.Lifetime); rowsErr != nil {
 		fmt.Println("unexpected", rowsErr)
 		return
 	}
@@ -129,9 +129,9 @@ func ExampleWeightBasedRouter_masterReplica() {
 	// Output: 1 1
 }
 
-func drainRowsForExample(rows *sql.Rows) error {
+func drainRowsForExample(rows *sql.Rows, life *routery.Lifetime) error {
 	defer func() {
-		_ = rows.Close()
+		_ = life.Close()
 	}()
 
 	for rows.Next() {

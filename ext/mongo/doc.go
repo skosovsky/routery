@@ -6,4 +6,8 @@
 // [TransactionalRequest] with [TransactionalRequest.MongoInTransaction] true.
 //
 // Combine with [github.com/skosovsky/routery.RetryIf] for resilient CRUD calls.
+// Find results own their cursor through result.Lifetime. Close that lifetime rather
+// than only the cursor to release routing callbacks as well. Cursor cleanup uses a
+// context without cancellation so that loser cancellation does not suppress cleanup;
+// the host remains responsible for driver network timeouts.
 package routerymongo
