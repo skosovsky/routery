@@ -1,6 +1,9 @@
 package routery
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 // DecisionResult is the typed output of a decision table.
 type DecisionResult[Action comparable, Reason comparable] struct {
@@ -224,6 +227,7 @@ func (builder *DecisionTableRouteBuilder[Req, Kind, Reason, Payload, Action, Dec
 		priority: priority,
 		handler:  handler,
 		nested:   nil,
+		sub:      nil,
 		matcher:  decisionTableMatcher(builder.group, action),
 	})
 
@@ -235,8 +239,9 @@ func decisionTableMatcher[Req any, Action comparable, Reason comparable](
 	expected Action,
 ) routeMatcher[Req] {
 	return routeMatcher[Req]{
+		group:        group,
 		kind:         MatchKindTable,
-		staticKey:    fmt.Sprint(expected),
+		staticKey:    FingerprintSHA256([]byte(topologyKey(expected)), []byte(decisionTopology(group))),
 		prefixLength: 0,
 		match: func(call RouteCall[Req]) (routeMatchData, bool, error) {
 			if group == nil || group.table == nil {
@@ -289,4 +294,26 @@ func decisionTableForCall[Req any, Action comparable, Reason comparable](
 	}
 
 	return result, err
+}
+
+func decisionTopology[Req any, Action comparable, Reason comparable](
+	group *decisionTableRouteGroup[Req, Action, Reason],
+) string {
+	if group == nil {
+		return "nil"
+	}
+	table, ok := group.table.(*builtDecisionTable[Req, Action, Reason])
+	if !ok {
+		return "opaque-host-table"
+	}
+	parts := [][]byte{[]byte("routery-decision-table-v1")}
+	for _, entry := range table.cases {
+		parts = append(
+			parts,
+			[]byte(topologyKey(entry.action)),
+			[]byte(topologyKey(entry.reason)),
+			[]byte(strconv.FormatBool(entry.terminal)),
+		)
+	}
+	return FingerprintSHA256(parts...)
 }

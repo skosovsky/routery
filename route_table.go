@@ -1,6 +1,7 @@
 package routery
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -36,10 +37,12 @@ type routeEntry[Req any, Kind comparable, Reason comparable, Payload any] struct
 	priority int
 	handler  RouteHandler[Req, Kind, Reason, Payload]
 	nested   *builtTable[Req, Kind, Reason, Payload]
+	sub      *RouteTable[Req, Kind, Reason, Payload]
 	matcher  routeMatcher[Req]
 }
 
 type routeMatcher[Req any] struct {
+	group        any
 	kind         MatchKind
 	match        func(RouteCall[Req]) (routeMatchData, bool, error)
 	staticKey    string
@@ -90,6 +93,7 @@ func (table *RouteTable[Req, Kind, Reason, Payload]) Route(
 		priority: priority,
 		handler:  handler,
 		nested:   nil,
+		sub:      nil,
 		matcher:  predicateMatcher(match),
 	})
 	return table
@@ -106,12 +110,9 @@ func (table *RouteTable[Req, Kind, Reason, Payload]) Mount(
 		id:       id,
 		priority: priority,
 		handler:  nil,
-		nested: &builtTable[Req, Kind, Reason, Payload]{
-			source:   sub,
-			routes:   nil,
-			fallback: nil,
-		},
-		matcher: predicateMatcher(match),
+		nested:   nil,
+		sub:      sub,
+		matcher:  predicateMatcher(match),
 	})
 	return table
 }
@@ -125,24 +126,22 @@ func (table *RouteTable[Req, Kind, Reason, Payload]) Fallback(
 }
 
 // Build returns an immutable router from the configured table.
-//
-//nolint:gocognit // Build validates, compiles nested tables, and sorts routes as one atomic step.
 func (table *RouteTable[Req, Kind, Reason, Payload]) Build() (Router[Req, Kind, Reason, Payload], error) {
 	if table == nil {
 		return nil, configError("route table is nil")
 	}
 
 	built := &builtTable[Req, Kind, Reason, Payload]{
-		source:   table,
-		routes:   nil,
-		fallback: table.fallback,
+		longestPrefixWins: table.longestPrefixWins,
+		routes:            nil,
+		fallback:          table.fallback,
 	}
 
 	for _, entry := range table.routes {
-		if entry.handler == nil && entry.nested == nil {
+		if entry.handler == nil && entry.sub == nil {
 			return nil, configError("route " + string(entry.id) + " has no handler or nested table")
 		}
-		if entry.handler != nil && entry.nested != nil {
+		if entry.handler != nil && entry.sub != nil {
 			return nil, configError("route " + string(entry.id) + " has both handler and nested table")
 		}
 		if entry.matcher.match == nil {
@@ -150,8 +149,8 @@ func (table *RouteTable[Req, Kind, Reason, Payload]) Build() (Router[Req, Kind, 
 		}
 
 		copied := entry
-		if copied.nested != nil {
-			nestedRouter, err := copied.nested.source.Build()
+		if copied.sub != nil {
+			nestedRouter, err := copied.sub.Build()
 			if err != nil {
 				return nil, err
 			}
@@ -162,6 +161,7 @@ func (table *RouteTable[Req, Kind, Reason, Payload]) Build() (Router[Req, Kind, 
 			}
 
 			copied.nested = nestedTable
+			copied.sub = nil
 		}
 
 		built.routes = append(built.routes, copied)
@@ -172,18 +172,7 @@ func (table *RouteTable[Req, Kind, Reason, Payload]) Build() (Router[Req, Kind, 
 	}
 
 	slices.SortStableFunc(built.routes, func(left, right routeEntry[Req, Kind, Reason, Payload]) int {
-		if table.longestPrefixWins && bothPrefixRoutes(left, right) &&
-			left.matcher.prefixLength != right.matcher.prefixLength {
-			return right.matcher.prefixLength - left.matcher.prefixLength
-		}
-		if left.priority != right.priority {
-			return right.priority - left.priority
-		}
-		if bothPrefixRoutes(left, right) && left.matcher.prefixLength != right.matcher.prefixLength {
-			return right.matcher.prefixLength - left.matcher.prefixLength
-		}
-
-		return 0
+		return compareRoutes(left, right, built.longestPrefixWins)
 	})
 
 	return &routerImpl[Req, Kind, Reason, Payload]{
@@ -193,36 +182,75 @@ func (table *RouteTable[Req, Kind, Reason, Payload]) Build() (Router[Req, Kind, 
 }
 
 type builtTable[Req any, Kind comparable, Reason comparable, Payload any] struct {
-	source   *RouteTable[Req, Kind, Reason, Payload]
-	routes   []routeEntry[Req, Kind, Reason, Payload]
-	fallback RouteHandler[Req, Kind, Reason, Payload]
+	routes            []routeEntry[Req, Kind, Reason, Payload]
+	fallback          RouteHandler[Req, Kind, Reason, Payload]
+	longestPrefixWins bool
 }
 
-func bothPrefixRoutes[Req any, Kind comparable, Reason comparable, Payload any](
-	left routeEntry[Req, Kind, Reason, Payload],
-	right routeEntry[Req, Kind, Reason, Payload],
-) bool {
-	return left.matcher.kind == MatchKindPrefix && right.matcher.kind == MatchKindPrefix
+func compareRoutes[Req any, Kind comparable, Reason comparable, Payload any](
+	left, right routeEntry[Req, Kind, Reason, Payload],
+	longest bool,
+) int {
+	leftGroup, rightGroup := routeGroup(left.matcher.kind), routeGroup(right.matcher.kind)
+	if longest {
+		if order := cmp.Compare(leftGroup, rightGroup); order != 0 {
+			return order
+		}
+		if order := cmp.Compare(right.matcher.prefixLength, left.matcher.prefixLength); order != 0 {
+			return order
+		}
+	}
+	if order := cmp.Compare(right.priority, left.priority); order != 0 {
+		return order
+	}
+	if order := cmp.Compare(leftGroup, rightGroup); order != 0 {
+		return order
+	}
+	return cmp.Compare(right.matcher.prefixLength, left.matcher.prefixLength)
 }
 
 func fingerprintTable[Req any, Kind comparable, Reason comparable, Payload any](
 	table *builtTable[Req, Kind, Reason, Payload],
 ) string {
-	parts := make([][]byte, 0, len(table.routes)+2)
-	if table.source.longestPrefixWins {
-		parts = append(parts, []byte("longest-prefix-wins"))
-	}
+	return fingerprintTree(table, make(map[any]int))
+}
 
+func fingerprintTree[Req any, Kind comparable, Reason comparable, Payload any](
+	table *builtTable[Req, Kind, Reason, Payload],
+	groups map[any]int,
+) string {
+	parts := [][]byte{
+		[]byte("routery-topology-v2"),
+		[]byte(strconv.FormatBool(table.longestPrefixWins)),
+		[]byte(strconv.FormatBool(table.fallback != nil)),
+		[]byte(strconv.Itoa(len(table.routes))),
+	}
 	for _, entry := range table.routes {
-		part := string(entry.id) + ":" + strconv.Itoa(entry.priority) + ":" +
-			string(entry.matcher.kind) + ":" + entry.matcher.staticKey
-		parts = append(parts, []byte(part))
+		groupIndex := 0
+		if entry.matcher.group != nil {
+			groupIndex = groups[entry.matcher.group]
+			if groupIndex == 0 {
+				groupIndex = len(groups) + 1
+				groups[entry.matcher.group] = groupIndex
+			}
+		}
+		nested := "leaf"
+		if entry.nested != nil {
+			nested = fingerprintTree(entry.nested, groups)
+		}
+		parts = append(
+			parts,
+			[]byte(
+				FingerprintSHA256(
+					[]byte(entry.id),
+					[]byte(strconv.Itoa(entry.priority)),
+					[]byte(entry.matcher.kind),
+					[]byte(entry.matcher.staticKey),
+					[]byte(strconv.Itoa(groupIndex)), []byte(nested),
+				),
+			),
+		)
 	}
-
-	if table.fallback != nil {
-		parts = append(parts, []byte("fallback"))
-	}
-
 	return FingerprintSHA256(parts...)
 }
 
@@ -277,6 +305,7 @@ func (entry routeEntry[Req, Kind, Reason, Payload]) matchRoute(
 
 func predicateMatcher[Req any](match Matcher[Req]) routeMatcher[Req] {
 	return routeMatcher[Req]{
+		group:        nil,
 		kind:         MatchKindPredicate,
 		staticKey:    "",
 		prefixLength: 0,
@@ -323,6 +352,7 @@ func (builder *KeyRouteBuilder[Req, Kind, Reason, Payload, Key]) Exact(
 		priority: priority,
 		handler:  handler,
 		nested:   nil,
+		sub:      nil,
 		matcher:  exactMatcher(builder.extractor, key),
 	})
 
@@ -362,6 +392,7 @@ func (builder *StringKeyRouteBuilder[Req, Kind, Reason, Payload, Key]) Exact(
 		priority: priority,
 		handler:  handler,
 		nested:   nil,
+		sub:      nil,
 		matcher:  exactMatcher(builder.extractor, key),
 	})
 
@@ -384,13 +415,15 @@ func (builder *StringKeyRouteBuilder[Req, Kind, Reason, Payload, Key]) Prefix(
 		priority: priority,
 		handler:  handler,
 		nested:   nil,
+		sub:      nil,
 		matcher:  prefixMatcher(builder.extractor, prefix),
 	})
 
 	return builder
 }
 
-// LongestPrefixWins makes prefix length outrank priority when comparing prefix routes.
+// LongestPrefixWins puts the prefix group before all other routes in this table.
+// Prefixes use length, priority, declaration order; other routes use priority then declaration.
 func (builder *StringKeyRouteBuilder[Req, Kind, Reason, Payload, Key]) LongestPrefixWins() *StringKeyRouteBuilder[
 	Req,
 	Kind,
@@ -408,8 +441,9 @@ func (builder *StringKeyRouteBuilder[Req, Kind, Reason, Payload, Key]) LongestPr
 
 func exactMatcher[Req any, Key comparable](extractor KeyExtractor[Req, Key], expected Key) routeMatcher[Req] {
 	return routeMatcher[Req]{
+		group:        nil,
 		kind:         MatchKindExact,
-		staticKey:    fmt.Sprint(expected),
+		staticKey:    topologyKey(expected),
 		prefixLength: 0,
 		match: func(call RouteCall[Req]) (routeMatchData, bool, error) {
 			if extractor == nil {
@@ -435,6 +469,7 @@ func exactMatcher[Req any, Key comparable](extractor KeyExtractor[Req, Key], exp
 func prefixMatcher[Req any, Key ~string](extractor KeyExtractor[Req, Key], prefix Key) routeMatcher[Req] {
 	prefixText := prefixString(prefix)
 	return routeMatcher[Req]{
+		group:        nil,
 		kind:         MatchKindPrefix,
 		staticKey:    prefixText,
 		prefixLength: len(prefixText),
@@ -513,6 +548,7 @@ func (builder *DecisionRouteBuilder[Req, Kind, Reason, Payload, Key]) Case(
 		priority: priority,
 		handler:  handler,
 		nested:   nil,
+		sub:      nil,
 		matcher:  decisionMatcher(builder.group, key, minConfidence),
 	})
 
@@ -525,8 +561,12 @@ func decisionMatcher[Req any, Key comparable, Reason comparable](
 	minConfidence float64,
 ) routeMatcher[Req] {
 	return routeMatcher[Req]{
-		kind:         MatchKindDecision,
-		staticKey:    fmt.Sprint(expected),
+		group: group,
+		kind:  MatchKindDecision,
+		staticKey: FingerprintSHA256(
+			[]byte(topologyKey(expected)),
+			[]byte(strconv.FormatFloat(minConfidence, 'g', -1, 64)),
+		),
 		prefixLength: 0,
 		match: func(call RouteCall[Req]) (routeMatchData, bool, error) {
 			if group == nil || group.decision == nil {
@@ -580,4 +620,11 @@ func decisionForCall[Req any, Key comparable, Reason comparable](
 	}
 
 	return result, err
+}
+
+func routeGroup(kind MatchKind) int {
+	if kind == MatchKindPrefix {
+		return 0
+	}
+	return 1
 }

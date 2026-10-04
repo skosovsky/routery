@@ -160,7 +160,12 @@ func Selector[Capability comparable, Key comparable, Scope comparable](
 			return eligibility(evaluation, candidate.Descriptor)
 		},
 		Rank: func(evaluation policy.Evaluation[Request[Capability]], candidate policy.Candidate[Key, Scope, Descriptor[Capability]]) (float64, error) {
-			estimates, err := effectiveEstimates(candidate.Descriptor.Estimates, config, evaluation.Now)
+			estimates, err := effectiveEstimates(
+				candidate.Descriptor.Estimates,
+				config,
+				evaluation.Now,
+				evaluation.Input.Task,
+			)
 			if err != nil {
 				return 0, err
 			}
@@ -201,12 +206,12 @@ func eligibility[Capability comparable](
 	return policy.Eligibility[Reason]{Allowed: true, Reason: Eligible}, nil
 }
 
-func effectiveEstimates(estimates Estimates, config Config, now time.Time) (Estimates, error) {
+func effectiveEstimates(estimates Estimates, config Config, now time.Time, task string) (Estimates, error) {
 	effective := cloneEstimates(estimates)
 	if !validCost(effective.Cost, now) {
 		effective.Cost = nil
 	}
-	if !validQuality(effective.Quality, now) {
+	if !validTaskQuality(effective.Quality, now, task) {
 		effective.Quality = nil
 	}
 	for metric, value := range effective.Performance {
@@ -215,7 +220,7 @@ func effectiveEstimates(estimates Estimates, config Config, now time.Time) (Esti
 		}
 	}
 	if config.Optional == DefaultOptional {
-		effective = withDefaults(effective, config.Defaults, now)
+		effective = withDefaults(effective, config.Defaults, now, task)
 	}
 	if config.Optional != IgnoreOptional {
 		if config.RequireCost && effective.Cost == nil {
@@ -230,12 +235,12 @@ func effectiveEstimates(estimates Estimates, config Config, now time.Time) (Esti
 	return effective, nil
 }
 
-func withDefaults(effective, declared Estimates, now time.Time) Estimates {
+func withDefaults(effective, declared Estimates, now time.Time, task string) Estimates {
 	defaults := cloneEstimates(declared)
 	if effective.Cost == nil && validCost(defaults.Cost, now) {
 		effective.Cost = defaults.Cost
 	}
-	if effective.Quality == nil && validQuality(defaults.Quality, now) {
+	if effective.Quality == nil && validTaskQuality(defaults.Quality, now, task) {
 		effective.Quality = defaults.Quality
 	}
 	if effective.Performance == nil {
@@ -283,4 +288,8 @@ func cloneEstimates(estimates Estimates) Estimates {
 		estimates.Quality = &quality
 	}
 	return estimates
+}
+
+func validTaskQuality(quality *Quality, now time.Time, task string) bool {
+	return task != "" && validQuality(quality, now) && quality.Task == task
 }

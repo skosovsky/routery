@@ -19,6 +19,7 @@ type circuitBreakerState struct {
 	state         int
 	openedAt      time.Time
 	probeInFlight bool
+	generation    uint64
 }
 
 // CircuitBreaker wraps a route handler with a fail-fast circuit breaker.
@@ -55,71 +56,84 @@ func CircuitBreaker[Req any, Kind comparable, Reason comparable, Payload any](
 		}
 
 		return func(call RouteCall[Req]) (RouteResult[Kind, Reason, Payload], error) {
-			if err := st.beforeRequest(resetTimeout); err != nil {
-				return AbortResult[Kind, Reason, Payload](), err
+			admission, admissionErr := st.beforeRequest(resetTimeout)
+			if admissionErr != nil {
+				return AbortResult[Kind, Reason, Payload](), admissionErr
 			}
 
 			result, err := next(call)
-			st.afterRequest(err, isFailure, failureThreshold)
+			failed := circuitFailure(err, isFailure)
+			st.afterRequest(admission, err, failed, failureThreshold)
 			return result, err
 		}
 	}
 }
 
-func (st *circuitBreakerState) beforeRequest(resetTimeout time.Duration) error {
-	st.mu.Lock()
-	defer st.mu.Unlock()
-
-	switch st.state {
-	case cbClosed:
-		return nil
-	case cbOpen:
-		if time.Since(st.openedAt) < resetTimeout {
-			return ErrCircuitOpen
-		}
-		st.state = cbHalfOpen
-		fallthrough
-	case cbHalfOpen:
-		if st.probeInFlight {
-			return ErrCircuitOpen
-		}
-		st.probeInFlight = true
-		return nil
-	}
-	return nil
+type circuitAdmission struct {
+	generation uint64
+	probe      bool
 }
 
-func (st *circuitBreakerState) afterRequest(err error, isFailure func(error) bool, failureThreshold int) {
+func (st *circuitBreakerState) beforeRequest(resetTimeout time.Duration) (circuitAdmission, error) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
+	if st.state == cbOpen {
+		if time.Since(st.openedAt) < resetTimeout {
+			return circuitAdmission{}, ErrCircuitOpen
+		}
+		st.state = cbHalfOpen
+		st.generation++
+	}
+	if st.state == cbHalfOpen {
+		if st.probeInFlight {
+			return circuitAdmission{}, ErrCircuitOpen
+		}
+		st.probeInFlight = true
+		st.generation++
+		return circuitAdmission{generation: st.generation, probe: true}, nil
+	}
+	return circuitAdmission{generation: st.generation, probe: false}, nil
+}
 
-	failed := circuitFailure(err, isFailure)
-
-	switch st.state {
-	case cbClosed:
-		if failed {
-			st.failures++
-			if st.failures >= failureThreshold {
-				st.state = cbOpen
-				st.openedAt = time.Now()
-				st.failures = 0
-			}
+func (st *circuitBreakerState) afterRequest(admission circuitAdmission, err error, failed bool, threshold int) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if admission.generation != st.generation {
+		return
+	}
+	if admission.probe {
+		if st.state != cbHalfOpen || !st.probeInFlight {
 			return
 		}
-		st.failures = 0
-	case cbHalfOpen:
 		st.probeInFlight = false
 		if err == nil {
 			st.state = cbClosed
 			st.failures = 0
-			return
+			st.generation++
+		} else if failed {
+			st.open()
 		}
-		if circuitFailure(err, isFailure) {
-			st.state = cbOpen
-			st.openedAt = time.Now()
-			st.failures = 0
-		}
+		return
 	}
+	if st.state != cbClosed {
+		return
+	}
+	if !failed {
+		st.failures = 0
+		return
+	}
+	st.failures++
+	if st.failures >= threshold {
+		st.open()
+	}
+}
+
+func (st *circuitBreakerState) open() {
+	st.state = cbOpen
+	st.openedAt = time.Now()
+	st.failures = 0
+	st.probeInFlight = false
+	st.generation++
 }
 
 func circuitFailure(err error, isFailure func(error) bool) bool {

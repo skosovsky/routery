@@ -218,3 +218,8 @@ depend on neighboring package names, concrete clients, or external libraries.
 - `make cover`
 - `make bench`
 - `make fuzz`
+
+Routing order is explicit: priority first, then prefix group/length on priority ties,
+then declaration order. LongestPrefixWins moves the complete prefix group first,
+ordered by length then priority. See [routing contracts](docs/routing-contracts.md)
+for recursive topology fingerprints, breaker generations and task-scoped quality.

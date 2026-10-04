@@ -328,6 +328,7 @@ func buildRouteTableSnapshot[Req any, Kind comparable, Reason comparable, Payloa
 			priority: spec.priority,
 			handler:  spec.handler,
 			nested:   nil,
+			sub:      nil,
 			matcher:  spec.matcher,
 		})
 	}

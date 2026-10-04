@@ -22,8 +22,8 @@ type routerImpl[Req any, Kind comparable, Reason comparable, Payload any] struct
 }
 
 // Snapshot returns the current routing snapshot with fingerprint.
-// Fingerprint reflects route topology (ids, priorities, match kinds, and static keys),
-// not handler function identity.
+// Fingerprint includes nested topology, routing options and framed static keys.
+// Matcher/handler function identity and caller descriptors are excluded.
 func (router *routerImpl[Req, Kind, Reason, Payload]) Snapshot() RouteSnapshot[tableSnapshot] {
 	return RouteSnapshot[tableSnapshot]{
 		Fingerprint: router.fingerprint,

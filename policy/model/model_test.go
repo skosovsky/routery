@@ -108,11 +108,11 @@ func TestOptionalEstimatesPreserveMeasurementSemantics(t *testing.T) {
 		Defaults:           defaults,
 	}
 	// Act.
-	effective, err := effectiveEstimates(Estimates{}, config, now)
+	effective, err := effectiveEstimates(Estimates{}, config, now, "")
 	config.Optional = RejectOptional
-	_, rejected := effectiveEstimates(Estimates{}, config, now)
+	_, rejected := effectiveEstimates(Estimates{}, config, now, "")
 	config.Optional = IgnoreOptional
-	ignored, ignoredErr := effectiveEstimates(defaults, config, now.Add(time.Hour))
+	ignored, ignoredErr := effectiveEstimates(defaults, config, now.Add(time.Hour), "")
 	// Assert.
 	if err != nil || effective.Cost.Amount != 2 || effective.Performance[Throughput] != performance {
 		t.Fatal("estimate metadata lost")

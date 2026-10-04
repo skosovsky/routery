@@ -292,3 +292,13 @@ synchronous broker acknowledgment is a host precondition. See adapter-replay-con
 
 RetryIf cancellation after a failed call takes precedence while preserving partial
 results and the provider error via errors.Join. Successful calls retain success.
+
+## Routing correctness break
+
+The cyclic pairwise prefix comparator is removed. Default order is priority, prefix
+group/length on ties, then declaration; LongestPrefixWins places all prefix routes
+first by length then priority, with other kinds following by priority/declaration.
+Topology fingerprints change format and include nested tables, options, fallback
+and decision thresholds. Refresh stored bindings against new topology fingerprints;
+there is no automatic rebind or compatibility ordering mode. Optional model quality
+with another/missing task is removed before rank, including mismatched defaults.
