@@ -1,7 +1,9 @@
 package routerys3
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -28,18 +30,43 @@ type GetObjectAPI interface {
 	) (*s3.GetObjectOutput, error)
 }
 
-// NewPutObjectRouteHandler wraps api.PutObject.
-func NewPutObjectRouteHandler(api PutObjectAPI) routery.BasicRouteHandler[*s3.PutObjectInput, *s3.PutObjectOutput] {
+// NewPutObjectRouteHandler creates and owns a fresh body for each invocation.
+// Input must have no Body; BodyFactory transfers ownership even on error.
+func NewPutObjectRouteHandler(api PutObjectAPI) routery.BasicRouteHandler[PutRequest, *s3.PutObjectOutput] {
 	if api == nil {
 		return invalidPutRouteHandler(configError("s3 PutObject client is nil"))
 	}
-
-	return func(call routery.RouteCall[*s3.PutObjectInput]) (routery.BasicRouteResult[*s3.PutObjectOutput], error) {
-		output, err := api.PutObject(call.Context, call.Request)
+	return func(call routery.RouteCall[PutRequest]) (routery.BasicRouteResult[*s3.PutObjectOutput], error) {
+		if call.Request.Input.Body != nil {
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *s3.PutObjectOutput](), configError(
+				"prepare PutObject body or provide a BodyFactory",
+			)
+		}
+		if err := call.Context.Err(); err != nil {
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *s3.PutObjectOutput](), err
+		}
+		input := call.Request.Input
+		body, openErr := openBody(call.Context, call.Request.BodyFactory)
+		if openErr != nil {
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *s3.PutObjectOutput](), openErr
+		}
+		input.Body = body
+		if err := call.Context.Err(); err != nil {
+			if body != nil {
+				err = errors.Join(err, body.Close())
+			}
+			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *s3.PutObjectOutput](), err
+		}
+		output, err := api.PutObject(call.Context, &input)
+		if body != nil {
+			err = errors.Join(err, body.Close())
+		}
+		if output != nil {
+			return routery.BasicHandled(output), err
+		}
 		if err != nil {
 			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *s3.PutObjectOutput](), err
 		}
-
 		return routery.BasicHandled(output), nil
 	}
 }
@@ -52,7 +79,7 @@ func NewGetObjectRouteHandler(api GetObjectAPI) routery.BasicRouteHandler[*s3.Ge
 
 	return func(call routery.RouteCall[*s3.GetObjectInput]) (routery.BasicRouteResult[*s3.GetObjectOutput], error) {
 		output, err := api.GetObject(call.Context, call.Request)
-		if err != nil {
+		if err != nil && output == nil {
 			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *s3.GetObjectOutput](), err
 		}
 
@@ -62,7 +89,7 @@ func NewGetObjectRouteHandler(api GetObjectAPI) routery.BasicRouteHandler[*s3.Ge
 			output.Body = &ownedBody{ReadCloser: output.Body, life: life}
 			result.Lifetime = life
 		}
-		return result, nil
+		return result, err
 	}
 }
 
@@ -80,8 +107,8 @@ func configError(detail string) error {
 	return fmt.Errorf("%w: %s", routery.ErrInvalidConfig, detail)
 }
 
-func invalidPutRouteHandler(err error) routery.BasicRouteHandler[*s3.PutObjectInput, *s3.PutObjectOutput] {
-	return func(routery.RouteCall[*s3.PutObjectInput]) (routery.BasicRouteResult[*s3.PutObjectOutput], error) {
+func invalidPutRouteHandler(err error) routery.BasicRouteHandler[PutRequest, *s3.PutObjectOutput] {
+	return func(routery.RouteCall[PutRequest]) (routery.BasicRouteResult[*s3.PutObjectOutput], error) {
 		return routery.AbortResult[routery.BasicKind, routery.BasicReason, *s3.PutObjectOutput](), err
 	}
 }
@@ -90,4 +117,21 @@ func invalidGetRouteHandler(err error) routery.BasicRouteHandler[*s3.GetObjectIn
 	return func(routery.RouteCall[*s3.GetObjectInput]) (routery.BasicRouteResult[*s3.GetObjectOutput], error) {
 		return routery.AbortResult[routery.BasicKind, routery.BasicReason, *s3.GetObjectOutput](), err
 	}
+}
+
+func openBody(ctx context.Context, factory BodyFactory) (io.ReadCloser, error) {
+	if factory == nil {
+		return &preparedBody{Reader: bytes.NewReader(nil)}, nil
+	}
+	body, err := factory(ctx)
+	if err != nil {
+		if body != nil {
+			err = errors.Join(err, body.Close())
+		}
+		return nil, err
+	}
+	if body == nil {
+		return nil, configError("nil factory body")
+	}
+	return body, nil
 }

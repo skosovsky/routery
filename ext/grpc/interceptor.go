@@ -47,7 +47,7 @@ func RetryStreamInterceptor(opts InterceptorOptions) grpc.StreamClientIntercepto
 		if opts.Predicate != nil {
 			return opts.Predicate(ctx, nil, err)
 		}
-		return DefaultRetryPolicy[any](ctx, nil, err)
+		return false
 	})
 
 	return func(
@@ -97,7 +97,7 @@ func normalizeInterceptorOpts(opts InterceptorOptions) (int, time.Duration, rout
 	backoff := max(opts.Backoff, 0)
 	pred := opts.Predicate
 	if pred == nil {
-		pred = DefaultRetryPolicy[any]
+		pred = func(context.Context, any, error) bool { return false }
 	}
 
 	return attempts, backoff, pred

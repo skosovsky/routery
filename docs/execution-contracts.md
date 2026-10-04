@@ -246,3 +246,16 @@ Ordering: hard eligibility + required affinity → soft preference/ranking → b
 ## Delivery and migration
 
 No compatibility shims are planned. Replace lazy HTTP body mutation with PrepareRequest; attach/close owned results; remove automatic POST/PATCH retries based solely on 503. Use explicit phase, accepted-completion, outcome and replay policy; own nested retries. Pass candidate/scope/freshness data and implement the host quota backend when needed. Release with `make release-break` after all-module lint/race tests. No release, publication or issue closure is authorized by this implementation goal.
+
+## Adapter composition and retry ownership
+
+Adapter classifiers never authorize repetition of unknown effects. The explicit bridge
+`attempt.RetryPredicate` accepts current host Event and Replay through an Evidence
+callback. Adapter RetryPolicy composes classification with that bridge; Mongo also
+rejects transaction replay. Missing evidence denies repetition. This synchronous bridge
+does not fence asynchronous fact changes: use Sequence and its atomic authorization
+for those cases. See [adapter contracts](adapter-replay-contracts.md) for S3 factories,
+Kafka indexed partial outcomes, acknowledgment preconditions, hidden SDK retries and
+RetryIf cancellation precedence. Core has no SDK dependency; standalone handlers do
+not require execution.Sequence. The executable Sequence examples cover ordinary
+caller types and retained resource ownership.

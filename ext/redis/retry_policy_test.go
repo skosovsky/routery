@@ -10,7 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func TestDefaultRetryPolicy(t *testing.T) {
+func TestIsTransientError(t *testing.T) {
 	t.Parallel()
 
 	type row struct {
@@ -41,7 +41,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := DefaultRetryPolicy[struct{}](context.Background(), struct{}{}, tc.err)
+			got := IsTransientError(tc.err)
 			if got != tc.want {
 				t.Fatalf("retry=%v, want %v for err=%v", got, tc.want, tc.err)
 			}
@@ -57,10 +57,10 @@ func (timeoutError) Timeout() bool { return true }
 
 func (timeoutError) Temporary() bool { return true }
 
-func FuzzDefaultRetryPolicyNoPanics(f *testing.F) {
+func FuzzIsTransientErrorNoPanics(f *testing.F) {
 	f.Add("")
 	f.Fuzz(func(t *testing.T, s string) {
 		t.Helper()
-		_ = DefaultRetryPolicy[int](context.Background(), 0, errors.New(s))
+		_ = IsTransientError(errors.New(s))
 	})
 }

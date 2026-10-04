@@ -10,9 +10,9 @@ import (
 	routerykafka "github.com/skosovsky/routery/ext/kafka"
 )
 
-type stdoutWriter struct{}
+type acknowledgedFixtureWriter struct{}
 
-func (stdoutWriter) WriteMessages(ctx context.Context, msgs ...kafka.Message) error {
+func (acknowledgedFixtureWriter) WriteMessages(ctx context.Context, msgs ...kafka.Message) error {
 	_ = ctx
 	if len(msgs) == 0 {
 		return nil
@@ -22,14 +22,14 @@ func (stdoutWriter) WriteMessages(ctx context.Context, msgs ...kafka.Message) er
 }
 
 func ExampleNewProducerRouteHandler_withRetryIf() {
-	base := routerykafka.NewProducerRouteHandler(stdoutWriter{})
+	base := routerykafka.NewProducerRouteHandler(acknowledgedFixtureWriter{})
 
 	handler := routery.ApplyRoute(
 		base,
-		routery.RetryIf[routerykafka.PublishRequest, routery.BasicKind, routery.BasicReason, struct{}](
+		routery.RetryIf[routerykafka.PublishRequest, routery.BasicKind, routery.BasicReason, routerykafka.PublishResult](
 			2,
 			0,
-			routerykafka.DefaultRetryPolicy[routerykafka.PublishRequest],
+			routerykafka.RetryPolicy[routerykafka.PublishRequest](nil),
 		),
 	)
 
@@ -41,8 +41,8 @@ func ExampleNewProducerRouteHandler_withRetryIf() {
 		return
 	}
 	if outcome.HasPayload {
-		fmt.Println("accepted")
+		fmt.Println("acknowledged")
 	}
 	// Output: ok
-	// accepted
+	// acknowledged
 }

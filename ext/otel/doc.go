@@ -1,4 +1,3 @@
-// Package routeryotel provides OpenTelemetry tracing middleware for routery [RouteHandler] values.
-//
-// This module is optional and keeps the core routery package free of third-party dependencies.
+// Package routeryotel provides optional OpenTelemetry tracing middleware.
+// It observes logical invocations; SDK/transport retries remain unobservable.
 package routeryotel

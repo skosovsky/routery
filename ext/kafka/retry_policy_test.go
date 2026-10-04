@@ -10,7 +10,7 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-func TestDefaultRetryPolicy(t *testing.T) {
+func TestIsTransientError(t *testing.T) {
 	t.Parallel()
 
 	type row struct {
@@ -38,7 +38,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := DefaultRetryPolicy[struct{}](context.Background(), struct{}{}, tc.err)
+			got := IsTransientError(tc.err)
 			if got != tc.want {
 				t.Fatalf("got %v want %v for %v", got, tc.want, tc.err)
 			}
@@ -54,11 +54,11 @@ func (kafkaTimeoutError) Timeout() bool { return true }
 
 func (kafkaTimeoutError) Temporary() bool { return true }
 
-func FuzzDefaultRetryPolicyNoPanics(f *testing.F) {
+func FuzzIsTransientErrorNoPanics(f *testing.F) {
 	f.Add(int32(0))
 	f.Fuzz(func(t *testing.T, code int32) {
 		t.Helper()
 		e := kafka.Error(code % 120)
-		_ = DefaultRetryPolicy[int](context.Background(), 0, e)
+		_ = IsTransientError(e)
 	})
 }

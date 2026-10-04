@@ -2,6 +2,7 @@ package routery
 
 import (
 	"context"
+	"errors"
 	"math"
 	"math/rand/v2"
 	"sync/atomic"
@@ -155,8 +156,15 @@ func executeWithRetry[Req any, Kind comparable, Reason comparable, Payload any](
 		}
 
 		lastErr = err
+		if cancelErr := call.Context.Err(); cancelErr != nil {
+			return result, errors.Join(cancelErr, lastErr)
+		}
 		isFinalAttempt := attemptIndex == attempts-1
-		if isFinalAttempt || !predicate(call.Context, call.Request, lastErr) {
+		permitted := !isFinalAttempt && predicate(call.Context, call.Request, lastErr)
+		if cancelErr := call.Context.Err(); cancelErr != nil {
+			return result, errors.Join(cancelErr, lastErr)
+		}
+		if !permitted {
 			return result, lastErr
 		}
 

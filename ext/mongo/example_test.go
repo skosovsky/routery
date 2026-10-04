@@ -28,7 +28,7 @@ func ExampleNewFindRouteHandler_withRetryIf() {
 		routery.RetryIf[routerymongo.FindRequest, routery.BasicKind, routery.BasicReason, *mongo.Cursor](
 			2,
 			0,
-			routerymongo.DefaultRetryPolicy[routerymongo.FindRequest],
+			routerymongo.RetryPolicy[routerymongo.FindRequest](nil),
 		),
 	)
 	outcome, err := routery.InvokeRouteHandler(

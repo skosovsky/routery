@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/skosovsky/routery"
+	"github.com/skosovsky/routery/policy/attempt"
+
 	smithy "github.com/aws/smithy-go"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
@@ -22,9 +25,10 @@ const (
 	httpGatewayTimeout      = http.StatusGatewayTimeout
 )
 
-// DefaultRetryPolicy classifies S3 client errors for [github.com/skosovsky/routery.RetryIf].
-func DefaultRetryPolicy[Req any](_ context.Context, _ Req, err error) bool {
-	if err == nil {
+// IsTransientError classifies provider errors without authorizing repetition.
+// Replay safety must be provided separately through RetryPolicy or execution.Sequence.
+func IsTransientError(err error) bool {
+	if err == nil || errors.Is(err, routery.ErrInvalidConfig) {
 		return false
 	}
 
@@ -63,4 +67,10 @@ func DefaultRetryPolicy[Req any](_ context.Context, _ Req, err error) bool {
 	}
 
 	return false
+}
+
+// RetryPolicy requires explicit host evidence; nil evidence denies repetition.
+func RetryPolicy[Req any](evidence attempt.Evidence[Req]) routery.RetryPredicate[Req] {
+	predicate := attempt.RetryPredicate(IsTransientError, evidence)
+	return func(ctx context.Context, req Req, err error) bool { return predicate(ctx, req, err) }
 }

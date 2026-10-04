@@ -42,7 +42,7 @@ func NewFindRouteHandler(coll FindRunner) routery.BasicRouteHandler[FindRequest,
 			opts = append(opts, call.Request.Options)
 		}
 		cursor, err := coll.Find(call.Context, call.Request.Filter, opts...)
-		if err != nil {
+		if err != nil && cursor == nil {
 			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *mongo.Cursor](), err
 		}
 
@@ -52,7 +52,7 @@ func NewFindRouteHandler(coll FindRunner) routery.BasicRouteHandler[FindRequest,
 				return cursor.Close(context.WithoutCancel(call.Context))
 			})
 		}
-		return result, nil
+		return result, err
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/skosovsky/routery"
 	routeryredis "github.com/skosovsky/routery/ext/redis"
+	"github.com/skosovsky/routery/policy/attempt"
 )
 
 func ExampleNewStringRouteHandler_withRetryIf() {
@@ -20,7 +21,8 @@ func ExampleNewStringRouteHandler_withRetryIf() {
 	defer mr.Close()
 	_ = mr.Set("user:1", "alice")
 
-	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	client := redis.NewClient(&redis.Options{Addr: mr.Addr(), MaxRetries: -1})
+	defer client.Close()
 	base := routeryredis.NewStringRouteHandler(client, func(ctx context.Context, id int) (redis.Cmder, error) {
 		return client.Get(ctx, fmt.Sprintf("user:%d", id)), nil
 	})
@@ -30,7 +32,7 @@ func ExampleNewStringRouteHandler_withRetryIf() {
 		routery.BasicKind,
 		routery.BasicReason,
 		string,
-	](3, 0, routeryredis.DefaultRetryPolicy[int])
+	](3, 0, routeryredis.RetryPolicy(readEvidence))
 	handler := routery.ApplyRoute(base, retry)
 
 	outcome, err := routery.InvokeRouteHandler(context.Background(), 1, handler)
@@ -44,4 +46,11 @@ func ExampleNewStringRouteHandler_withRetryIf() {
 	}
 	fmt.Println(outcome.Payload)
 	// Output: alice
+}
+
+// This GET has no side effects. Identity/facts belong to the enclosing host operation.
+func readEvidence(context.Context, int, error) (attempt.Event, attempt.Replay, error) {
+	return attempt.Event{Identity: attempt.Identity{Operation: "user-read", Attempt: "failed-read"},
+			Phase: attempt.Terminal, Outcome: attempt.Unknown},
+		attempt.Replay{Retryable: true, Replayable: true, SafeDuplicate: true}, nil
 }

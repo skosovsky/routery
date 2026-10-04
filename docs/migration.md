@@ -276,3 +276,19 @@ owned results; an atomic quota port with pending/overage/idempotent settlement;
 and required/preferred affinity with trusted scope and authorized rebuild. State
 which contracts are host-owned and which checks actually passed. Never describe
 unknown remote effects as exactly-once execution or guaranteed zero cost.
+
+## Adapter replay break
+
+The grpc/mongo/redis/kafka/s3 error-only DefaultRetryPolicy APIs and the gRPC
+IdempotentMarker/WithIdempotent wrappers are removed. Use IsTransientError for
+classification and RetryPolicy with host attempt.Evidence for synchronous repetition,
+or execution.Sequence for coordinated retries/reconciliation. Nil evidence denies replay.
+gRPC interceptor defaults deny repeats. No request wrapper is required.
+
+S3 PutObject handlers now accept PutRequest with a body-free Input and independent
+BodyFactory, or PreparePutRequest with an explicit buffer limit. Kafka producers now
+return PublishResult with original indexed message outcomes on partial failures;
+synchronous broker acknowledgment is a host precondition. See adapter-replay-contracts.md.
+
+RetryIf cancellation after a failed call takes precedence while preserving partial
+results and the provider error via errors.Join. Successful calls retain success.

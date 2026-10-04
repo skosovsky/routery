@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/skosovsky/routery"
+	"github.com/skosovsky/routery/policy/attempt"
 )
 
 const bufSize = 1024 * 1024
@@ -44,6 +45,17 @@ func TestRetryUnaryInterceptorRetriesUnavailable(t *testing.T) {
 		grpc.WithUnaryInterceptor(RetryUnaryInterceptor(InterceptorOptions{
 			Attempts: 4,
 			Backoff:  time.Millisecond,
+			Predicate: RetryPolicy[any](func(context.Context, any, error) (attempt.Event, attempt.Replay, error) {
+				return attempt.Event{
+					Identity: attempt.Identity{Operation: "read", Attempt: "failed"},
+					Phase:    attempt.Terminal,
+					Outcome:  attempt.Unknown,
+				}, attempt.Replay{
+					Retryable:     true,
+					Replayable:    true,
+					SafeDuplicate: true,
+				}, nil
+			}),
 		})),
 	)
 	if err != nil {

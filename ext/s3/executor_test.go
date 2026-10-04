@@ -95,7 +95,7 @@ func (f *fakePut) PutObject(
 func TestNewPutObjectRouteHandlerNil(t *testing.T) {
 	t.Parallel()
 	ex := NewPutObjectRouteHandler(nil)
-	_, err := routery.InvokeRouteHandler(context.Background(), &s3.PutObjectInput{}, ex)
+	_, err := routery.InvokeRouteHandler(context.Background(), PutRequest{}, ex)
 	if !errors.Is(err, routery.ErrInvalidConfig) {
 		t.Fatalf("got %v", err)
 	}
@@ -106,7 +106,11 @@ func TestNewPutObjectRouteHandlerOK(t *testing.T) {
 	fp := &fakePut{out: &s3.PutObjectOutput{}}
 	ex := NewPutObjectRouteHandler(fp)
 	b, k := "b", "k"
-	outcome, err := routery.InvokeRouteHandler(context.Background(), &s3.PutObjectInput{Bucket: &b, Key: &k}, ex)
+	outcome, err := routery.InvokeRouteHandler(
+		context.Background(),
+		PutRequest{Input: s3.PutObjectInput{Bucket: &b, Key: &k}},
+		ex,
+	)
 	if err != nil || !outcome.HasPayload || outcome.Payload != fp.out {
 		t.Fatalf("out=%v err=%v", outcome.Payload, err)
 	}
@@ -161,7 +165,7 @@ func TestPutRouteHandlerConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			_, e := routery.InvokeRouteHandler(context.Background(), &s3.PutObjectInput{}, ex)
+			_, e := routery.InvokeRouteHandler(context.Background(), PutRequest{}, ex)
 			if e != nil {
 				t.Error(e)
 			}

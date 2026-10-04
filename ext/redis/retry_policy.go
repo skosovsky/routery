@@ -7,14 +7,16 @@ import (
 	"net"
 	"strings"
 
+	"github.com/skosovsky/routery"
+	"github.com/skosovsky/routery/policy/attempt"
+
 	"github.com/redis/go-redis/v9"
 )
 
-// DefaultRetryPolicy decides whether a Redis execution error should be retried.
-//
-// It never retries [redis.Nil] (cache miss), client cancellations, or likely auth/syntax errors.
-func DefaultRetryPolicy[Req any](_ context.Context, _ Req, err error) bool {
-	if err == nil {
+// IsTransientError classifies provider errors without authorizing repetition.
+// Replay safety must be provided separately through RetryPolicy or execution.Sequence.
+func IsTransientError(err error) bool {
+	if err == nil || errors.Is(err, routery.ErrInvalidConfig) {
 		return false
 	}
 
@@ -65,4 +67,10 @@ func isRedisAuthOrSyntax(err error) bool {
 	default:
 		return false
 	}
+}
+
+// RetryPolicy requires explicit host evidence; nil evidence denies repetition.
+func RetryPolicy[Req any](evidence attempt.Evidence[Req]) routery.RetryPredicate[Req] {
+	predicate := attempt.RetryPredicate(IsTransientError, evidence)
+	return func(ctx context.Context, req Req, err error) bool { return predicate(ctx, req, err) }
 }

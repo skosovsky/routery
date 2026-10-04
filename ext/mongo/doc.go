@@ -1,5 +1,5 @@
 // Package routerymongo wraps MongoDB collection operations as [github.com/skosovsky/routery.RouteHandler]
-// values with a shared [DefaultRetryPolicy].
+// values with an explicit [RetryPolicy].
 //
 // Retries are disabled when the context carries an active multi-document transaction (see
 // [mongo.SessionFromContext] and the driver's session APIs) or when the request implements
@@ -10,4 +10,8 @@
 // than only the cursor to release routing callbacks as well. Cursor cleanup uses a
 // context without cancellation so that loser cancellation does not suppress cleanup;
 // the host remains responsible for driver network timeouts.
+//
+// Client/SDK retries are unobservable here. Configure one retry owner; see
+// docs/adapter-replay-contracts.md in the routery repository for client controls.
+// One handler invocation does not promise one physical network attempt.
 package routerymongo

@@ -9,4 +9,6 @@
 // Retrying single statements inside an existing [database/sql.Tx] is intentionally not
 // part of the default retry policy; retry should wrap the full transaction
 // factory in caller code.
+// SDK/transport retries, where present, are unobservable at this boundary.
+// See docs/adapter-replay-contracts.md for the host retry-owner contract.
 package routerysql

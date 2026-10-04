@@ -5,18 +5,17 @@ import (
 	"errors"
 	"io"
 
+	"github.com/skosovsky/routery"
+	"github.com/skosovsky/routery/policy/attempt"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// DefaultRetryPolicy classifies gRPC errors for [github.com/skosovsky/routery.RetryIf].
-//
-// Client-side [context.Canceled] and [context.DeadlineExceeded] are not retried.
-// When [status.FromError] fails, only [io.EOF] is treated as retryable (connection drop).
-func DefaultRetryPolicy[Req any](ctx context.Context, req Req, err error) bool {
-	_ = ctx
-
-	if err == nil {
+// IsTransientError classifies provider errors without authorizing repetition.
+// Replay safety must be provided separately through RetryPolicy or execution.Sequence.
+func IsTransientError(err error) bool {
+	if err == nil || errors.Is(err, routery.ErrInvalidConfig) {
 		return false
 	}
 
@@ -37,11 +36,15 @@ func DefaultRetryPolicy[Req any](ctx context.Context, req Req, err error) bool {
 		codes.NotFound,
 		codes.Unimplemented:
 		return false
-	case codes.Unavailable, codes.DataLoss:
+	case codes.Unavailable, codes.DeadlineExceeded:
 		return true
-	case codes.DeadlineExceeded:
-		return idempotentFromAny(req)
 	default:
 		return false
 	}
+}
+
+// RetryPolicy requires explicit host evidence; nil evidence denies repetition.
+func RetryPolicy[Req any](evidence attempt.Evidence[Req]) routery.RetryPredicate[Req] {
+	predicate := attempt.RetryPredicate(IsTransientError, evidence)
+	return func(ctx context.Context, req Req, err error) bool { return predicate(ctx, req, err) }
 }

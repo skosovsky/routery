@@ -7,7 +7,6 @@ import (
 	stdhttp "net/http"
 	"net/http/httptest"
 	"net/url"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -429,53 +428,71 @@ func TestRetryIfClosesAllIntermediateStatusBodies(t *testing.T) {
 }
 
 func TestRetryIfContextCanceledDuringBackoffStopsRetries(t *testing.T) {
-	initialGoroutines := runtime.NumGoroutine()
-
-	var attempts atomic.Int32
-	firstAttemptCh := make(chan struct{})
-	closeOnce := sync.Once{}
-	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
-		attempts.Add(1)
-		closeOnce.Do(func() {
-			close(firstAttemptCh)
-		})
-		w.WriteHeader(stdhttp.StatusServiceUnavailable)
-		_, _ = w.Write([]byte("try again"))
-	}))
-	defer server.Close()
-
-	request, err := stdhttp.NewRequestWithContext(context.Background(), stdhttp.MethodGet, server.URL, nil)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
+	t.Parallel()
+	// Arrange: no network workers; Done observation after policy approval proves
+	// RetryIf has reached its wait select. Cancellation waits for that barrier.
+	parent, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx := &retryWaitContext{Context: parent, waiting: make(chan struct{})}
+	body := &trackingReadCloser{}
+	transport := &scriptedRoundTripper{bodies: []*trackingReadCloser{body}}
+	client := &stdhttp.Client{Transport: transport}
+	request := mustNewRequest(t, stdhttp.MethodGet, nil)
+	workerDone := make(chan struct{})
 	go func() {
-		<-firstAttemptCh
-		cancel()
+		defer close(workerDone)
+		select {
+		case <-ctx.waiting:
+			cancel()
+		case <-parent.Done():
+		}
 	}()
-
-	retry := routery.RetryIf[
-		*stdhttp.Request,
-		routery.BasicKind,
-		routery.BasicReason,
-		*stdhttp.Response,
-	](3, time.Second, DefaultRetryPolicy)
-	handler := routery.ApplyRoute(NewRouteHandler(server.Client()), retry)
-
+	defer func() { cancel(); <-workerDone; client.CloseIdleConnections() }()
+	predicate := func(ctx context.Context, request *stdhttp.Request, err error) bool {
+		allowed := DefaultRetryPolicy(ctx, request, err)
+		if allowed {
+			ctx.(*retryWaitContext).armed.Store(true)
+		}
+		return allowed
+	}
+	handler := routery.ApplyRoute(
+		NewRouteHandler(client),
+		routery.RetryIf[*stdhttp.Request, routery.BasicKind, routery.BasicReason, *stdhttp.Response](
+			3,
+			time.Hour,
+			predicate,
+		),
+	)
+	// Act.
 	outcome, executeErr := routery.InvokeRouteHandler(ctx, request, handler)
-	if !errors.Is(executeErr, context.Canceled) {
-		t.Fatalf("expected context cancellation, got %v", executeErr)
+	<-workerDone
+	// Assert.
+	if !errors.Is(executeErr, context.Canceled) || outcome.HasPayload {
+		t.Fatalf("result=%+v error=%v", outcome, executeErr)
 	}
-	if outcome.HasPayload {
-		t.Fatalf("expected nil response on canceled backoff, got %+v", outcome.Payload)
+	if transport.calls.Load() != 1 || body.closes.Load() != 1 {
+		t.Fatalf("calls=%d closes=%d", transport.calls.Load(), body.closes.Load())
 	}
-	if got := attempts.Load(); got != 1 {
-		t.Fatalf("unexpected number of attempts: got %d, want 1", got)
+	select {
+	case <-ctx.waiting:
+	default:
+		t.Fatal("retry wait was not observed")
 	}
+}
 
-	assertNoGoroutineLeak(t, initialGoroutines, 2)
+type retryWaitContext struct {
+	context.Context
+
+	armed   atomic.Bool
+	once    sync.Once
+	waiting chan struct{}
+}
+
+func (ctx *retryWaitContext) Done() <-chan struct{} {
+	if ctx.armed.Load() {
+		ctx.once.Do(func() { close(ctx.waiting) })
+	}
+	return ctx.Context.Done()
 }
 
 func replayableRequest(t *testing.T, method string, replayable bool) *stdhttp.Request {
@@ -509,16 +526,6 @@ func mustNewRequest(t *testing.T, method string, body io.Reader) *stdhttp.Reques
 	}
 
 	return request
-}
-
-func assertNoGoroutineLeak(t *testing.T, initial int, maxDelta int) {
-	t.Helper()
-
-	time.Sleep(10 * time.Millisecond)
-	final := runtime.NumGoroutine()
-	if final > initial+maxDelta {
-		t.Fatalf("goroutine leak detected: start=%d end=%d max_delta=%d", initial, final, maxDelta)
-	}
 }
 
 type flakyNetError struct{}

@@ -8,7 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func TestDefaultRetryPolicy(t *testing.T) {
+func TestIsTransientError(t *testing.T) {
 	t.Parallel()
 
 	type row struct {
@@ -42,13 +42,12 @@ func TestDefaultRetryPolicy(t *testing.T) {
 			WriteErrors: []mongo.WriteError{{Code: 2, Message: "bad value"}},
 		}, false},
 		{"generic", context.Background(), nil, errors.New("x"), false},
-		{"tx_req", context.Background(), txFlag(true), mongo.ErrClientDisconnected, false},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := DefaultRetryPolicy[any](tc.ctx, tc.req, tc.err)
+			got := IsTransientError(tc.err)
 			if got != tc.want {
 				t.Fatalf("got %v want %v err=%v", got, tc.want, tc.err)
 			}
@@ -60,11 +59,11 @@ type txFlag bool
 
 func (f txFlag) MongoInTransaction() bool { return bool(f) }
 
-func FuzzDefaultRetryPolicyNoPanics(f *testing.F) {
+func FuzzIsTransientErrorNoPanics(f *testing.F) {
 	f.Add(int32(0), "m")
 	f.Fuzz(func(t *testing.T, code int32, msg string) {
 		t.Helper()
 		err := mongo.CommandError{Code: code, Message: msg}
-		_ = DefaultRetryPolicy[any](context.Background(), nil, err)
+		_ = IsTransientError(err)
 	})
 }

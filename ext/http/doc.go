@@ -29,4 +29,6 @@
 // RetryAfterHint normalizes Retry-After using explicit receipt time and clock
 // provenance. Pass its Hint to the attempt scheduler; it does not grant retry
 // permission, choose a scope, or guess vendor reset-header semantics.
+// SDK/transport retries, where present, are unobservable at this boundary.
+// See docs/adapter-replay-contracts.md for the host retry-owner contract.
 package routeryhttp

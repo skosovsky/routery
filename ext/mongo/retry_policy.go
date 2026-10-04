@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 
+	"github.com/skosovsky/routery"
+	"github.com/skosovsky/routery/policy/attempt"
+
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -13,17 +16,14 @@ const (
 	mongoErrCannotCreateIndex  = 66
 )
 
-// DefaultRetryPolicy classifies MongoDB errors for [github.com/skosovsky/routery.RetryIf].
-func DefaultRetryPolicy[Req any](ctx context.Context, req Req, err error) bool {
-	if err == nil {
+// IsTransientError classifies provider errors without authorizing repetition.
+// Replay safety must be provided separately through RetryPolicy or execution.Sequence.
+func IsTransientError(err error) bool {
+	if err == nil || errors.Is(err, routery.ErrInvalidConfig) {
 		return false
 	}
 
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return false
-	}
-
-	if inMongoTransaction(ctx) || transactionFromRequest(req) {
 		return false
 	}
 
@@ -63,5 +63,16 @@ func isMongoAuthOrValidationCode(code int) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// RetryPolicy requires explicit host evidence; nil evidence denies repetition.
+func RetryPolicy[Req any](evidence attempt.Evidence[Req]) routery.RetryPredicate[Req] {
+	predicate := attempt.RetryPredicate(IsTransientError, evidence)
+	return func(ctx context.Context, req Req, err error) bool {
+		if inMongoTransaction(ctx) || transactionFromRequest(req) {
+			return false
+		}
+		return predicate(ctx, req, err)
 	}
 }

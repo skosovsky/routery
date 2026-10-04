@@ -1,9 +1,9 @@
 // Package routerygrpc provides gRPC client helpers for [github.com/skosovsky/routery]:
 // unary handlers, client interceptors with [github.com/skosovsky/routery.RetryIf], and a
-// [DefaultRetryPolicy] based on [google.golang.org/grpc/status] codes.
+// [IsTransientError] based on [google.golang.org/grpc/status] codes.
 //
-// DeadlineExceeded from the server is retried only when the request value implements
-// [IdempotentMarker] and [IdempotentMarker.GRPCIdempotent] returns true.
+// Retry interceptors fail closed when no explicit predicate is configured.
+// IsTransientError alone does not authorize replay. DataLoss is not transient.
 //
 // Streaming: [RetryStreamInterceptor] retries only the initial stream creation (the
 // Streamer call), not individual Recv/Send failures on an established stream.
@@ -14,4 +14,8 @@
 // attach an owned lifetime that cancels the RPC, and disable hidden interceptor/SDK
 // retries or account them in the shared Coordinator. A returned stream is not accepted
 // completion; terminal usage and remote outcome remain provider/host evidence.
+//
+// Client/SDK retries are unobservable here. Configure one retry owner; see
+// docs/adapter-replay-contracts.md in the routery repository for client controls.
+// One handler invocation does not promise one physical network attempt.
 package routerygrpc
