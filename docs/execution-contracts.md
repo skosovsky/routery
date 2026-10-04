@@ -147,6 +147,46 @@ is a host declaration: false explicitly marks hidden physical attempts as unobse
 so exact remote accounting is not claimed. This layer must be the sole retry owner, or
 host-owned nested calls must use the same Coordinator and account their identities.
 
+Repeat authorization has one explicit linearization point after Next, both Fresh
+checks and admission: Coordinator.AuthorizeRepeat compares the previous complete
+event and marks the already allocated next identity Dispatched under the same lock
+used by Update. Changed facts return ErrEventChanged; Sequence refreshes the prior
+Receipt, reevaluates host Replay outside locks and tries again. Replay callbacks
+are repeatable/idempotent, must not dispatch, and declare evidence that remains
+valid through this transition. ResetProtocol declares an already completed host
+handshake, not a command to reset on each evaluation. Classification and scheduling
+remain fixed for the transition; changing Retry to Fallback after Next is rejected
+as ErrInvalidBoundary, so a binding prepared for one action cannot execute as another.
+Each reevaluation uses current remote facts, commit status, settlement error and
+budget (including the next identity already allocated for this repeat).
+The cancellation channel is checked inside Coordinator after acquiring its mutex;
+ErrAuthorizationCancelled leaves the next identity undispatched. Waiting for prior
+settlement is cancellation-aware, and the clock/deadline is checked again after that
+wait outside the Receipt mutex. Now is a clock projection and must not reenter the
+Receipt whose authorization is being evaluated.
+The preceding Receipt serializes authorization with its Record/settlement; no
+internal mutex is held during Replay, Fresh, Admit, Dispatch or cleanup callbacks.
+Finish still must not reenter its Receipt because settlement is serial, even though
+the callback runs outside its mutex. If authorization is denied, the new identity
+remains allocated, its reservation settles as terminal NotExecuted and the previous
+partial result/Failure remain final; the new preflight result is retained in Trace.
+Events accepted before authorization participate in the decision. Events accepted
+after it remain observable and reconcilable, but do not revoke an authorized call
+or promise rollback. This is local dispatch authorization, not remote exactly-once.
+
+Sequence.Deadline, Schedule deadlines, Now and context deadlines share one clock
+domain. The earliest bound is retained across attempts and checked after host
+callbacks and immediately before dispatch authorization. DeadlineContext optionally
+constructs a bounded child context; nil uses context.WithDeadline. Hosts using a
+synthetic clock must supply a context factory in that same domain which propagates
+parent cancellation and cancels at the declared deadline. It must return a non-nil
+context/cancel pair with a deadline no later than requested. Passing synthetic
+calendar timestamps to the wall-clock default is unsupported. Child contexts are
+released at return for values or transferred to the canonical Lifetime for owned
+results, including partial errors; reaching the deadline still cancels a live stream.
+Deadline checks do not establish remote NotExecuted after dispatch. DeadlineContext
+and Replay failures remain control/callback errors and cannot authorize repetition.
+
 Pre-dispatch retry is explicit host composition, not Sequence's provider retry path.
 A failed Boundary returns Started=false, its allocated physical identity, remaining
 budget and terminal NotExecuted when dispatch demonstrably never began. The host

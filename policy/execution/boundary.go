@@ -52,11 +52,25 @@ type Receipt struct {
 	cleanupContext func() (context.Context, context.CancelFunc)
 	closed         bool
 	err            error
+	settling       chan struct{}
+}
+
+// lock waits for serial settlement without holding a mutex during host callbacks.
+func (receipt *Receipt) lock() {
+	for {
+		receipt.mu.Lock()
+		if receipt.settling == nil {
+			return
+		}
+		done := receipt.settling
+		receipt.mu.Unlock()
+		<-done
+	}
 }
 
 // Record validates monotonic facts. After closing, changed facts trigger reconciliation.
 func (receipt *Receipt) Record(event attempt.Event) error {
-	receipt.mu.Lock()
+	receipt.lock()
 	defer receipt.mu.Unlock()
 	if event.Identity != receipt.identity {
 		return attempt.ErrInvalidEvent
@@ -76,7 +90,7 @@ func (receipt *Receipt) Record(event attempt.Event) error {
 
 // Snapshot returns current facts, remaining budget and the latest settlement error.
 func (receipt *Receipt) Snapshot() (attempt.Event, int, error) {
-	receipt.mu.Lock()
+	receipt.lock()
 	defer receipt.mu.Unlock()
 	event, remaining, err := receipt.coordinator.Snapshot(receipt.identity)
 	return event, remaining, errors.Join(err, receipt.err)
@@ -85,7 +99,7 @@ func (receipt *Receipt) Snapshot() (attempt.Event, int, error) {
 // Reconcile repeats the same host settlement, including after a lost acknowledgement.
 // Host usage evidence may improve while the attempt event stays terminal unknown.
 func (receipt *Receipt) Reconcile() error {
-	receipt.mu.Lock()
+	receipt.lock()
 	defer receipt.mu.Unlock()
 	if !receipt.closed {
 		return attempt.ErrInvalidEvent
@@ -101,6 +115,18 @@ func (receipt *Receipt) settle(event attempt.Event) error {
 	if receipt.finish == nil {
 		return nil
 	}
+	receipt.settling = make(chan struct{})
+	receipt.mu.Unlock()
+	// Relock even on panic so the enclosing operation's deferred Unlock stays valid.
+	defer func() {
+		receipt.mu.Lock()
+		close(receipt.settling)
+		receipt.settling = nil
+	}()
+	return receipt.finishSettlement(event)
+}
+
+func (receipt *Receipt) finishSettlement(event attempt.Event) error {
 	ctx, cancel := receipt.cleanupContext()
 	if ctx == nil || cancel == nil {
 		if cancel != nil {
@@ -115,7 +141,7 @@ func (receipt *Receipt) settle(event attempt.Event) error {
 }
 
 func (receipt *Receipt) close(notExecuted bool) error {
-	receipt.mu.Lock()
+	receipt.lock()
 	defer receipt.mu.Unlock()
 	if receipt.closed {
 		return receipt.err
@@ -140,6 +166,13 @@ func (receipt *Receipt) close(notExecuted bool) error {
 func (boundary Boundary[Req, Kind, Reason, Payload]) Run(
 	call routery.RouteCall[Req], coordinator *attempt.Coordinator, identity attempt.Identity,
 ) (Result[Kind, Reason, Payload], error) {
+	return boundary.run(call, coordinator, identity, nil)
+}
+
+func (boundary Boundary[Req, Kind, Reason, Payload]) run(
+	call routery.RouteCall[Req], coordinator *attempt.Coordinator, identity attempt.Identity,
+	authorize func() (bool, error),
+) (Result[Kind, Reason, Payload], error) {
 	result := Result[Kind, Reason, Payload]{
 		Route: routery.AbortResult[Kind, Reason, Payload](), Admission: quota.Unreserved,
 		RetryAt: time.Time{}, Receipt: nil, Started: false, BudgetExhausted: false,
@@ -158,7 +191,7 @@ func (boundary Boundary[Req, Kind, Reason, Payload]) Run(
 	}
 	receipt := &Receipt{
 		mu: sync.Mutex{}, coordinator: coordinator, identity: identity, finish: nil,
-		cleanupContext: boundary.CleanupContext, closed: false, err: nil,
+		cleanupContext: boundary.CleanupContext, closed: false, err: nil, settling: nil,
 	}
 	result.Receipt = receipt
 	admission, err := boundary.prepare(call, identity)
@@ -170,7 +203,7 @@ func (boundary Boundary[Req, Kind, Reason, Payload]) Run(
 	if admission.Status == quota.Denied || admission.Status == quota.Deferred {
 		return result, receipt.close(true)
 	}
-	return boundary.invoke(call, result)
+	return boundary.invoke(call, result, authorize)
 }
 
 func (boundary Boundary[Req, Kind, Reason, Payload]) prepare(
@@ -198,6 +231,7 @@ func (boundary Boundary[Req, Kind, Reason, Payload]) prepare(
 
 func (boundary Boundary[Req, Kind, Reason, Payload]) invoke(
 	call routery.RouteCall[Req], result Result[Kind, Reason, Payload],
+	authorize func() (bool, error),
 ) (Result[Kind, Reason, Payload], error) {
 	if err := boundary.Fresh(call.Context, call.Request); err != nil {
 		return result, errors.Join(err, result.Receipt.close(true))
@@ -205,12 +239,7 @@ func (boundary Boundary[Req, Kind, Reason, Payload]) invoke(
 	if err := call.Context.Err(); err != nil {
 		return result, errors.Join(err, result.Receipt.close(true))
 	}
-	event, _, err := result.Receipt.Snapshot()
-	if err != nil {
-		return result, err
-	}
-	event.Phase = attempt.Dispatched
-	if err = result.Receipt.Record(event); err != nil {
+	if allowed, err := result.Receipt.start(authorize); err != nil || !allowed {
 		return result, errors.Join(err, result.Receipt.close(true))
 	}
 	result.Started = true
@@ -220,14 +249,70 @@ func (boundary Boundary[Req, Kind, Reason, Payload]) invoke(
 			_ = result.Receipt.close(false)
 		}
 	}()
-	result.Route, err = boundary.Dispatch(call, result.Receipt)
-	result.Route, err = routery.ValidateRouteResult(result.Route, err)
+	route, err := boundary.Dispatch(call, result.Receipt)
+	result.Route, err = routery.ValidateRouteResult(route, err)
 	returned = true
 	if result.Route.Lifetime == nil {
 		return result, errors.Join(err, result.Receipt.close(false))
 	}
 	result.Route.Lifetime.OnClose(func() { _ = result.Receipt.close(false) })
 	return result, err
+}
+
+func (receipt *Receipt) start(authorize func() (bool, error)) (bool, error) {
+	if authorize != nil {
+		return authorize()
+	}
+	event, _, err := receipt.Snapshot()
+	if err != nil {
+		return false, err
+	}
+	event.Phase = attempt.Dispatched
+	return true, receipt.Record(event)
+}
+
+func (receipt *Receipt) authorizeRepeat(
+	expected attempt.Event, next attempt.Identity, replay attempt.Replay, cancelled <-chan struct{},
+	checkStart func() error,
+) (
+	attempt.Decision, error,
+) {
+	if !receipt.lockAuthorization(cancelled) {
+		return attempt.Decision{}, attempt.ErrAuthorizationCancelled
+	}
+	defer receipt.mu.Unlock()
+	if receipt.err != nil {
+		return attempt.Decision{}, receipt.err
+	}
+	// Serialize the clock check and authorization with Record/settlement, but run
+	// the clock outside the mutex. Coordinator.Update still participates via CAS.
+	receipt.settling = make(chan struct{})
+	receipt.mu.Unlock()
+	defer func() {
+		receipt.mu.Lock()
+		close(receipt.settling)
+		receipt.settling = nil
+	}()
+	if err := checkStart(); err != nil {
+		return attempt.Decision{}, err
+	}
+	return receipt.coordinator.AuthorizeRepeat(expected, next, replay, cancelled)
+}
+
+func (receipt *Receipt) lockAuthorization(cancelled <-chan struct{}) bool {
+	for {
+		receipt.mu.Lock()
+		if receipt.settling == nil {
+			return true
+		}
+		done := receipt.settling
+		receipt.mu.Unlock()
+		select {
+		case <-cancelled:
+			return false
+		case <-done:
+		}
+	}
 }
 
 func isControlError(err error) bool {

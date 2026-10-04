@@ -56,15 +56,20 @@ type Decision struct {
 // Decide evaluates replay safety before scheduling another physical attempt.
 // ResetProtocol means the host has already arranged explicit consumer reset.
 func Decide(ctx context.Context, event Event, remaining int, replay Replay) (Decision, error) {
+	if err := ctx.Err(); err != nil {
+		return Decision{Action: Stop, Reason: NotRetryable, Event: event,
+			NotBefore: time.Time{}, Deadline: time.Time{}}, err
+	}
+	return decide(event, remaining, replay)
+}
+
+func decide(event Event, remaining int, replay Replay) (Decision, error) {
 	decision := Decision{
 		Action:    Stop,
 		Reason:    NotRetryable,
 		Event:     event,
 		NotBefore: time.Time{},
 		Deadline:  time.Time{},
-	}
-	if err := ctx.Err(); err != nil {
-		return decision, err
 	}
 	if !validEvent(event) || event.Identity.Operation == "" || event.Identity.Attempt == "" {
 		return decision, ErrInvalidEvent

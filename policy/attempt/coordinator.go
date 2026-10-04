@@ -8,6 +8,12 @@ import (
 // ErrInvalidEvent indicates contradictory lifecycle metadata or invalid identity.
 var ErrInvalidEvent = errors.New("routery/attempt: invalid event")
 
+// ErrEventChanged asks an authorizer to refresh evidence outside the coordinator lock.
+var ErrEventChanged = errors.New("routery/attempt: event changed")
+
+// ErrAuthorizationCancelled indicates cancellation observed at dispatch authorization.
+var ErrAuthorizationCancelled = errors.New("routery/attempt: authorization cancelled")
+
 // Phase is the monotonic local execution phase, independent of delivery commit.
 type Phase uint8
 
@@ -111,6 +117,41 @@ func (coordinator *Coordinator) Snapshot(id Identity) (Event, int, error) {
 		return Event{}, 0, ErrInvalidEvent
 	}
 	return event, coordinator.limit - len(coordinator.events), nil
+}
+
+// AuthorizeRepeat conditionally marks an allocated next identity Dispatched.
+// expected is the previous terminal event used by the host to obtain replay evidence.
+// Update and authorization share a lock; changed facts require fresh host evidence.
+// Denial preserves both identities and their budget. Late updates do not revoke success.
+// No callback runs under the lock. Evidence must remain valid through this transition.
+func (coordinator *Coordinator) AuthorizeRepeat(
+	expected Event, next Identity, replay Replay, cancelled <-chan struct{},
+) (Decision, error) {
+	coordinator.mu.Lock()
+	defer coordinator.mu.Unlock()
+	select {
+	case <-cancelled:
+		return Decision{}, ErrAuthorizationCancelled
+	default:
+	}
+	previous, exists := coordinator.events[expected.Identity.Attempt]
+	current, allocated := coordinator.events[next.Attempt]
+	if !exists || !allocated || previous.Identity != expected.Identity || current.Identity != next ||
+		previous.Phase != Terminal || current.Phase != BeforeDispatch || current.Committed ||
+		current.Outcome != Unknown || next == expected.Identity {
+		return Decision{}, ErrInvalidEvent
+	}
+	if previous != expected {
+		return Decision{}, ErrEventChanged
+	}
+	// This repeat already consumed one slot in Begin; it can use that reserved slot.
+	decision, err := decide(previous, coordinator.limit-len(coordinator.events)+1, replay)
+	if err != nil || (decision.Action != Retry && decision.Action != Fallback) {
+		return decision, err
+	}
+	current.Phase = Dispatched
+	coordinator.events[next.Attempt] = current
+	return decision, nil
 }
 
 func validEvent(event Event) bool {

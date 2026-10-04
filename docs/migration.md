@@ -118,6 +118,34 @@ host-owned; this is not a history service or an automatic portability guarantee.
 
 ## Correctness breaks
 
+### Sequence authorization and deadlines
+
+Replay is evaluated again after Next, Fresh and admission, and whenever late facts
+change before the atomic dispatch authorization. Make it repeatable and idempotent;
+perform a consumer reset handshake once in host code and return its evidence,
+rather than resetting each time Replay is called. Evidence must remain valid through
+the transition. Classify and Schedule run once per failed physical attempt. Changing
+between Retry and Fallback after Next is a boundary error, requiring an explicit new
+host composition rather than executing an already prepared binding under new policy.
+
+Coordinator.AuthorizeRepeat compares the previous event and changes an allocated
+next identity to Dispatched atomically with Update. It returns ErrEventChanged if
+host evidence must be refreshed. Already allocated budget is not refunded on denial.
+Sequence preserves the prior partial result and failure, and records the new
+NotExecuted preflight/settlement in Trace. Facts recorded after authorization remain
+visible; they do not promise rollback of an authorized remote action.
+
+Sequence now bounds the attempt context with the effective deadline and transfers
+its cancellation to the returned Lifetime. With a real clock, nil DeadlineContext
+uses context.WithDeadline. A synthetic clock must provide DeadlineContext in the
+same time domain, propagating parent cancellation and deadline expiry. Value
+results release their child context on return; resources release it on Close, while
+the deadline still applies during consumption. Never pass a historical fixture
+timestamp to the wall-clock context constructor.
+
+Settlement callbacks execute outside Receipt's mutex but remain serialized. They
+must not reenter the same Receipt. Settlement errors still block new authorization.
+
 ### Owned results (BUG-001)
 
 Before: returning a streaming winner cancelled the context needed to read it.

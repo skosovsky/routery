@@ -43,16 +43,19 @@ type SequenceResult[Class comparable, Kind comparable, Reason comparable, Payloa
 
 // Sequence composes one retry owner with Boundary; no provider policy is hardcoded.
 // Next performs explicit reselect/rebuild when needed and must preserve operation identity.
-// Wait is optional; nil uses attempt.Wait with Now. Now and callbacks are caller-owned.
+// Wait is optional; nil uses attempt.Wait with Now. Now and context deadlines must share a clock domain; callbacks are caller-owned.
 type Sequence[Req any, Class comparable, Kind comparable, Reason comparable, Payload any] struct {
-	Boundary            Boundary[Req, Kind, Reason, Payload]
-	Classify            func(Result[Kind, Reason, Payload], error) (Class, error)
-	Replay              func(Failure[Class]) (attempt.Replay, error)
-	Schedule            func(Failure[Class], attempt.Decision) (attempt.ScheduleInput, error)
-	Next                func(context.Context, Step[Req], attempt.Decision) (Step[Req], error)
-	Now                 func() time.Time
-	Wait                func(context.Context, time.Time) error
-	Deadline            time.Time
+	Boundary Boundary[Req, Kind, Reason, Payload]
+	Classify func(Result[Kind, Reason, Payload], error) (Class, error)
+	Replay   func(Failure[Class]) (attempt.Replay, error)
+	Schedule func(Failure[Class], attempt.Decision) (attempt.ScheduleInput, error)
+	Next     func(context.Context, Step[Req], attempt.Decision) (Step[Req], error)
+	Now      func() time.Time
+	Wait     func(context.Context, time.Time) error
+	Deadline time.Time
+	// DeadlineContext is optional; nil uses wall-clock context.WithDeadline.
+	// Synthetic clocks require a factory that propagates cancellation in their domain.
+	DeadlineContext     func(context.Context, time.Time) (context.Context, context.CancelFunc)
 	NestedAttemptsKnown bool
 }
 
@@ -66,17 +69,24 @@ func (sequence Sequence[Req, Class, Kind, Reason, Payload]) Run(
 		sequence.Next == nil || sequence.Now == nil {
 		return result, ErrInvalidBoundary
 	}
+	sequence.Deadline = earliestDeadline(ctx, sequence.Deadline, time.Time{})
+	var previous *Result[Kind, Reason, Payload]
 	for {
 		if err := sequence.checkStart(ctx, time.Time{}); err != nil {
 			result.Decision = stopDecision(result.Decision, err)
 			return result, err
 		}
-		last, runErr := sequence.Boundary.Run(routery.NewRouteCall(ctx, step.Request), coordinator, step.Identity)
-		result.Last = last
+		last, runErr := sequence.runStep(ctx, coordinator, step, previous, result.Failure, &result.Decision)
 		result.Trace = append(
 			result.Trace,
 			TraceEntry[Kind, Reason, Payload]{Identity: step.Identity, Result: last, Err: runErr},
 		)
+		if previous != nil && !last.Started {
+			result.Decision = preflightDecision(result.Decision, last, step.Identity, runErr)
+			return result, runErr
+		}
+		result.Last = last
+		result.Failure = nil
 		if !last.Started || runErr == nil || isControlError(runErr) {
 			result.Decision = completedDecision(last, step.Identity, runErr)
 			return result, runErr
@@ -87,7 +97,7 @@ func (sequence Sequence[Req, Class, Kind, Reason, Payload]) Run(
 			result.Decision = stopDecision(result.Decision, err)
 			return result, err
 		}
-		if decision.Action != attempt.Retry && decision.Action != attempt.Fallback {
+		if !isRepeat(decision.Action) {
 			return result, nil
 		}
 		sequence.Deadline = earliestDeadline(ctx, sequence.Deadline, decision.Deadline)
@@ -97,11 +107,20 @@ func (sequence Sequence[Req, Class, Kind, Reason, Payload]) Run(
 			result.Decision = stopDecision(result.Decision, err)
 			return result, err
 		}
-		if result.Decision.Action != attempt.Retry && result.Decision.Action != attempt.Fallback {
+		if !isRepeat(result.Decision.Action) {
 			return result, nil
 		}
-		result.Failure = nil
+		previous = &last
 	}
+}
+
+func preflightDecision[Kind comparable, Reason comparable, Payload any](
+	decision attempt.Decision, last Result[Kind, Reason, Payload], identity attempt.Identity, err error,
+) attempt.Decision {
+	if isRepeat(decision.Action) {
+		return completedDecision(last, identity, err)
+	}
+	return decision
 }
 
 func completedDecision[Kind comparable, Reason comparable, Payload any](
@@ -186,10 +205,16 @@ func (sequence Sequence[Req, Class, Kind, Reason, Payload]) advance(
 	replay attempt.Replay,
 	decision attempt.Decision,
 ) (Step[Req], attempt.Decision, error) {
-	if err := last.Route.Lifetime.Close(); err != nil {
+	bounded, cancel, err := sequence.boundedContext(ctx)
+	if err != nil {
 		return step, decision, err
 	}
-	_, _, err := last.Receipt.Snapshot()
+	defer cancel()
+	ctx = bounded
+	if closeErr := last.Route.Lifetime.Close(); closeErr != nil {
+		return step, decision, closeErr
+	}
+	_, _, err = last.Receipt.Snapshot()
 	if err != nil {
 		return step, decision, err
 	}
@@ -224,12 +249,133 @@ func (sequence Sequence[Req, Class, Kind, Reason, Payload]) advance(
 	return next, freshDecision, nil
 }
 
+func (sequence Sequence[Req, Class, Kind, Reason, Payload]) boundedContext(ctx context.Context) (
+	context.Context, context.CancelFunc, error,
+) {
+	deadline := earliestDeadline(ctx, sequence.Deadline, time.Time{})
+	if deadline.IsZero() {
+		bounded, cancel := context.WithCancel(ctx)
+		return bounded, cancel, nil
+	}
+	factory := sequence.DeadlineContext
+	if factory == nil {
+		factory = context.WithDeadline
+	}
+	bounded, cancel := factory(ctx, deadline)
+	if bounded == nil || cancel == nil {
+		if cancel != nil {
+			cancel()
+		}
+		return nil, nil, ErrInvalidBoundary
+	}
+	actual, ok := bounded.Deadline()
+	if !ok || actual.After(deadline) {
+		cancel()
+		return nil, nil, ErrInvalidBoundary
+	}
+	return bounded, cancel, nil
+}
+
+func (sequence Sequence[Req, Class, Kind, Reason, Payload]) runStep(
+	ctx context.Context, coordinator *attempt.Coordinator, step Step[Req],
+	previous *Result[Kind, Reason, Payload], failure *Failure[Class], decision *attempt.Decision,
+) (Result[Kind, Reason, Payload], error) {
+	bounded, cancel, err := sequence.boundedContext(ctx)
+	if err != nil {
+		return Result[Kind, Reason, Payload]{}, err
+	}
+	transferred := false
+	defer func() {
+		if !transferred {
+			cancel()
+		}
+	}()
+	boundary := sequence.Boundary
+	if boundary.Fresh != nil {
+		fresh := boundary.Fresh
+		boundary.Fresh = func(ctx context.Context, request Req) error {
+			if startErr := sequence.checkStart(ctx, time.Time{}); startErr != nil {
+				return startErr
+			}
+			if freshErr := fresh(ctx, request); freshErr != nil {
+				return freshErr
+			}
+			return sequence.checkStart(ctx, time.Time{})
+		}
+	}
+	var authorize func() (bool, error)
+	if previous != nil {
+		authorize = func() (bool, error) {
+			return sequence.authorize(bounded, previous.Receipt, step.Identity, failure, decision)
+		}
+	}
+	result, err := boundary.run(routery.NewRouteCall(bounded, step.Request), coordinator, step.Identity, authorize)
+	if result.Route.Lifetime != nil {
+		result.Route.Lifetime.OnClose(cancel)
+		transferred = true
+	}
+	return result, err
+}
+
+func (sequence Sequence[Req, Class, Kind, Reason, Payload]) authorize(
+	ctx context.Context, previous *Receipt, next attempt.Identity, failure *Failure[Class], decision *attempt.Decision,
+) (bool, error) {
+	wanted := decision.Action
+	for {
+		event, remaining, err := previous.Snapshot()
+		failure.Event, failure.Remaining = event, remaining
+		if err != nil {
+			return false, err
+		}
+		// The next identity already holds a budget slot, included in this evaluation.
+		evidence := *failure
+		evidence.Remaining++
+		replay, err := sequence.Replay(evidence)
+		if err != nil {
+			return false, err
+		}
+		if startErr := sequence.checkStart(ctx, time.Time{}); startErr != nil {
+			return false, startErr
+		}
+		fresh, err := attempt.Decide(ctx, event, evidence.Remaining, replay)
+		if err != nil {
+			return false, err
+		}
+		if (fresh.Action == attempt.Retry || fresh.Action == attempt.Fallback) && fresh.Action != wanted {
+			return false, ErrInvalidBoundary
+		}
+		fresh, err = previous.authorizeRepeat(event, next, replay, ctx.Done(), func() error {
+			return sequence.checkStart(ctx, time.Time{})
+		})
+		if errors.Is(err, attempt.ErrAuthorizationCancelled) {
+			return false, ctx.Err()
+		}
+		if errors.Is(err, attempt.ErrEventChanged) {
+			continue
+		}
+		if err != nil {
+			return false, err
+		}
+		fresh.NotBefore, fresh.Deadline = decision.NotBefore, decision.Deadline
+		*decision = fresh
+		return fresh.Action == attempt.Retry || fresh.Action == attempt.Fallback, nil
+	}
+}
+
 func (sequence Sequence[Req, Class, Kind, Reason, Payload]) checkStart(ctx context.Context, notBefore time.Time) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	now := sequence.Now()
-	if now.IsZero() || (!notBefore.IsZero() && now.Before(notBefore)) {
+	if _, err := attempt.AddDelay(now, 0); err != nil {
+		return err
+	}
+	if !sequence.Deadline.IsZero() {
+		if _, err := attempt.AddDelay(sequence.Deadline, 0); err != nil {
+			return err
+		}
+	}
+	if !notBefore.IsZero() && now.Before(notBefore) {
 		return attempt.ErrInvalidHint
 	}
 	deadline := earliestDeadline(ctx, sequence.Deadline, time.Time{})
@@ -257,4 +403,8 @@ func stopDecision(decision attempt.Decision, err error) attempt.Decision {
 		decision.Reason = attempt.DeadlineExhausted
 	}
 	return decision
+}
+
+func isRepeat(action attempt.Action) bool {
+	return action == attempt.Retry || action == attempt.Fallback
 }

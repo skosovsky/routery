@@ -55,7 +55,7 @@ func TestSequenceConsumerResetDoesNotReplaceReplayEvidence(t *testing.T) {
 				},
 			}
 			sequence.Replay = func(Failure[failureClass]) (attempt.Replay, error) {
-				if scenario.reset {
+				if scenario.reset && generation == 0 {
 					// Controlled host handshake completed before ResetProtocol becomes true.
 					generation++
 					visible = ""

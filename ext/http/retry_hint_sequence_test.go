@@ -83,9 +83,13 @@ func TestHTTPHintDefersActualDispatchBeyondDeadline(t *testing.T) {
 			t.Error("defer constructed another physical attempt")
 			return execution.Step[*http.Request]{}, nil
 		},
-		Now:                 func() time.Time { return now },
-		Wait:                func(context.Context, time.Time) error { t.Error("defer waited"); return nil },
-		Deadline:            now.Add(5 * time.Second),
+		Now:      func() time.Time { return now },
+		Wait:     func(context.Context, time.Time) error { t.Error("defer waited"); return nil },
+		Deadline: now.Add(5 * time.Second),
+		DeadlineContext: func(ctx context.Context, deadline time.Time) (context.Context, context.CancelFunc) {
+			child, cancel := context.WithCancel(ctx)
+			return &hintDeadlineContext{Context: child, deadline: deadline}, cancel
+		},
 		NestedAttemptsKnown: true,
 	}
 	// Act.
@@ -103,3 +107,11 @@ func TestHTTPHintDefersActualDispatchBeyondDeadline(t *testing.T) {
 		t.Fatal("HTTP hint inferred outcome or lost original not-before")
 	}
 }
+
+type hintDeadlineContext struct {
+	context.Context
+
+	deadline time.Time
+}
+
+func (ctx *hintDeadlineContext) Deadline() (time.Time, bool) { return ctx.deadline, true }

@@ -35,7 +35,8 @@ func sequenceFixture(t *testing.T, clock *time.Time) testSequence {
 				Operation: previous.Identity.Operation, Attempt: previous.Identity.Attempt + "/next",
 			}}, nil
 		},
-		Now: func() time.Time { return *clock },
+		Now:             func() time.Time { return *clock },
+		DeadlineContext: syntheticDeadlineContext,
 		Wait: func(ctx context.Context, notBefore time.Time) error {
 			*clock = notBefore
 			return ctx.Err()
@@ -43,6 +44,21 @@ func sequenceFixture(t *testing.T, clock *time.Time) testSequence {
 		NestedAttemptsKnown: true,
 	}
 }
+
+// syntheticDeadlineContext declares the fixture clock domain. Tests advance Now
+// between callbacks; Sequence checks it before every dispatch authorization.
+func syntheticDeadlineContext(ctx context.Context, deadline time.Time) (context.Context, context.CancelFunc) {
+	child, cancel := context.WithCancel(ctx)
+	return &syntheticDeadline{Context: child, deadline: deadline}, cancel
+}
+
+type syntheticDeadline struct {
+	context.Context
+
+	deadline time.Time
+}
+
+func (ctx *syntheticDeadline) Deadline() (time.Time, bool) { return ctx.deadline, true }
 
 func TestSequenceFallbackHintAndPerAttemptAdmission(t *testing.T) {
 	t.Parallel()
