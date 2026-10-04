@@ -2,6 +2,7 @@ package execution_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"sync"
@@ -159,12 +160,16 @@ func ExampleBoundary_quotaReconciliation() {
 	// Act: close an unknown stream, then reconcile a late verified usage report.
 	result, err := boundary.Run(routery.NewRouteCall(ctx, "private stream handle"), coordinator, id)
 	if err != nil {
-		_ = result.Route.Lifetime.Close()
-		fmt.Println(err)
+		cleanupErr := result.Route.Lifetime.Close()
+		fmt.Println(errors.Join(err, cleanupErr, receiptFailure(result.Receipt)))
 		return
 	}
 	fmt.Println("admitted", result.Admission == quota.Admitted)
 	if err = result.Route.Lifetime.Close(); err != nil {
+		fmt.Println(err)
+		return
+	}
+	if err = receiptFailure(result.Receipt); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -183,4 +188,12 @@ func ExampleBoundary_quotaReconciliation() {
 	// pending true
 	// committed true usage 7
 	// repeat <nil> usage 7
+}
+
+func receiptFailure(receipt *execution.Receipt) error {
+	if receipt == nil {
+		return nil
+	}
+	_, _, err := receipt.Snapshot()
+	return err
 }

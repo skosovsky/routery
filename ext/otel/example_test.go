@@ -13,6 +13,11 @@ import (
 func ExampleTracing() {
 	exporter := &discardExporter{}
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			fmt.Println("trace shutdown failed")
+		}
+	}()
 	tracer := tp.Tracer("example")
 
 	base := routery.FromFunc(func(context.Context, int) (int, error) {
@@ -24,7 +29,8 @@ func ExampleTracing() {
 		routeryotel.Tracing[int, routery.BasicKind, routery.BasicReason, int](tracer, "work", nil),
 	)
 	outcome, err := routery.InvokeRouteHandler(context.Background(), 0, handler)
-	fmt.Println(outcome.Payload, err == nil)
+	cleanupErr := outcome.Lifetime.Close()
+	fmt.Println(outcome.Payload, err == nil && cleanupErr == nil)
 	// Output: 42 true
 }
 

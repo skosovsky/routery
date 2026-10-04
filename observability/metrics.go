@@ -7,7 +7,7 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-// ResultMeta is a serializable summary of a route outcome for metrics callbacks.
+// ResultMeta contains caller metadata; arbitrary values are not safe metric labels.
 type ResultMeta[Kind comparable, Reason comparable] struct {
 	Action routery.RouteAction
 	Kind   Kind
@@ -15,7 +15,9 @@ type ResultMeta[Kind comparable, Reason comparable] struct {
 	Match  routery.RouteMatch
 }
 
-// MetricsHooks defines callbacks for metrics collection.
+// MetricsHooks defines synchronous, potentially concurrent callbacks. They must be
+// bounded, concurrency-safe, non-panicking and observational. Project bounded labels;
+// names, Match, Kind, Reason and raw Err are not automatically redacted.
 type MetricsHooks[Kind comparable, Reason comparable, Payload any] struct {
 	OnStart     func(ctx context.Context, name string, match routery.RouteMatch)
 	OnComplete  func(ctx context.Context, name string, duration time.Duration, result ResultMeta[Kind, Reason], payloadMeta PayloadMeta, err error)

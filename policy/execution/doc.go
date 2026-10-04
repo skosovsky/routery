@@ -1,4 +1,6 @@
 // Package execution composes explicit physical attempts with generic route handlers.
 // It does not select providers, infer remote outcomes, store usage, or retry implicitly.
 // Callers own freshness, atomic admission, settlement evidence and cleanup deadlines.
+// Close canonical owners on partial errors; inspect Receipt for independent settlement errors.
+// Reconcile repeats stable settlement facts; Close/headers do not prove remote completion.
 package execution

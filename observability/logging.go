@@ -8,7 +8,7 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-// Outcome is a serializable summary of a route handler invocation for logging.
+// Outcome contains caller metadata; it is not automatically redacted or safe to serialize.
 type Outcome[Kind comparable, Reason comparable] struct {
 	Action routery.RouteAction
 	Kind   Kind
@@ -16,7 +16,8 @@ type Outcome[Kind comparable, Reason comparable] struct {
 	Match  routery.RouteMatch
 }
 
-// Event describes one route handler invocation.
+// Event describes one invocation and contains raw Request/Err and caller metadata.
+// PayloadMeta does not redact the rest of Event; export an explicit host projection.
 type Event[Req any, Kind comparable, Reason comparable, Payload any] struct {
 	Name        string
 	StartTime   time.Time
@@ -27,7 +28,8 @@ type Event[Req any, Kind comparable, Reason comparable, Payload any] struct {
 	Err         error
 }
 
-// EventHandler handles events produced by Logging middleware.
+// EventHandler runs synchronously and may run concurrently. It must be bounded,
+// concurrency-safe, non-panicking and observational: it never owns resource cleanup.
 type EventHandler[Req any, Kind comparable, Reason comparable, Payload any] func(
 	ctx context.Context,
 	event Event[Req, Kind, Reason, Payload],

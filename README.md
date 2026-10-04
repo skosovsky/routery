@@ -3,7 +3,8 @@
 `routery` is a zero-dependency, generic routing and resiliency library for Go.
 
 Optional execution policies are specified in [the public contract](docs/execution-contracts.md).
-The implementation checklist is [task 8](docs/task8-checklist.md). The `policy` packages
+Start with a `Router` for declarative dispatch; add `RetryIf` only with explicit replay
+permission for the operation. The `policy` packages
 compose eligibility, ranking, affinity, attempt lifecycle and host-owned quota ports;
 model facts live in the opt-in `policy/model` adapter.
 Caller changes and correctness breaks are described in [the migration guide](docs/migration.md).
@@ -22,8 +23,8 @@ explicit. Nested attempts must be accounted by the host or marked unobservable.
 attempts. Duplication needs explicit cost/replay/effect evidence; the default profile
 does not accept a stream handle or first fragment. Late results remain in its journal.
 
-Resource results carry an optional `Lifetime`. Close it (or the adapter's response
-body) when done. Parallel handlers have independent contexts; the winner's context
+Resource results carry an optional `Lifetime`. Close the canonical result Lifetime when done, including on errors. Adapter body
+Close follows its package contract; outer composition may add ownership hooks. Parallel handlers have independent contexts; the winner's context
 stays alive until its resource closes. Value payloads require no ownership hook.
 HTTP requests with bodies lacking `GetBody` must pass through `PrepareRequest`
 before retry or fan-out; handlers never mutate the original request.
@@ -123,8 +124,9 @@ policy := routery.ErrorPolicyFunc[Kind, Reason, Payload, Projection](
 
 projection, meta, err := routery.DispatchAndProject(ctx, router, req, projector, policy)
 _ = projection
-_ = meta
-_ = err
+// Consume or discard the payload before closing its canonical owner.
+err = errors.Join(err, meta.Lifetime.Close())
+_ = err // Return or handle the combined dispatch/cleanup failure.
 ```
 
 The projector owns successful result shape. The policy owns dispatch/projection/system
@@ -137,7 +139,9 @@ Mutable route registration:
 - `NewRouteSpec(...)`, `ExactRouteSpec(...)`, `PrefixRouteSpec(...)`, and `LongestPrefixRouteSpec(...)` create generic route specs.
 - `registry.Snapshot()` returns an immutable `RouteTableSnapshot`; concurrent dispatch never observes a partially rebuilt table.
 
-Observability primitives are provided in `routery/observability` via callback-based middleware. Events include action, typed kind, typed reason, `RouteMatch`, and serializable `PayloadMeta` (shape/fingerprint) for safe telemetry.
+Observability primitives are provided in `routery/observability` via callback-based middleware. Logging events include raw request/error and caller metadata. `PayloadMeta` does not
+redact the event. Use a bounded host projection; callbacks run synchronously and may
+run concurrently. Never use arbitrary IDs/request data as metric labels.
 
 ## Middleware Order
 
@@ -172,11 +176,19 @@ router, err := routery.NewRouteTable[Req, Kind, Reason, Payload]().
 if err != nil { /* ... */ }
 
 outcome, err := router.Dispatch(ctx, req)
-if err != nil { /* ... */ }
+// Handle partial results and close their canonical owner even when err != nil.
+if err != nil {
+    cleanupErr := outcome.Lifetime.Close()
+    return errors.Join(err, cleanupErr)
+}
 if outcome.HasPayload {
     _ = outcome.Payload
 }
-// Always check err before reading outcome fields.
+// After consuming or discarding the payload:
+if cleanupErr := outcome.Lifetime.Close(); cleanupErr != nil {
+    return cleanupErr
+}
+// Error results may retain payload/match/lifetime; HasPayload is not proof of success.
 // outcome.Action, outcome.Kind, outcome.Reason, outcome.Match
 ```
 
@@ -188,14 +200,14 @@ if outcome.HasPayload {
 | `Async(...)`         | `ActionStop`       | true       | Stop dispatch                          |
 | `Ignored(...)`       | `ActionStop`       | false      | Stop dispatch; fallback **not** called |
 | `Next(...)`          | `ActionNext`       | false      | Continue to next route or fallback     |
-| Handler `return err` | `ActionAbort`      | false      | Abort dispatch                         |
+| Handler `return err` | `ActionAbort`      | preserved if supplied | Abort dispatch; caller retains partial owner |
 
 Use `Next` (not `Ignore`) when a matched route should defer to the next route or table fallback.
 `ActionAbort` without a non-nil error is an invalid handler result.
 
 `FirstCompleted` selects the first parallel handler that returns a terminal payload; completion order may differ from registration order.
 
-Route table fingerprints reflect route topology (route IDs, priorities, match kinds, and static keys), not matcher function identity.
+Route table fingerprints include nested topology, routing options and classifier memoization groups; matcher/handler function identity and opaque caller implementations are excluded.
 
 ### Handler contract
 
@@ -223,3 +235,11 @@ Routing order is explicit: priority first, then prefix group/length on priority 
 then declaration order. LongestPrefixWins moves the complete prefix group first,
 ordered by length then priority. See [routing contracts](docs/routing-contracts.md)
 for recursive topology fingerprints, breaker generations and task-scoped quality.
+
+Host integrations can run [quotatest](policy/quota/quotatest/suite.go) with their own
+fixture/types. [Conformance contracts](docs/conformance-contracts.md) explain required
+checks, unsupported faults and storage-restart limits. Executable [lifecycle examples](policy/execution/lifecycle_example_test.go)
+show a minimal model value and an ordinary partial resource, bounded cleanup, permit
+ownership, unknown outcome and late settlement. `Lifetime.Close` reports resource cleanup;
+`Receipt.Snapshot` reports settlement errors and `Receipt.Reconcile` retries the stable
+settlement identity. Always handle both; closing a resource does not prove remote completion.

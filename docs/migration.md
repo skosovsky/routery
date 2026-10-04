@@ -302,3 +302,19 @@ Topology fingerprints change format and include nested tables, options, fallback
 and decision thresholds. Refresh stored bindings against new topology fingerprints;
 there is no automatic rebind or compatibility ordering mode. Optional model quality
 with another/missing task is removed before rank, including mismatched defaults.
+
+## Host conformance and observation
+
+Opt-in policy/quota/quotatest accepts unrelated host types and independent-client
+fixtures; reports unsupported fault injection separately from passing evidence.
+It adds no runtime store or SDK dependency. Logging/metrics Event metadata is raw,
+not a redacted serialization format: synchronous callbacks must be bounded, concurrent-safe
+and non-panicking, exporting explicit projections. OTel defaults remain private; only
+host allowlisted IDs belong in traces, never arbitrary metric labels. Invocation spans
+end on return; applications may explicitly create separate lifecycle spans/events.
+
+README now documents retained partial payload/owner on errors. Close canonical owners
+even when dispatch failed, then inspect Receipt settlement errors separately and retry
+Receipt.Reconcile with stable identity when the host policy permits. Public contracts
+for execution authorization, adapter replay and routing topology are the final breaking
+APIs from tasks09–11; no legacy wrapper, order mode or implicit rebind is provided.

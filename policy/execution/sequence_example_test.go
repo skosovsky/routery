@@ -2,6 +2,7 @@ package execution_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -65,11 +66,11 @@ func ExampleSequence_resourceResult() {
 		},
 	)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(errors.Join(err, result.Last.Route.Lifetime.Close(), receiptFailure(result.Last.Receipt)))
 		return
 	}
 	data, readErr := io.ReadAll(result.Last.Route.Payload)
-	closeErr := result.Last.Route.Lifetime.Close()
+	closeErr := errors.Join(result.Last.Route.Lifetime.Close(), receiptFailure(result.Last.Receipt))
 	// Assert.
 	fmt.Println(string(data), readErr, closeErr)
 	// Output: contents <nil> <nil>

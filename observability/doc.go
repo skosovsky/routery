@@ -1,5 +1,5 @@
-// Package observability provides generic logging and metrics middlewares for routery.
-//
-// Events include [Event.Outcome] with action, typed kind, typed reason, and route metadata,
-// plus serializable [PayloadMeta] for safe telemetry.
+// Package observability provides optional callback-based logging and metrics.
+// Callbacks are synchronous, potentially concurrent, bounded and non-panicking by contract.
+// Event contains raw Request/Err and caller metadata; PayloadMeta does not redact it.
+// Export explicit bounded projections. Observers do not own resources or settlement.
 package observability
