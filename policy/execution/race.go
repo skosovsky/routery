@@ -43,7 +43,9 @@ type RaceEntry[Kind comparable, Reason comparable, Payload any] struct {
 	Accepted bool
 }
 
-// Journal retains synchronized accounting references without publishing any result data.
+// Journal retains raw in-process results, errors and shared resource pointers.
+// Entries are borrowed read-only views, not a safe telemetry projection. Hosts must
+// project and redact data before exporting it and must respect canonical ownership.
 // Snapshots are not completion barriers; provider callbacks may return late or never.
 type Journal[Kind comparable, Reason comparable, Payload any] struct {
 	mu      sync.Mutex
@@ -125,7 +127,7 @@ func (race Race[Req, Kind, Reason, Payload]) Run(
 			return race.worker(call.Context, coordinator, control, journal)
 		}
 	}
-	winner, err := routery.FirstCompleted(handlers...)(routery.NewRouteCall(ctx, struct{}{}))
+	winner, err := routery.FirstSuccessfulPayload(handlers...)(routery.NewRouteCall(ctx, struct{}{}))
 	if fatalErr := control.failure(); fatalErr != nil {
 		return result, errors.Join(fatalErr, err, winner.Lifetime.Close())
 	}

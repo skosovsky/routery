@@ -149,9 +149,6 @@ func TestDefaultRetryPolicyStatusMethodMatrix(t *testing.T) {
 			}
 
 			wantCloses := int32(0)
-			if tc.wantRetry {
-				wantCloses = 1
-			}
 			if got := closeCounter.closes.Load(); got != wantCloses {
 				t.Fatalf("unexpected close count: got %d, want %d", got, wantCloses)
 			}
@@ -555,4 +552,43 @@ func (transport *scriptedRoundTripper) RoundTrip(*stdhttp.Request) (*stdhttp.Res
 		Status:     "200 OK",
 		Body:       io.NopCloser(strings.NewReader("ok")),
 	}, nil
+}
+
+func TestRetryPolicyVetoRetainsFinalBody(t *testing.T) {
+	for _, explicit := range []bool{false, true} {
+		// Arrange.
+		request := replayableRequest(t, stdhttp.MethodGet, true)
+		if explicit {
+			request.Method = stdhttp.MethodPost
+		}
+		body := &trackingReadCloser{}
+		response := &stdhttp.Response{StatusCode: stdhttp.StatusServiceUnavailable, Body: body}
+		statusErr := &StatusError{Request: request, Response: response, Code: response.StatusCode}
+		owner := routery.NewLifetime(body.Close)
+		policy := routery.RetryPredicate[*stdhttp.Request](DefaultRetryPolicy)
+		if explicit {
+			policy = RetryPolicy(
+				func(context.Context, *stdhttp.Request, error) ReplaySafety { return VerifiedDeduplication },
+			)
+		}
+		calls := 0
+		handler := routery.RetryIf[*stdhttp.Request, routery.BasicKind, routery.BasicReason, *stdhttp.Response](2, 0,
+			func(ctx context.Context, req *stdhttp.Request, err error) bool { return policy(ctx, req, err) && false },
+		)(func(routery.RouteCall[*stdhttp.Request]) (routery.BasicRouteResult[*stdhttp.Response], error) {
+			calls++
+			result := routery.BasicHandled(response)
+			result.Lifetime = owner
+			return result, statusErr
+		})
+		// Act.
+		result, err := handler(routery.NewRouteCall(t.Context(), request))
+		// Assert.
+		if !errors.Is(err, statusErr) || calls != 1 || body.closes.Load() != 0 || result.Lifetime != owner {
+			t.Fatalf("closed=%d calls=%d result=%+v err=%v", body.closes.Load(), calls, result, err)
+		}
+		_ = result.Lifetime.Close()
+		if body.closes.Load() != 1 {
+			t.Fatal("final owner did not close exactly once")
+		}
+	}
 }

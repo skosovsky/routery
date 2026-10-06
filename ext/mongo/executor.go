@@ -70,11 +70,11 @@ func NewInsertOneRouteHandler(
 			opts = append(opts, call.Request.Options)
 		}
 		result, err := coll.InsertOne(call.Context, call.Request.Document, opts...)
-		if err != nil {
+		if err != nil && result == nil {
 			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *mongo.InsertOneResult](), err
 		}
 
-		return routery.BasicHandled(result), nil
+		return routery.BasicHandled(result), err
 	}
 }
 
@@ -90,11 +90,11 @@ func NewUpdateOneRouteHandler(coll UpdateOneRunner) routery.BasicRouteHandler[Up
 			opts = append(opts, call.Request.Options)
 		}
 		result, err := coll.UpdateOne(call.Context, call.Request.Filter, call.Request.Update, opts...)
-		if err != nil {
+		if err != nil && result == nil {
 			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *mongo.UpdateResult](), err
 		}
 
-		return routery.BasicHandled(result), nil
+		return routery.BasicHandled(result), err
 	}
 }
 
@@ -110,11 +110,11 @@ func NewDeleteOneRouteHandler(coll DeleteOneRunner) routery.BasicRouteHandler[De
 			opts = append(opts, call.Request.Options)
 		}
 		result, err := coll.DeleteOne(call.Context, call.Request.Filter, opts...)
-		if err != nil {
+		if err != nil && result == nil {
 			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *mongo.DeleteResult](), err
 		}
 
-		return routery.BasicHandled(result), nil
+		return routery.BasicHandled(result), err
 	}
 }
 

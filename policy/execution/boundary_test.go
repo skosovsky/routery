@@ -322,3 +322,42 @@ func TestBoundaryUniqueIdentityAndBudget(t *testing.T) {
 		t.Fatalf("duplicate=%v exhausted=%+v calls=%d", duplicateErr, exhausted, calls.Load())
 	}
 }
+
+func TestPartialAdmissionErrorRetainsFinishAndReconciliation(t *testing.T) {
+	// Arrange.
+	coordinator, identity := setup(t)
+	reserveErr, finishErr := errors.New("post-reservation error"), errors.New("lost finish ack")
+	calls, dispatched := 0, false
+	boundary := testBoundary{
+		Fresh: func(context.Context, string) error { return nil },
+		Admit: func(context.Context, string, attempt.Identity) (Admission, error) {
+			return Admission{Status: quota.Admitted, Finish: func(_ context.Context, event attempt.Event) error {
+				calls++
+				if event.Outcome != attempt.NotExecuted || event.Identity != identity {
+					t.Errorf("wrong cleanup proof: %+v", event)
+				}
+				if calls == 1 {
+					return finishErr
+				}
+				return nil
+			}}, reserveErr
+		},
+		Dispatch: func(routery.RouteCall[string], *Receipt) (routery.BasicRouteResult[string], error) {
+			dispatched = true
+			return routery.BasicHandled("bad"), nil
+		},
+		CleanupContext: cleanupContext,
+	}
+	// Act.
+	result, err := boundary.Run(routery.NewRouteCall(t.Context(), "request"), coordinator, identity)
+	// Assert.
+	if dispatched || result.Started || calls != 1 || !errors.Is(err, reserveErr) || !errors.Is(err, finishErr) {
+		t.Fatalf("calls=%d result=%+v err=%v", calls, result, err)
+	}
+	// Act.
+	err = result.Receipt.Reconcile()
+	// Assert.
+	if err != nil || calls != 2 {
+		t.Fatalf("reconcile calls=%d err=%v", calls, err)
+	}
+}

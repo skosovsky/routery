@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"strings"
 
 	"github.com/skosovsky/routery"
 	"github.com/skosovsky/routery/policy/attempt"
@@ -37,9 +36,18 @@ func IsTransientError(err error) bool {
 	}
 
 	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
-		code := strings.ToLower(apiErr.ErrorCode())
-		if strings.Contains(code, "slowdown") || strings.Contains(code, "503") {
+		switch apiErr.ErrorCode() {
+		case "SlowDown",
+			"Throttling",
+			"ThrottlingException",
+			"RequestLimitExceeded",
+			"RequestTimeout",
+			"RequestTimeoutException",
+			"InternalError",
+			"InternalFailure",
+			"ServiceUnavailable":
 			return true
+		default:
 		}
 	}
 
@@ -57,12 +65,6 @@ func IsTransientError(err error) bool {
 
 	var ne net.Error
 	if errors.As(err, &ne) && ne.Timeout() {
-		return true
-	}
-
-	msg := strings.ToLower(err.Error())
-	if strings.Contains(msg, "slow down") || strings.Contains(msg, "slowdown") ||
-		strings.Contains(msg, "throttl") {
 		return true
 	}
 

@@ -92,7 +92,7 @@ func assertDiscardedNext(t *testing.T, name string, result BasicRouteResult[int]
 
 func TestInvalidResultRetainsPartialPayloadAndOwnership(t *testing.T) {
 	for _, action := range []RouteAction{ActionAbort, RouteAction("unknown")} {
-		for _, boundary := range []string{"invoke", "chain", "router", "fallback", "first completed"} {
+		for _, boundary := range []string{"invoke", "chain", "router", "fallback", "first successful payload"} {
 			t.Run(string(action)+"/"+boundary, func(t *testing.T) { checkInvalidOwnedResult(t, action, boundary) })
 		}
 	}
@@ -132,8 +132,8 @@ func invokeOwnedValidationBoundary(
 		return InvokeRouteHandler(t.Context(), 0, leaf)
 	case "chain":
 		return InvokeRouteHandler(t.Context(), 0, Chain(leaf))
-	case "first completed":
-		return InvokeRouteHandler(t.Context(), 0, FirstCompleted(leaf))
+	case "first successful payload":
+		return InvokeRouteHandler(t.Context(), 0, FirstSuccessfulPayload(leaf))
 	default:
 		table := NewBasicRouteTable[int, int]()
 		if boundary == "fallback" {

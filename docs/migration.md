@@ -1,4 +1,32 @@
-# Migration to explicit execution policy
+# Migration
+
+## v0.5.0 → task13 / next breaking release (unreleased)
+
+This checkout contains unreleased correctness and API changes. No version has been
+published by task13. Use matching root/adapter versions after a separate release.
+
+| Previous API/behavior | Caller migration |
+| --- | --- |
+| Async(kind, reason, payload), BasicAsync(payload, reason) | Handled(kind, reason, payload); use caller async Kind or BasicKindAsync |
+| FirstCompleted | FirstSuccessfulPayload; an open stream is a payload, not completed computation |
+| ErrTooManyRequests | ErrBulkheadFull |
+| Redis CommandExtractor and NewRouteHandler(client, extractor, scan) | CommandInvoker and NewRouteHandler(invoker, scan); similarly remove client from NewStringRouteHandler |
+| policy.Dispatch zero,nil for absent selection | Handle Status before dispatch or errors.Is(err, policy.ErrNoSelection) |
+| Negative RetryIf/Timeout/gRPC options silently normalized | Fix invalid configuration; zero remains documented default |
+| Decision confidence outside finite [0,1] accepted | Normalize valid scores explicitly; handle ErrInvalidConfig / InvalidConfidenceError |
+| Slash-joined binding fingerprint | Regenerate stored snapshots/fingerprints; path encoding now preserves boundaries |
+| Retry predicates close HTTP response bodies | Return canonical response Lifetime from handlers; executor closes only discarded intermediate bodies |
+| Ignored cleanup errors permit another attempt | Handle joined cleanup error and retained partial owner; no next attempt runs |
+| OnClose registrations during cleanup execute immediately | Hooks now follow cleanup completion; avoid same-owner recursive Close |
+| Empty admission error loses Finish | Supply idempotent Finish even on partial admission error; retain unknown reserve ack pending |
+| Quota idempotent repeat can ignore cancelled context | Cancelled waiters return context errors; State remains readable during backend I/O |
+| Affinity ineligibility looks like caller eligibility rejection | Read DomainEligible/Rejection separately from caller Reason |
+| Evaluation later than context deadline | Callbacks now receive earliest nonzero deadline, including ValidatePinned |
+| Mongo write result disappears on error | Inspect nonnil partial payload and original error; IDs/counts do not prove durability/replay permission |
+
+See [API choices](api-choices.md) for every keep/change rationale and the entry-point table.
+
+## v0.5.0: explicit execution policy
 
 This is a clear break. Do not retain compatibility wrappers that restore unsafe
 retry, lazy request mutation or automatic stream cancellation. Simple typed
@@ -150,7 +178,7 @@ must not reenter the same Receipt. Settlement errors still block new authorizati
 
 Before: returning a streaming winner cancelled the context needed to read it.
 
-Now: `RouteResult.Lifetime` owns cleanup; `FirstCompleted` transfers winner
+Now: `RouteResult.Lifetime` owns cleanup; `FirstSuccessfulPayload` transfers winner
 ownership and cancels/cleans losers. Close the lifetime when finished, including
 partial results returned with errors. Generic value results need no lifetime.
 For HTTP/object responses the adapter links body close to lifetime close. For

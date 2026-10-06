@@ -18,9 +18,7 @@ func TestLostResponseReplayEvidence(t *testing.T) {
 			t.Parallel()
 			// Arrange: fixture's dedup flag models a verified endpoint guarantee.
 			calls, effects := 0, 0
-			client := redis.NewClient(&redis.Options{Addr: "unused", MaxRetries: -1})
-			defer client.Close()
-			base := NewStringRouteHandler(client, func(context.Context, int) (redis.Cmder, error) {
+			base := NewStringRouteHandler(func(context.Context, int) (redis.Cmder, error) {
 				calls++
 				if !safe || effects == 0 {
 					effects++

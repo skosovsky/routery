@@ -243,6 +243,7 @@ func decisionTableMatcher[Req any, Action comparable, Reason comparable](
 		kind:         MatchKindTable,
 		staticKey:    FingerprintSHA256([]byte(topologyKey(expected)), []byte(decisionTopology(group))),
 		prefixLength: 0,
+		configErr:    nil,
 		match: func(call RouteCall[Req]) (routeMatchData, bool, error) {
 			if group == nil || group.table == nil {
 				return routeMatchData{}, false, configError("decision table is nil")

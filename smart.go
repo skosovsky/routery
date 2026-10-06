@@ -42,22 +42,28 @@ func PredicateFallback[Req any, Kind comparable, Reason comparable, Payload any]
 		}
 
 		if cancelErr := call.Context.Err(); cancelErr != nil {
-			_ = result.Lifetime.Close()
-			return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), cancelErr
+			result.Action = ActionAbort
+			return result, errors.Join(err, cancelErr)
 		}
-		_ = result.Lifetime.Close()
+		if closed, closeErr := discardResult(result, err); closeErr != nil {
+			return closed, closeErr
+		}
+		if cancelErr := call.Context.Err(); cancelErr != nil {
+			result.Action = ActionAbort
+			return result, errors.Join(err, cancelErr)
+		}
 		return secondary(call)
 	}
 }
 
-// FirstCompleted runs route handlers in parallel and returns the first successful payload result.
+// FirstSuccessfulPayload runs route handlers in parallel and returns the first successful payload result.
 //
 // A handler wins only when it returns nil and returns a payload. Terminal results without
 // payload and ActionNext do not win. Completion order wins, not registration order.
-func FirstCompleted[Req any, Kind comparable, Reason comparable, Payload any](
+func FirstSuccessfulPayload[Req any, Kind comparable, Reason comparable, Payload any](
 	handlers ...RouteHandler[Req, Kind, Reason, Payload],
 ) RouteHandler[Req, Kind, Reason, Payload] {
-	validated, err := validateRouteHandlers(handlers, "first completed")
+	validated, err := validateRouteHandlers(handlers, "first successful payload")
 	if err != nil {
 		return invalidRouteHandler[Req, Kind, Reason, Payload](err)
 	}
@@ -97,11 +103,11 @@ func FirstCompleted[Req any, Kind comparable, Reason comparable, Payload any](
 			close(results)
 		}()
 
-		return collectFirstCompletedResult(call.Context, results, cancels)
+		return collectFirstSuccessfulPayloadResult(call.Context, results, cancels)
 	}
 }
 
-func collectFirstCompletedResult[Kind comparable, Reason comparable, Payload any](
+func collectFirstSuccessfulPayloadResult[Kind comparable, Reason comparable, Payload any](
 	ctx context.Context,
 	results <-chan firstCompletedResult[Kind, Reason, Payload],
 	cancels []context.CancelFunc,
@@ -110,11 +116,11 @@ func collectFirstCompletedResult[Kind comparable, Reason comparable, Payload any
 	var last RouteResult[Kind, Reason, Payload]
 	winner := -1
 	defer func() {
-		releaseFirstCompleted(cancels, winner, results)
+		releaseFirstSuccessfulPayload(cancels, winner, results)
 	}()
 
 	for {
-		result, ok, readErr := readFirstCompleted(ctx, results)
+		result, ok, readErr := readFirstSuccessfulPayload(ctx, results)
 		if readErr != nil {
 			return AbortResult[Kind, Reason, Payload](), readErr
 		}
@@ -148,7 +154,7 @@ func collectFirstCompletedResult[Kind comparable, Reason comparable, Payload any
 	}
 }
 
-func releaseFirstCompleted[Kind comparable, Reason comparable, Payload any](
+func releaseFirstSuccessfulPayload[Kind comparable, Reason comparable, Payload any](
 	cancels []context.CancelFunc,
 	winner int,
 	results <-chan firstCompletedResult[Kind, Reason, Payload],
@@ -165,7 +171,7 @@ func releaseFirstCompleted[Kind comparable, Reason comparable, Payload any](
 	}()
 }
 
-func readFirstCompleted[Kind comparable, Reason comparable, Payload any](
+func readFirstSuccessfulPayload[Kind comparable, Reason comparable, Payload any](
 	ctx context.Context,
 	results <-chan firstCompletedResult[Kind, Reason, Payload],
 ) (firstCompletedResult[Kind, Reason, Payload], bool, error) {

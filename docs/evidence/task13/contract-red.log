@@ -1,0 +1,24 @@
+--- FAIL: TestPartialAdmissionErrorRetainsFinishAndReconciliation (0.00s)
+    boundary_test.go:344: calls=0 result={Route:{Action:abort Kind: Reason: Payload: HasPayload:false Match:{RouteID: Path:[] Priority:0 Depth:0 Kind: Key: Prefix: Remainder: DecisionReason:<nil> HasDecisionReason:false} Lifetime:<nil>} Admission:1 RetryAt:0001-01-01 00:00:00 +0000 UTC Receipt:0x26cbe9510240 Started:false BudgetExhausted:false} err=post-reservation error
+FAIL
+FAIL	github.com/skosovsky/routery/policy/execution	0.376s
+--- FAIL: TestCallbacksReceiveEffectiveDeadline (0.00s)
+    --- FAIL: TestCallbacksReceiveEffectiveDeadline/zero (0.00s)
+        selection_test.go:322: deadline=0001-01-01 00:00:00 +0000 UTC want=2026-10-06 13:01:24.759812 +0700 +07 m=+3600.000857167
+        selection_test.go:322: deadline=0001-01-01 00:00:00 +0000 UTC want=2026-10-06 13:01:24.759812 +0700 +07 m=+3600.000857167
+        selection_test.go:322: deadline=0001-01-01 00:00:00 +0000 UTC want=2026-10-06 13:01:24.759812 +0700 +07 m=+3600.000857167
+        selection_test.go:322: deadline=0001-01-01 00:00:00 +0000 UTC want=2026-10-06 13:01:24.759812 +0700 +07 m=+3600.000857167
+        selection_test.go:322: deadline=0001-01-01 00:00:00 +0000 UTC want=2026-10-06 13:01:24.759812 +0700 +07 m=+3600.000857167
+        selection_test.go:322: deadline=0001-01-01 00:00:00 +0000 UTC want=2026-10-06 13:01:24.759812 +0700 +07 m=+3600.000857167
+        selection_test.go:322: deadline=0001-01-01 00:00:00 +0000 UTC want=2026-10-06 13:01:24.759812 +0700 +07 m=+3600.000857167
+    --- FAIL: TestCallbacksReceiveEffectiveDeadline/context-first (0.00s)
+        selection_test.go:322: deadline=2026-10-06 14:01:24.760056 +0700 +07 m=+7200.001101626 want=2026-10-06 13:01:24.760056 +0700 +07 m=+3600.001101626
+        selection_test.go:322: deadline=2026-10-06 14:01:24.760056 +0700 +07 m=+7200.001101626 want=2026-10-06 13:01:24.760056 +0700 +07 m=+3600.001101626
+        selection_test.go:322: deadline=2026-10-06 14:01:24.760056 +0700 +07 m=+7200.001101626 want=2026-10-06 13:01:24.760056 +0700 +07 m=+3600.001101626
+        selection_test.go:322: deadline=2026-10-06 14:01:24.760056 +0700 +07 m=+7200.001101626 want=2026-10-06 13:01:24.760056 +0700 +07 m=+3600.001101626
+        selection_test.go:322: deadline=2026-10-06 14:01:24.760056 +0700 +07 m=+7200.001101626 want=2026-10-06 13:01:24.760056 +0700 +07 m=+3600.001101626
+        selection_test.go:322: deadline=2026-10-06 14:01:24.760056 +0700 +07 m=+7200.001101626 want=2026-10-06 13:01:24.760056 +0700 +07 m=+3600.001101626
+        selection_test.go:322: deadline=2026-10-06 14:01:24.760056 +0700 +07 m=+7200.001101626 want=2026-10-06 13:01:24.760056 +0700 +07 m=+3600.001101626
+FAIL
+FAIL	github.com/skosovsky/routery/policy	0.366s
+FAIL

@@ -54,7 +54,7 @@ func TestGetWinnerOwnsStreamUntilClose(t *testing.T) {
 	// Arrange.
 	body := &contextBody{reader: strings.NewReader("complete object")}
 	api := &ownedGet{body: body}
-	handler := routery.FirstCompleted(NewGetObjectRouteHandler(api))
+	handler := routery.FirstSuccessfulPayload(NewGetObjectRouteHandler(api))
 	// Act.
 	result, err := routery.InvokeRouteHandler(context.Background(), &s3.GetObjectInput{}, handler)
 	if err != nil {

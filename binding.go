@@ -2,7 +2,6 @@ package routery
 
 import (
 	"fmt"
-	"strings"
 )
 
 // RouteBinding carries a caller-owned branch and payload together with an auditable snapshot.
@@ -95,14 +94,15 @@ func cloneRouteMatch(match RouteMatch) RouteMatch {
 }
 
 func fingerprintBindingSnapshot(snapshot RouteBindingSnapshot) string {
-	path := make([]string, 0, len(snapshot.Match.Path))
+	path := make([][]byte, 0, len(snapshot.Match.Path)+1)
+	path = append(path, fmt.Append(nil, len(snapshot.Match.Path)))
 	for _, id := range snapshot.Match.Path {
-		path = append(path, string(id))
+		path = append(path, []byte(id))
 	}
 
 	return FingerprintSHA256(
 		[]byte(string(snapshot.Match.RouteID)),
-		[]byte(strings.Join(path, "/")),
+		[]byte(FingerprintSHA256(path...)),
 		fmt.Append(nil, snapshot.Match.Priority),
 		fmt.Append(nil, snapshot.Match.Depth),
 		[]byte(string(snapshot.Match.Kind)),

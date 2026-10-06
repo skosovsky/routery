@@ -106,9 +106,12 @@ const (
 	FailOpen
 )
 
-// Session synchronizes settlement of one handle, without replacing durable backend state.
+// Session serializes settlement with context-aware waiters and a short state mutex.
+// Backend callbacks may read State but must not reenter Settle/Release synchronously.
+// In-flight I/O reports Pending until acknowledgement; durable state belongs to Backend.
 type Session[Scope comparable, Unit comparable, Handle comparable, Reason comparable] struct {
 	mu          sync.Mutex
+	serial      chan struct{}
 	backend     Backend[Scope, Unit, Handle, Reason]
 	request     ReserveRequest[Scope, Unit]
 	reservation Reservation[Handle, Reason]
@@ -150,7 +153,7 @@ func Admit[Scope comparable, Unit comparable, Handle comparable, Reason comparab
 		return reservation, nil, nil
 	}
 	session := &Session[Scope, Unit, Handle, Reason]{
-		mu: sync.Mutex{}, backend: backend, request: request, reservation: reservation,
+		mu: sync.Mutex{}, serial: make(chan struct{}, 1), backend: backend, request: request, reservation: reservation,
 		state: Reserved, settlement: nil, release: nil,
 	}
 	return reservation, session, nil
@@ -171,6 +174,10 @@ func (session *Session[Scope, Unit, Handle, Reason]) Settle(
 	actual map[Unit]uint64,
 	complete bool,
 ) error {
+	if err := session.acquire(ctx); err != nil {
+		return err
+	}
+	defer func() { <-session.serial }()
 	session.mu.Lock()
 	defer session.mu.Unlock()
 	if id == "" || session.release != nil {
@@ -197,11 +204,13 @@ func (session *Session[Scope, Unit, Handle, Reason]) Settle(
 		}
 	}
 	session.settlement = &next
+	session.state = Pending
 	if !complete {
-		session.state = Pending
-		return session.backend.Pending(ctx, cloneSettlement(next))
+		return session.callBackend(func() error { return session.backend.Pending(ctx, cloneSettlement(next)) })
 	}
-	if err := session.backend.Commit(ctx, cloneSettlement(next)); err != nil {
+	if err := session.callBackend(
+		func() error { return session.backend.Commit(ctx, cloneSettlement(next)) },
+	); err != nil {
 		session.state = Pending
 		return err
 	}
@@ -214,6 +223,10 @@ func (session *Session[Scope, Unit, Handle, Reason]) Release(
 	ctx context.Context,
 	proof ReleaseProof[Handle, Reason],
 ) error {
+	if err := session.acquire(ctx); err != nil {
+		return err
+	}
+	defer func() { <-session.serial }()
 	session.mu.Lock()
 	defer session.mu.Unlock()
 	if proof.Handle != session.reservation.Handle || proof.ID == "" || !proof.NotExecuted {
@@ -229,7 +242,8 @@ func (session *Session[Scope, Unit, Handle, Reason]) Release(
 		return nil
 	}
 	session.release = &proof
-	if err := session.backend.Release(ctx, proof); err != nil {
+	session.state = Pending
+	if err := session.callBackend(func() error { return session.backend.Release(ctx, proof) }); err != nil {
 		session.state = Pending
 		return err
 	}
@@ -245,4 +259,28 @@ func cloneRequest[Scope comparable, Unit comparable](request ReserveRequest[Scop
 func cloneSettlement[Handle comparable, Unit comparable](settlement Settlement[Handle, Unit]) Settlement[Handle, Unit] {
 	settlement.Actual = maps.Clone(settlement.Actual)
 	return settlement
+}
+
+// acquire serializes transitions while allowing a waiter to cancel independently.
+func (session *Session[Scope, Unit, Handle, Reason]) acquire(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case session.serial <- struct{}{}:
+	}
+	if err := ctx.Err(); err != nil {
+		<-session.serial
+		return err
+	}
+	return nil
+}
+
+// callBackend temporarily releases the state lock, including when the callback panics.
+func (session *Session[Scope, Unit, Handle, Reason]) callBackend(call func() error) error {
+	session.mu.Unlock()
+	defer session.mu.Lock()
+	return call()
 }

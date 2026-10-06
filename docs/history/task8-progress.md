@@ -149,7 +149,7 @@ evidence assessment in the checklist. `admission_failure_test.go` verifies defin
 fail-open is explicitly Unreserved, fail-closed/unknown acknowledgement never
 dispatch, and physical identity survives. `lifetime_test.go` covers every failed
 FirstCompleted branch owning a resource, exactly-once cleanup and cancelled contexts.
-`docs/task8-closeout.md` now supplies applicability/evidence matrix and an unpublished
+`docs/history/task8-closeout.md` now supplies applicability/evidence matrix and an unpublished
 author-facing migration draft covering all cards and bugs. Current full-module
 make lint and make test passed. No release or issue write was performed.
 

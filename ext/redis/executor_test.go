@@ -12,38 +12,14 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-func TestNewRouteHandlerNilClient(t *testing.T) {
-	t.Parallel()
-	ex := NewRouteHandler[int, string](
-		nil,
-		func(context.Context, int) (redis.Cmder, error) {
-			panic("unreachable")
-		},
-		nil,
-	)
-	_, err := routery.InvokeRouteHandler(context.Background(), 0, ex)
+func TestNewRouteHandlerNilInvoker(t *testing.T) {
+	// Arrange.
+	handler := NewRouteHandler[int, string](nil, func(context.Context, redis.Cmder) (string, error) { return "", nil })
+	// Act.
+	_, err := routery.InvokeRouteHandler(t.Context(), 0, handler)
+	// Assert.
 	if !errors.Is(err, routery.ErrInvalidConfig) {
-		t.Fatalf("want ErrInvalidConfig, got %v", err)
-	}
-}
-
-func TestNewRouteHandlerNilExtractor(t *testing.T) {
-	t.Parallel()
-	mr, err := miniredis.Run()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(mr.Close)
-	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-
-	ex := NewRouteHandler[int, string](
-		client,
-		nil,
-		func(context.Context, redis.Cmder) (string, error) { return "", nil },
-	)
-	_, err = routery.InvokeRouteHandler(context.Background(), 0, ex)
-	if !errors.Is(err, routery.ErrInvalidConfig) {
-		t.Fatalf("want ErrInvalidConfig, got %v", err)
+		t.Fatalf("err=%v", err)
 	}
 }
 
@@ -56,7 +32,7 @@ func TestNewRouteHandlerNilScan(t *testing.T) {
 	t.Cleanup(mr.Close)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 
-	ex := NewRouteHandler[int, string](client, func(context.Context, int) (redis.Cmder, error) {
+	ex := NewRouteHandler[int, string](func(context.Context, int) (redis.Cmder, error) {
 		return client.Get(context.Background(), "k"), nil
 	}, nil)
 	_, err = routery.InvokeRouteHandler(context.Background(), 0, ex)
@@ -75,7 +51,7 @@ func TestNewRouteHandlerGetHit(t *testing.T) {
 	_ = mr.Set("k", "v")
 
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	ex := NewStringRouteHandler(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
+	ex := NewStringRouteHandler(func(ctx context.Context, _ int) (redis.Cmder, error) {
 		return client.Get(ctx, "k"), nil
 	})
 
@@ -94,7 +70,7 @@ func TestNewRouteHandlerGetMiss(t *testing.T) {
 	t.Cleanup(mr.Close)
 
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	ex := NewStringRouteHandler(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
+	ex := NewStringRouteHandler(func(ctx context.Context, _ int) (redis.Cmder, error) {
 		return client.Get(ctx, "missing"), nil
 	})
 
@@ -106,18 +82,11 @@ func TestNewRouteHandlerGetMiss(t *testing.T) {
 
 func TestNewRouteHandlerExtractorError(t *testing.T) {
 	t.Parallel()
-	mr, err := miniredis.Run()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(mr.Close)
-	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-
 	want := errors.New("extract fail")
-	ex := NewStringRouteHandler(client, func(context.Context, int) (redis.Cmder, error) {
+	ex := NewStringRouteHandler(func(context.Context, int) (redis.Cmder, error) {
 		return nil, want
 	})
-	_, err = routery.InvokeRouteHandler(context.Background(), 0, ex)
+	_, err := routery.InvokeRouteHandler(context.Background(), 0, ex)
 	if !errors.Is(err, want) {
 		t.Fatalf("got %v", err)
 	}
@@ -130,9 +99,8 @@ func TestNewRouteHandlerNilCmdFromExtractor(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(mr.Close)
-	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 
-	ex := NewStringRouteHandler(client, func(context.Context, int) (redis.Cmder, error) {
+	ex := NewStringRouteHandler(func(context.Context, int) (redis.Cmder, error) {
 		return nil, nil //nolint:nilnil // exercise nil command after successful extraction
 	})
 	_, err = routery.InvokeRouteHandler(context.Background(), 0, ex)
@@ -150,7 +118,7 @@ func TestNewStringRouteHandlerWrongCmdType(t *testing.T) {
 	t.Cleanup(mr.Close)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 
-	ex := NewStringRouteHandler(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
+	ex := NewStringRouteHandler(func(ctx context.Context, _ int) (redis.Cmder, error) {
 		return client.Set(ctx, "a", "b", 0), nil
 	})
 	_, err = routery.InvokeRouteHandler(context.Background(), 0, ex)
@@ -169,7 +137,7 @@ func TestRouteHandlerConcurrent(t *testing.T) {
 	_ = mr.Set("n", "0")
 
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	ex := NewStringRouteHandler(client, func(ctx context.Context, _ int) (redis.Cmder, error) {
+	ex := NewStringRouteHandler(func(ctx context.Context, _ int) (redis.Cmder, error) {
 		return client.Get(ctx, "n"), nil
 	})
 

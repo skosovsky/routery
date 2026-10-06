@@ -146,7 +146,7 @@ func observeLifecycleWithSettlementFailure(ids correlation, firstFailure error) 
 	evidence.invocationEnded = len(exporter.snapshot()) == 1
 	evidence.ownerOpen = evidence.closes == 0 && evidence.settlements == 0
 	_, blockedErr := routery.InvokeRouteHandler(ctx, "synthetic-private-request", limited)
-	evidence.permitHeld = errors.Is(blockedErr, routery.ErrTooManyRequests)
+	evidence.permitHeld = errors.Is(blockedErr, routery.ErrBulkheadFull)
 	lifecycle.AddEvent("stream.open", trace.WithAttributes(attribute.String("host.outcome", "unknown")))
 	closeErr := result.Route.Lifetime.Close()        // Application owns cleanup on partial+error.
 	_, _, settlementErr := result.Receipt.Snapshot() // Preserve failure before a late Finish replaces it.

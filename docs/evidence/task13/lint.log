@@ -1,0 +1,18 @@
+golangci-lint - .
+0 issues.
+golangci-lint - ./ext/s3
+0 issues.
+golangci-lint - ./ext/grpc
+0 issues.
+golangci-lint - ./ext/redis
+0 issues.
+golangci-lint - ./ext/otel
+0 issues.
+golangci-lint - ./ext/http
+0 issues.
+golangci-lint - ./ext/kafka
+0 issues.
+golangci-lint - ./ext/mongo
+0 issues.
+golangci-lint - ./ext/sql
+0 issues.

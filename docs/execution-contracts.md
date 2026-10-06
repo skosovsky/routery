@@ -15,7 +15,7 @@ lifetime after consuming or discarding the projection, even when an error is
 returned. Projectors and error policies borrow the canonical result; any projected
 resource shares its lifetime, rather than acquiring a second independent owner.
 
-`FirstCompleted` uses per-branch contexts, cancels losers, cleans discarded/late owned results, and transfers the winner context to its lifetime. It has no model semantics. Safe acceptance, replay permissions, per-branch admission and attempt accounting are opt-in execution policy. Generic `Timeout` likewise attaches its cancellation to an owned result instead of cancelling a live stream on return.
+`FirstSuccessfulPayload` uses per-branch contexts, cancels losers, cleans discarded/late owned results, and transfers the winner context to its lifetime. It has no model semantics. Safe acceptance, replay permissions, per-branch admission and attempt accounting are opt-in execution policy. Generic `Timeout` likewise attaches its cancellation to an owned result instead of cancelling a live stream on return.
 
 HTTP `Timeout` is a typed specialization of generic `Timeout`, not a separate
 body-ownership mechanism. Custom HTTP resource handlers must attach a Lifetime;
@@ -61,7 +61,7 @@ output/body objects for each invocation. Headers do not end a streaming lifetime
 
 Core validation errors preserve the canonical partial result, payload metadata and
 Lifetime while changing the action to Abort. The caller remains responsible for
-closing that owned result; FirstCompleted may already have closed it, and another
+closing that owned result; FirstSuccessfulPayload may already have closed it, and another
 Close is idempotent and exposes the stored cleanup error. Invalid action text is
 not automatically published. Router/Chain fallthrough discards ActionNext resources
 before proceeding. Router cleanup failure stops routing and returns that failure;
@@ -198,7 +198,7 @@ one subsequent dispatch and separate budget allocation for both physical identit
 
 Safe race requires replay/duplicate-cost permission, concurrency and total attempt limits, accepted-result validation, and per-attempt admission. Output must be held by the caller until acceptance. Losers receive cooperative cancellation; owned results are cleaned and usage/unknown outcomes are still settled. Winner lifetime stays alive. Delayed hedging is outside scope.
 
-`execution.Race` composes a bounded pool of Boundary invocations with FirstCompleted.
+`execution.Race` composes a bounded pool of Boundary invocations with FirstSuccessfulPayload.
 
 Lifecycle/config errors (`attempt.ErrInvalidEvent`, `execution.ErrInvalidBoundary`, `routery.ErrInvalidConfig`,
 including wrapped/joined errors) close a shared queued-plan gate. Taking a plan and
@@ -223,7 +223,7 @@ profile requiring stream-open facts and owned resources; it promises no full-str
 validation. Accept callbacks must be concurrency-safe and hold all output; committed
 branch output is rejected. Routery does not buffer provider streams automatically.
 Rejected results close before a worker takes another plan. Accepted losers are closed
-by FirstCompleted; late results retain Receipts and settle through Boundary. The winner
+by FirstSuccessfulPayload; late results retain Receipts and settle through Boundary. The winner
 keeps its lifetime. A synchronized Journal exposes all returned attempts, errors and
 acceptance decisions, including late losers. A journal snapshot is not a completion
 barrier; the host tracks provider completion and resource close explicitly. Noncooperative
@@ -259,3 +259,40 @@ Kafka indexed partial outcomes, acknowledgment preconditions, hidden SDK retries
 RetryIf cancellation precedence. Core has no SDK dependency; standalone handlers do
 not require execution.Sequence. The executable Sequence examples cover ordinary
 caller types and retained resource ownership.
+
+## Task13 cleanup and boundary guarantees
+
+Chain, Fallback, PredicateFallback and RetryIf share executor-owned discard semantics.
+Only after the final decision to continue do they close the intermediate Lifetime.
+Cleanup failure aborts composition, retains the canonical partial result/metadata/owner,
+and joins the triggering handler error where present. The next handler is not invoked.
+Cancellation before discard retains the live owner for the caller. RetryIf counts total
+calls, skips the predicate after the last attempt, defaults zero attempts to one, and
+rejects negative attempts/backoff. Timeout zero disables the limit; negative is invalid.
+HTTP retry predicates only classify/permit: an additional veto leaves final body readable.
+
+OnClose hooks run after cleanup completes, including registrations during cleanup.
+Nil Lifetime remains a value payload. Cleanup and hooks must not recursively Close
+that same owner. Resource cleanup panic still runs registered hooks and propagates.
+
+Boundary owns a returned Admission.Finish even alongside an Admit error. It records
+NotExecuted, closes through a separately bounded cleanup context, joins errors and
+retains Receipt for Reconcile after failed acknowledgement. NotExecuted proves local
+dispatch did not start; it does not prove an unknown reservation acknowledgement was
+rejected. Host Finish must retain unknown reserve state pending until reconciled.
+
+Quota Session serializes Settle/Release through a context-aware gate, without holding
+its state mutex across backend I/O. State is immediately readable and reports Pending
+while acknowledgement is unknown. Cancelled waiters return context error, including
+idempotent repeats; backend callbacks may read State but must not reenter settlement.
+Stable IDs, conflicting-value checks and durable backend idempotency remain required.
+
+Selector Select and ValidatePinned pass the earliest nonzero context/explicit Deadline
+to Validate, Eligible and Rank. Explanation.Reason describes domain eligibility;
+DomainEligible and Rejection separately expose affinity exclusion. Dispatch requires
+Selected; expected absence returns ErrNoSelection without executing.
+
+OutcomeSink events and Journal snapshots are raw borrowed in-process views. Detached
+paths/slices do not detach arbitrary payloads, errors, decision reason values, Receipts
+or Lifetime pointers. Observers must not mutate or close canonical data. Hosts project
+and redact before exporting telemetry; Journal snapshots are not completion barriers.

@@ -61,9 +61,16 @@ func CircuitBreaker[Req any, Kind comparable, Reason comparable, Payload any](
 				return AbortResult[Kind, Reason, Payload](), admissionErr
 			}
 
+			completed := false
+			defer func() {
+				if !completed {
+					st.abandon(admission)
+				}
+			}()
 			result, err := next(call)
 			failed := circuitFailure(err, isFailure)
 			st.afterRequest(admission, err, failed, failureThreshold)
+			completed = true
 			return result, err
 		}
 	}
@@ -147,4 +154,12 @@ func circuitFailure(err error, isFailure func(error) bool) bool {
 		return isFailure(err)
 	}
 	return true
+}
+
+func (st *circuitBreakerState) abandon(admission circuitAdmission) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if admission.probe && admission.generation == st.generation && st.state == cbHalfOpen {
+		st.probeInFlight = false
+	}
 }

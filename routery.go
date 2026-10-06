@@ -21,8 +21,8 @@ var ErrInvalidConfig = errors.New("routery: invalid configuration")
 // ErrCircuitOpen indicates that a circuit breaker is open and requests are failing fast.
 var ErrCircuitOpen = errors.New("routery: circuit breaker open")
 
-// ErrTooManyRequests indicates that a bulkhead semaphore has no capacity left.
-var ErrTooManyRequests = errors.New("routery: too many concurrent requests")
+// ErrBulkheadFull indicates that a bulkhead semaphore has no capacity left.
+var ErrBulkheadFull = errors.New("routery: too many concurrent requests")
 
 // ErrNoSuccessfulOutcome indicates that no handler returned a payload outcome.
 var ErrNoSuccessfulOutcome = errors.New("routery: no successful outcome")

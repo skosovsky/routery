@@ -1,0 +1,2154 @@
+test - .
+=== RUN   TestRouteBindingCapturesRouteSnapshotAndFreshnessData
+--- PASS: TestRouteBindingCapturesRouteSnapshotAndFreshnessData (0.00s)
+=== RUN   TestRouteBindingFingerprintIncludesDecisionMetadata
+--- PASS: TestRouteBindingFingerprintIncludesDecisionMetadata (0.00s)
+=== RUN   TestRouteBindingFingerprintIncludesPriorityAndDepth
+--- PASS: TestRouteBindingFingerprintIncludesPriorityAndDepth (0.00s)
+=== RUN   TestHandledBindingReturnsTypedBindingPayload
+--- PASS: TestHandledBindingReturnsTypedBindingPayload (0.00s)
+=== RUN   TestSnapshotFreshnessPolicyRejectsStaleBinding
+--- PASS: TestSnapshotFreshnessPolicyRejectsStaleBinding (0.00s)
+=== RUN   TestBulkheadRetainsOwnedPermit
+=== PAUSE TestBulkheadRetainsOwnedPermit
+=== RUN   TestBulkheadCancellationBeforeAdmission
+=== PAUSE TestBulkheadCancellationBeforeAdmission
+=== RUN   TestChainStopsAtFirstTerminalResult
+--- PASS: TestChainStopsAtFirstTerminalResult (0.00s)
+=== RUN   TestChainFallsThroughActionNextWithTypedReason
+--- PASS: TestChainFallsThroughActionNextWithTypedReason (0.00s)
+=== RUN   TestChainReturnsLastNextWhenAllHandlersFallThrough
+--- PASS: TestChainReturnsLastNextWhenAllHandlersFallThrough (0.00s)
+=== RUN   TestChainAbortsOnHandlerError
+--- PASS: TestChainAbortsOnHandlerError (0.00s)
+=== RUN   TestChainRejectsAbortResultWithoutError
+--- PASS: TestChainRejectsAbortResultWithoutError (0.00s)
+=== RUN   TestCircuitOldCompletionCannotOwnNewProbe
+=== PAUSE TestCircuitOldCompletionCannotOwnNewProbe
+=== RUN   TestCircuitExcludedProbeReleasesAdmission
+=== PAUSE TestCircuitExcludedProbeReleasesAdmission
+=== RUN   TestCircuitClassifierRunsOnceOutsideLock
+=== PAUSE TestCircuitClassifierRunsOnceOutsideLock
+=== RUN   TestDecisionTableUsesOrderedCases
+--- PASS: TestDecisionTableUsesOrderedCases (0.00s)
+=== RUN   TestDecisionTableReturnsExplicitNoMatch
+--- PASS: TestDecisionTableReturnsExplicitNoMatch (0.00s)
+=== RUN   TestDecisionTablePropagatesMatcherError
+--- PASS: TestDecisionTablePropagatesMatcherError (0.00s)
+=== RUN   TestDecisionTableHandlerMapsActionsToRouteResults
+--- PASS: TestDecisionTableHandlerMapsActionsToRouteResults (0.00s)
+=== RUN   TestDecisionTableRoutesUseTypedActionAndReason
+--- PASS: TestDecisionTableRoutesUseTypedActionAndReason (0.00s)
+=== RUN   TestDecisionTableRouteNoMatchFallsThroughToFallback
+--- PASS: TestDecisionTableRouteNoMatchFallsThroughToFallback (0.00s)
+=== RUN   TestDecisionTableRoutePropagatesMatcherError
+--- PASS: TestDecisionTableRoutePropagatesMatcherError (0.00s)
+=== RUN   TestLifetimeConcurrentCloseAndLateHooks
+--- PASS: TestLifetimeConcurrentCloseAndLateHooks (0.00s)
+=== RUN   TestFirstSuccessfulPayloadClosesAllFailedOwnedResults
+--- PASS: TestFirstSuccessfulPayloadClosesAllFailedOwnedResults (0.00s)
+=== RUN   TestFirstSuccessfulPayloadLiveWinnerStillObservesParentCancellation
+--- PASS: TestFirstSuccessfulPayloadLiveWinnerStillObservesParentCancellation (0.00s)
+=== RUN   TestRetryAndFallbackRespectCancellation
+--- PASS: TestRetryAndFallbackRespectCancellation (0.00s)
+=== RUN   TestTimeoutTransfersOwnedLifetime
+--- PASS: TestTimeoutTransfersOwnedLifetime (0.00s)
+=== RUN   TestApplyRouteMiddlewareReceivesRouteMatch
+--- PASS: TestApplyRouteMiddlewareReceivesRouteMatch (0.00s)
+=== RUN   TestRetryIfRetriesOnlySystemErrors
+--- PASS: TestRetryIfRetriesOnlySystemErrors (0.00s)
+=== RUN   TestBulkheadRejectsWhenFull
+--- PASS: TestBulkheadRejectsWhenFull (0.00s)
+=== RUN   TestCircuitBreakerOpensAfterFailures
+--- PASS: TestCircuitBreakerOpensAfterFailures (0.00s)
+=== RUN   TestFirstSuccessfulPayloadReturnsFirstPayloadResult
+--- PASS: TestFirstSuccessfulPayloadReturnsFirstPayloadResult (0.00s)
+=== RUN   TestFirstSuccessfulPayloadIgnoresActionNextWithPayload
+--- PASS: TestFirstSuccessfulPayloadIgnoresActionNextWithPayload (0.01s)
+=== RUN   TestValidateRouteResultPreservesCanonicalOwnership
+=== RUN   TestValidateRouteResultPreservesCanonicalOwnership/next/nil
+=== RUN   TestValidateRouteResultPreservesCanonicalOwnership/next/error
+=== RUN   TestValidateRouteResultPreservesCanonicalOwnership/stop/nil
+=== RUN   TestValidateRouteResultPreservesCanonicalOwnership/stop/error
+=== RUN   TestValidateRouteResultPreservesCanonicalOwnership/abort/nil
+=== RUN   TestValidateRouteResultPreservesCanonicalOwnership/abort/error
+=== RUN   TestValidateRouteResultPreservesCanonicalOwnership/unknown/nil
+=== RUN   TestValidateRouteResultPreservesCanonicalOwnership/unknown/error
+--- PASS: TestValidateRouteResultPreservesCanonicalOwnership (0.00s)
+    --- PASS: TestValidateRouteResultPreservesCanonicalOwnership/next/nil (0.00s)
+    --- PASS: TestValidateRouteResultPreservesCanonicalOwnership/next/error (0.00s)
+    --- PASS: TestValidateRouteResultPreservesCanonicalOwnership/stop/nil (0.00s)
+    --- PASS: TestValidateRouteResultPreservesCanonicalOwnership/stop/error (0.00s)
+    --- PASS: TestValidateRouteResultPreservesCanonicalOwnership/abort/nil (0.00s)
+    --- PASS: TestValidateRouteResultPreservesCanonicalOwnership/abort/error (0.00s)
+    --- PASS: TestValidateRouteResultPreservesCanonicalOwnership/unknown/nil (0.00s)
+    --- PASS: TestValidateRouteResultPreservesCanonicalOwnership/unknown/error (0.00s)
+=== RUN   TestRouterClosesDiscardedNextResources
+=== RUN   TestRouterClosesDiscardedNextResources/handled
+=== RUN   TestRouterClosesDiscardedNextResources/next
+=== RUN   TestRouterClosesDiscardedNextResources/fallback
+=== RUN   TestRouterClosesDiscardedNextResources/cancel
+=== RUN   TestRouterClosesDiscardedNextResources/nested
+=== RUN   TestRouterClosesDiscardedNextResources/cleanup_error
+--- PASS: TestRouterClosesDiscardedNextResources (0.00s)
+    --- PASS: TestRouterClosesDiscardedNextResources/handled (0.00s)
+    --- PASS: TestRouterClosesDiscardedNextResources/next (0.00s)
+    --- PASS: TestRouterClosesDiscardedNextResources/fallback (0.00s)
+    --- PASS: TestRouterClosesDiscardedNextResources/cancel (0.00s)
+    --- PASS: TestRouterClosesDiscardedNextResources/nested (0.00s)
+    --- PASS: TestRouterClosesDiscardedNextResources/cleanup_error (0.00s)
+=== RUN   TestInvalidResultRetainsPartialPayloadAndOwnership
+=== RUN   TestInvalidResultRetainsPartialPayloadAndOwnership/abort/invoke
+=== RUN   TestInvalidResultRetainsPartialPayloadAndOwnership/abort/chain
+=== RUN   TestInvalidResultRetainsPartialPayloadAndOwnership/abort/router
+=== RUN   TestInvalidResultRetainsPartialPayloadAndOwnership/abort/fallback
+=== RUN   TestInvalidResultRetainsPartialPayloadAndOwnership/abort/first_successful_payload
+=== RUN   TestInvalidResultRetainsPartialPayloadAndOwnership/unknown/invoke
+=== RUN   TestInvalidResultRetainsPartialPayloadAndOwnership/unknown/chain
+=== RUN   TestInvalidResultRetainsPartialPayloadAndOwnership/unknown/router
+=== RUN   TestInvalidResultRetainsPartialPayloadAndOwnership/unknown/fallback
+=== RUN   TestInvalidResultRetainsPartialPayloadAndOwnership/unknown/first_successful_payload
+--- PASS: TestInvalidResultRetainsPartialPayloadAndOwnership (0.00s)
+    --- PASS: TestInvalidResultRetainsPartialPayloadAndOwnership/abort/invoke (0.00s)
+    --- PASS: TestInvalidResultRetainsPartialPayloadAndOwnership/abort/chain (0.00s)
+    --- PASS: TestInvalidResultRetainsPartialPayloadAndOwnership/abort/router (0.00s)
+    --- PASS: TestInvalidResultRetainsPartialPayloadAndOwnership/abort/fallback (0.00s)
+    --- PASS: TestInvalidResultRetainsPartialPayloadAndOwnership/abort/first_successful_payload (0.00s)
+    --- PASS: TestInvalidResultRetainsPartialPayloadAndOwnership/unknown/invoke (0.00s)
+    --- PASS: TestInvalidResultRetainsPartialPayloadAndOwnership/unknown/chain (0.00s)
+    --- PASS: TestInvalidResultRetainsPartialPayloadAndOwnership/unknown/router (0.00s)
+    --- PASS: TestInvalidResultRetainsPartialPayloadAndOwnership/unknown/fallback (0.00s)
+    --- PASS: TestInvalidResultRetainsPartialPayloadAndOwnership/unknown/first_successful_payload (0.00s)
+=== RUN   TestDispatchAndProjectPreservesCanonicalOwnership
+=== RUN   TestDispatchAndProjectPreservesCanonicalOwnership/success
+=== RUN   TestDispatchAndProjectPreservesCanonicalOwnership/dispatch_error
+=== RUN   TestDispatchAndProjectPreservesCanonicalOwnership/nil_projector
+=== RUN   TestDispatchAndProjectPreservesCanonicalOwnership/typed_nil_projector
+=== RUN   TestDispatchAndProjectPreservesCanonicalOwnership/projection_error
+=== RUN   TestDispatchAndProjectPreservesCanonicalOwnership/mapped_dispatch
+=== RUN   TestDispatchAndProjectPreservesCanonicalOwnership/mapped_projection
+=== RUN   TestDispatchAndProjectPreservesCanonicalOwnership/mapping_error
+--- PASS: TestDispatchAndProjectPreservesCanonicalOwnership (0.00s)
+    --- PASS: TestDispatchAndProjectPreservesCanonicalOwnership/success (0.00s)
+    --- PASS: TestDispatchAndProjectPreservesCanonicalOwnership/dispatch_error (0.00s)
+    --- PASS: TestDispatchAndProjectPreservesCanonicalOwnership/nil_projector (0.00s)
+    --- PASS: TestDispatchAndProjectPreservesCanonicalOwnership/typed_nil_projector (0.00s)
+    --- PASS: TestDispatchAndProjectPreservesCanonicalOwnership/projection_error (0.00s)
+    --- PASS: TestDispatchAndProjectPreservesCanonicalOwnership/mapped_dispatch (0.00s)
+    --- PASS: TestDispatchAndProjectPreservesCanonicalOwnership/mapped_projection (0.00s)
+    --- PASS: TestDispatchAndProjectPreservesCanonicalOwnership/mapping_error (0.00s)
+=== RUN   TestOutcomeProjectorReceivesCanonicalRouteResult
+--- PASS: TestOutcomeProjectorReceivesCanonicalRouteResult (0.00s)
+=== RUN   TestErrorPolicyMapsProjectionError
+--- PASS: TestErrorPolicyMapsProjectionError (0.00s)
+=== RUN   TestErrorPolicyMapsDispatchError
+--- PASS: TestErrorPolicyMapsDispatchError (0.00s)
+=== RUN   TestRouteRegistryDispatchesExactAndLongestPrefixSnapshots
+--- PASS: TestRouteRegistryDispatchesExactAndLongestPrefixSnapshots (0.00s)
+=== RUN   TestRouteRegistryValidatesRouteIDsAndDuplicates
+--- PASS: TestRouteRegistryValidatesRouteIDsAndDuplicates (0.00s)
+=== RUN   TestRouteRegistryRejectsInvalidMatcherAndUnknownPrefixPolicy
+--- PASS: TestRouteRegistryRejectsInvalidMatcherAndUnknownPrefixPolicy (0.00s)
+=== RUN   TestRouteRegistryRejectsConflictingPrefixPolicyWithoutPublishing
+--- PASS: TestRouteRegistryRejectsConflictingPrefixPolicyWithoutPublishing (0.00s)
+=== RUN   TestRouteRegistryUnregistersWithoutMutatingPreviousSnapshot
+--- PASS: TestRouteRegistryUnregistersWithoutMutatingPreviousSnapshot (0.00s)
+=== RUN   TestRouteRegistryNilExtractorReturnsConfigErrorAtDispatch
+--- PASS: TestRouteRegistryNilExtractorReturnsConfigErrorAtDispatch (0.00s)
+=== RUN   TestRouteRegistryPublishesAtomicSnapshotsDuringConcurrentDispatch
+--- PASS: TestRouteRegistryPublishesAtomicSnapshotsDuringConcurrentDispatch (0.00s)
+=== RUN   TestCombinatorsStopOnCleanupFailure
+=== RUN   TestCombinatorsStopOnCleanupFailure/chain
+=== RUN   TestCombinatorsStopOnCleanupFailure/fallback
+=== RUN   TestCombinatorsStopOnCleanupFailure/predicate
+=== RUN   TestCombinatorsStopOnCleanupFailure/retry
+--- PASS: TestCombinatorsStopOnCleanupFailure (0.00s)
+    --- PASS: TestCombinatorsStopOnCleanupFailure/chain (0.00s)
+    --- PASS: TestCombinatorsStopOnCleanupFailure/fallback (0.00s)
+    --- PASS: TestCombinatorsStopOnCleanupFailure/predicate (0.00s)
+    --- PASS: TestCombinatorsStopOnCleanupFailure/retry (0.00s)
+=== RUN   TestBindingPathSegmentIdentity
+--- PASS: TestBindingPathSegmentIdentity (0.00s)
+=== RUN   TestDecisionConfidenceValidation
+=== RUN   TestDecisionConfidenceValidation/threshold/nan
+=== RUN   TestDecisionConfidenceValidation/decision/nan
+=== RUN   TestDecisionConfidenceValidation/threshold/+inf
+=== RUN   TestDecisionConfidenceValidation/decision/+inf
+=== RUN   TestDecisionConfidenceValidation/threshold/-inf
+=== RUN   TestDecisionConfidenceValidation/decision/-inf
+=== RUN   TestDecisionConfidenceValidation/threshold/negative
+=== RUN   TestDecisionConfidenceValidation/decision/negative
+=== RUN   TestDecisionConfidenceValidation/threshold/above-one
+=== RUN   TestDecisionConfidenceValidation/decision/above-one
+=== RUN   TestDecisionConfidenceValidation/threshold/zero
+=== RUN   TestDecisionConfidenceValidation/decision/zero
+=== RUN   TestDecisionConfidenceValidation/threshold/one
+=== RUN   TestDecisionConfidenceValidation/decision/one
+--- PASS: TestDecisionConfidenceValidation (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/threshold/nan (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/decision/nan (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/threshold/+inf (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/decision/+inf (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/threshold/-inf (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/decision/-inf (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/threshold/negative (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/decision/negative (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/threshold/above-one (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/decision/above-one (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/threshold/zero (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/decision/zero (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/threshold/one (0.00s)
+    --- PASS: TestDecisionConfidenceValidation/decision/one (0.00s)
+=== RUN   TestMountCyclesAndSharedSubtree
+--- PASS: TestMountCyclesAndSharedSubtree (0.00s)
+=== RUN   TestLateOnCloseWaitsForCleanupCompletion
+--- PASS: TestLateOnCloseWaitsForCleanupCompletion (0.00s)
+=== RUN   TestHalfOpenPanicReleasesProbe
+--- PASS: TestHalfOpenPanicReleasesProbe (0.00s)
+=== RUN   TestObserverCannotMutateCanonicalMetadata
+--- PASS: TestObserverCannotMutateCanonicalMetadata (0.00s)
+=== RUN   TestNegativeMiddlewareConfigurationDoesNotExecute
+--- PASS: TestNegativeMiddlewareConfigurationDoesNotExecute (0.00s)
+=== RUN   TestFallbackCancellationRetainsCanonicalOwner
+--- PASS: TestFallbackCancellationRetainsCanonicalOwner (0.00s)
+=== RUN   TestFallbackCleanupCancellationStopsSecondary
+--- PASS: TestFallbackCleanupCancellationStopsSecondary (0.00s)
+=== RUN   TestRetryIfFailedCallCancellationPrecedence
+=== PAUSE TestRetryIfFailedCallCancellationPrecedence
+=== RUN   TestRetryIfSuccessRemainsSuccessAfterCancellation
+=== PAUSE TestRetryIfSuccessRemainsSuccessAfterCancellation
+=== RUN   TestRouteResultUsesTypedKindAndReason
+--- PASS: TestRouteResultUsesTypedKindAndReason (0.00s)
+=== RUN   TestInvokeRouteHandlerReturnsAbortOnError
+--- PASS: TestInvokeRouteHandlerReturnsAbortOnError (0.00s)
+=== RUN   TestInvokeRouteHandlerRejectsUnexpectedAction
+--- PASS: TestInvokeRouteHandlerRejectsUnexpectedAction (0.00s)
+=== RUN   TestRouteTableDispatchAnnotatesTypedResultWithMatch
+--- PASS: TestRouteTableDispatchAnnotatesTypedResultWithMatch (0.00s)
+=== RUN   TestDispatchWithSinkObservesNestedRouteEvents
+--- PASS: TestDispatchWithSinkObservesNestedRouteEvents (0.00s)
+=== RUN   TestKeyedRoutesSupportExactComparableKeys
+--- PASS: TestKeyedRoutesSupportExactComparableKeys (0.00s)
+=== RUN   TestRouteTableReturnsLastNextReasonWhenAllMatchesFallThrough
+--- PASS: TestRouteTableReturnsLastNextReasonWhenAllMatchesFallThrough (0.00s)
+=== RUN   TestKeyedRoutesUseLongestPrefixForEqualPriority
+--- PASS: TestKeyedRoutesUseLongestPrefixForEqualPriority (0.00s)
+=== RUN   TestKeyedRoutesLongestPrefixModeBeatsHigherPriorityShortPrefix
+--- PASS: TestKeyedRoutesLongestPrefixModeBeatsHigherPriorityShortPrefix (0.00s)
+=== RUN   TestDecisionRoutesUseTypedClassifierDecision
+--- PASS: TestDecisionRoutesUseTypedClassifierDecision (0.00s)
+=== RUN   TestDecisionRoutesComputeClassifierOnceAcrossCases
+--- PASS: TestDecisionRoutesComputeClassifierOnceAcrossCases (0.00s)
+=== RUN   TestDecisionRoutesPropagateClassifierErrors
+--- PASS: TestDecisionRoutesPropagateClassifierErrors (0.00s)
+=== RUN   TestRouteTableRejectsAbortResultWithoutError
+--- PASS: TestRouteTableRejectsAbortResultWithoutError (0.00s)
+=== RUN   TestRouteTableFallbackRejectsUnexpectedAction
+--- PASS: TestRouteTableFallbackRejectsUnexpectedAction (0.00s)
+=== RUN   TestFallbackDoesNotTreatActionNextAsError
+--- PASS: TestFallbackDoesNotTreatActionNextAsError (0.00s)
+=== RUN   TestFallbackUsesSecondaryOnError
+--- PASS: TestFallbackUsesSecondaryOnError (0.00s)
+=== RUN   TestRoundRobinCyclesTypedResults
+--- PASS: TestRoundRobinCyclesTypedResults (0.00s)
+=== RUN   TestTimeoutPassesDeadlineToWrappedHandler
+--- PASS: TestTimeoutPassesDeadlineToWrappedHandler (0.00s)
+=== RUN   TestPredicateFallbackKeepsErrorWhenPredicateRejectsFallback
+--- PASS: TestPredicateFallbackKeepsErrorWhenPredicateRejectsFallback (0.00s)
+=== RUN   TestWeightBasedRouterChoosesTypedHandlerByThreshold
+--- PASS: TestWeightBasedRouterChoosesTypedHandlerByThreshold (0.00s)
+=== RUN   TestMixedRoutesHaveExplicitOrder
+=== PAUSE TestMixedRoutesHaveExplicitOrder
+=== RUN   TestRouteOrderTransitiveStableAndExtremePriorities
+=== PAUSE TestRouteOrderTransitiveStableAndExtremePriorities
+=== RUN   TestFingerprintSHA256FramesParts
+--- PASS: TestFingerprintSHA256FramesParts (0.00s)
+=== RUN   TestNestedTopologyChangesAreFingerprintVisible
+=== PAUSE TestNestedTopologyChangesAreFingerprintVisible
+=== RUN   TestCompiledNestedSnapshotAndBindingStayImmutable
+=== PAUSE TestCompiledNestedSnapshotAndBindingStayImmutable
+=== RUN   TestRegistryPublicationRetainsOldSnapshot
+=== PAUSE TestRegistryPublicationRetainsOldSnapshot
+=== RUN   TestStaticKeysAndDecisionThresholdHaveFramedIdentity
+=== PAUSE TestStaticKeysAndDecisionThresholdHaveFramedIdentity
+=== RUN   TestCompositeComparableTypeIdentityIsPortable
+=== PAUSE TestCompositeComparableTypeIdentityIsPortable
+=== RUN   TestClassifierMemoizationGroupsAreTopology
+=== PAUSE TestClassifierMemoizationGroupsAreTopology
+=== RUN   TestRepeatedMountMemoizationUsesGlobalTopologyGroups
+=== PAUSE TestRepeatedMountMemoizationUsesGlobalTopologyGroups
+=== CONT  TestBulkheadRetainsOwnedPermit
+=== CONT  TestMixedRoutesHaveExplicitOrder
+=== CONT  TestStaticKeysAndDecisionThresholdHaveFramedIdentity
+=== CONT  TestRegistryPublicationRetainsOldSnapshot
+=== RUN   TestBulkheadRetainsOwnedPermit/success
+=== CONT  TestRepeatedMountMemoizationUsesGlobalTopologyGroups
+=== PAUSE TestBulkheadRetainsOwnedPermit/success
+=== RUN   TestBulkheadRetainsOwnedPermit/partial_error
+=== PAUSE TestBulkheadRetainsOwnedPermit/partial_error
+=== CONT  TestCompositeComparableTypeIdentityIsPortable
+=== CONT  TestRetryIfFailedCallCancellationPrecedence
+=== RUN   TestRetryIfFailedCallCancellationPrecedence/final-attempt
+=== CONT  TestCircuitOldCompletionCannotOwnNewProbe
+=== CONT  TestCircuitExcludedProbeReleasesAdmission
+=== PAUSE TestRetryIfFailedCallCancellationPrecedence/final-attempt
+=== RUN   TestCircuitOldCompletionCannotOwnNewProbe/success/probe-first
+=== CONT  TestRouteOrderTransitiveStableAndExtremePriorities
+=== CONT  TestNestedTopologyChangesAreFingerprintVisible
+=== PAUSE TestCircuitOldCompletionCannotOwnNewProbe/success/probe-first
+=== RUN   TestCircuitOldCompletionCannotOwnNewProbe/success/old-first
+=== PAUSE TestCircuitOldCompletionCannotOwnNewProbe/success/old-first
+=== CONT  TestCompiledNestedSnapshotAndBindingStayImmutable
+=== CONT  TestBulkheadCancellationBeforeAdmission
+=== CONT  TestBulkheadRetainsOwnedPermit/success
+=== CONT  TestBulkheadRetainsOwnedPermit/partial_error
+=== RUN   TestCircuitOldCompletionCannotOwnNewProbe/failure/probe-first
+=== PAUSE TestCircuitOldCompletionCannotOwnNewProbe/failure/probe-first
+=== CONT  TestRetryIfSuccessRemainsSuccessAfterCancellation
+=== CONT  TestClassifierMemoizationGroupsAreTopology
+--- PASS: TestMixedRoutesHaveExplicitOrder (0.00s)
+=== CONT  TestCircuitClassifierRunsOnceOutsideLock
+=== RUN   TestRetryIfFailedCallCancellationPrecedence/rejecting-predicate
+=== RUN   TestCircuitOldCompletionCannotOwnNewProbe/failure/old-first
+=== PAUSE TestRetryIfFailedCallCancellationPrecedence/rejecting-predicate
+--- PASS: TestStaticKeysAndDecisionThresholdHaveFramedIdentity (0.00s)
+=== RUN   TestRetryIfFailedCallCancellationPrecedence/failed-call
+=== PAUSE TestRetryIfFailedCallCancellationPrecedence/failed-call
+=== PAUSE TestCircuitOldCompletionCannotOwnNewProbe/failure/old-first
+--- PASS: TestRegistryPublicationRetainsOldSnapshot (0.00s)
+--- PASS: TestCircuitExcludedProbeReleasesAdmission (0.00s)
+=== CONT  TestRetryIfFailedCallCancellationPrecedence/failed-call
+=== CONT  TestCircuitOldCompletionCannotOwnNewProbe/failure/old-first
+--- PASS: TestRepeatedMountMemoizationUsesGlobalTopologyGroups (0.00s)
+--- PASS: TestCompositeComparableTypeIdentityIsPortable (0.00s)
+=== CONT  TestCircuitOldCompletionCannotOwnNewProbe/failure/probe-first
+--- PASS: TestBulkheadCancellationBeforeAdmission (0.00s)
+=== CONT  TestRetryIfFailedCallCancellationPrecedence/final-attempt
+=== CONT  TestCircuitOldCompletionCannotOwnNewProbe/success/old-first
+=== CONT  TestCircuitOldCompletionCannotOwnNewProbe/success/probe-first
+=== CONT  TestRetryIfFailedCallCancellationPrecedence/rejecting-predicate
+--- PASS: TestCompiledNestedSnapshotAndBindingStayImmutable (0.00s)
+--- PASS: TestBulkheadRetainsOwnedPermit (0.00s)
+    --- PASS: TestBulkheadRetainsOwnedPermit/partial_error (0.00s)
+    --- PASS: TestBulkheadRetainsOwnedPermit/success (0.00s)
+--- PASS: TestRetryIfSuccessRemainsSuccessAfterCancellation (0.00s)
+--- PASS: TestNestedTopologyChangesAreFingerprintVisible (0.00s)
+--- PASS: TestClassifierMemoizationGroupsAreTopology (0.00s)
+--- PASS: TestCircuitClassifierRunsOnceOutsideLock (0.00s)
+--- PASS: TestRetryIfFailedCallCancellationPrecedence (0.00s)
+    --- PASS: TestRetryIfFailedCallCancellationPrecedence/failed-call (0.00s)
+    --- PASS: TestRetryIfFailedCallCancellationPrecedence/final-attempt (0.00s)
+    --- PASS: TestRetryIfFailedCallCancellationPrecedence/rejecting-predicate (0.00s)
+--- PASS: TestCircuitOldCompletionCannotOwnNewProbe (0.00s)
+    --- PASS: TestCircuitOldCompletionCannotOwnNewProbe/failure/old-first (0.00s)
+    --- PASS: TestCircuitOldCompletionCannotOwnNewProbe/failure/probe-first (0.00s)
+    --- PASS: TestCircuitOldCompletionCannotOwnNewProbe/success/old-first (0.00s)
+    --- PASS: TestCircuitOldCompletionCannotOwnNewProbe/success/probe-first (0.00s)
+--- PASS: TestRouteOrderTransitiveStableAndExtremePriorities (0.01s)
+=== RUN   ExampleRouteTable
+--- PASS: ExampleRouteTable (0.00s)
+=== RUN   ExampleRouteTable_callerTypes
+--- PASS: ExampleRouteTable_callerTypes (0.00s)
+PASS
+ok  	github.com/skosovsky/routery	1.464s
+=== RUN   TestDefaultPayloadMetaUsesRouteResultPayload
+--- PASS: TestDefaultPayloadMetaUsesRouteResultPayload (0.00s)
+=== RUN   TestLoggingEmitsTypedOutcomeAndMatch
+--- PASS: TestLoggingEmitsTypedOutcomeAndMatch (0.00s)
+=== RUN   TestObservabilityMiddlewareReceivesEngineProducedRouteMatch
+--- PASS: TestObservabilityMiddlewareReceivesEngineProducedRouteMatch (0.00s)
+=== RUN   TestMetricsEmitsAbortResultOnError
+--- PASS: TestMetricsEmitsAbortResultOnError (0.00s)
+=== RUN   TestObserversPreservePermitAndReceiptThroughComposition
+=== RUN   TestObserversPreservePermitAndReceiptThroughComposition/logging
+=== RUN   TestObserversPreservePermitAndReceiptThroughComposition/metrics
+--- PASS: TestObserversPreservePermitAndReceiptThroughComposition (0.00s)
+    --- PASS: TestObserversPreservePermitAndReceiptThroughComposition/logging (0.00s)
+    --- PASS: TestObserversPreservePermitAndReceiptThroughComposition/metrics (0.00s)
+=== RUN   TestObserversRetainOwnedPartialAndValidateActions
+=== RUN   TestObserversRetainOwnedPartialAndValidateActions/logging/provider_error
+=== RUN   TestObserversRetainOwnedPartialAndValidateActions/logging/abort_without_error
+=== RUN   TestObserversRetainOwnedPartialAndValidateActions/logging/unknown_action
+=== RUN   TestObserversRetainOwnedPartialAndValidateActions/metrics/provider_error
+=== RUN   TestObserversRetainOwnedPartialAndValidateActions/metrics/abort_without_error
+=== RUN   TestObserversRetainOwnedPartialAndValidateActions/metrics/unknown_action
+--- PASS: TestObserversRetainOwnedPartialAndValidateActions (0.00s)
+    --- PASS: TestObserversRetainOwnedPartialAndValidateActions/logging/provider_error (0.00s)
+    --- PASS: TestObserversRetainOwnedPartialAndValidateActions/logging/abort_without_error (0.00s)
+    --- PASS: TestObserversRetainOwnedPartialAndValidateActions/logging/unknown_action (0.00s)
+    --- PASS: TestObserversRetainOwnedPartialAndValidateActions/metrics/provider_error (0.00s)
+    --- PASS: TestObserversRetainOwnedPartialAndValidateActions/metrics/abort_without_error (0.00s)
+    --- PASS: TestObserversRetainOwnedPartialAndValidateActions/metrics/unknown_action (0.00s)
+=== RUN   TestSafeObserversDoNotOwnPartialCleanupOrPermit
+=== PAUSE TestSafeObserversDoNotOwnPartialCleanupOrPermit
+=== CONT  TestSafeObserversDoNotOwnPartialCleanupOrPermit
+--- PASS: TestSafeObserversDoNotOwnPartialCleanupOrPermit (0.00s)
+=== RUN   ExampleLogging_safeProjection
+--- PASS: ExampleLogging_safeProjection (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/observability	1.161s
+=== RUN   TestSelectionExplanationsAreDeterministicAndExcludeDescriptors
+--- PASS: TestSelectionExplanationsAreDeterministicAndExcludeDescriptors (0.00s)
+=== RUN   TestDispatchRejectsUnknownSelectionStatus
+--- PASS: TestDispatchRejectsUnknownSelectionStatus (0.00s)
+=== RUN   TestSelectionHardEligibilityAndFreshDispatch
+--- PASS: TestSelectionHardEligibilityAndFreshDispatch (0.00s)
+=== RUN   TestNoEligibleQualityAndStaleDescriptor
+--- PASS: TestNoEligibleQualityAndStaleDescriptor (0.00s)
+=== RUN   TestRequiredAndPreferredAffinityRemainWithinHardConstraints
+=== RUN   TestRequiredAndPreferredAffinityRemainWithinHardConstraints/unavailable_required_endpoint
+=== RUN   TestRequiredAndPreferredAffinityRemainWithinHardConstraints/unavailable_preference
+=== RUN   TestRequiredAndPreferredAffinityRemainWithinHardConstraints/ineligible_preference
+=== RUN   TestRequiredAndPreferredAffinityRemainWithinHardConstraints/required_preserved
+--- PASS: TestRequiredAndPreferredAffinityRemainWithinHardConstraints (0.00s)
+    --- PASS: TestRequiredAndPreferredAffinityRemainWithinHardConstraints/unavailable_required_endpoint (0.00s)
+    --- PASS: TestRequiredAndPreferredAffinityRemainWithinHardConstraints/unavailable_preference (0.00s)
+    --- PASS: TestRequiredAndPreferredAffinityRemainWithinHardConstraints/ineligible_preference (0.00s)
+    --- PASS: TestRequiredAndPreferredAffinityRemainWithinHardConstraints/required_preserved (0.00s)
+=== RUN   TestAffinityScopeExpiryAndPortabilityAreExplicit
+--- PASS: TestAffinityScopeExpiryAndPortabilityAreExplicit (0.00s)
+=== RUN   TestCallbacksReceiveEffectiveDeadline
+=== RUN   TestCallbacksReceiveEffectiveDeadline/zero
+=== RUN   TestCallbacksReceiveEffectiveDeadline/context-first
+=== RUN   TestCallbacksReceiveEffectiveDeadline/explicit-first
+--- PASS: TestCallbacksReceiveEffectiveDeadline (0.00s)
+    --- PASS: TestCallbacksReceiveEffectiveDeadline/zero (0.00s)
+    --- PASS: TestCallbacksReceiveEffectiveDeadline/context-first (0.00s)
+    --- PASS: TestCallbacksReceiveEffectiveDeadline/explicit-first (0.00s)
+=== RUN   TestAffinityRejectionExplainsPolicyStage
+--- PASS: TestAffinityRejectionExplainsPolicyStage (0.00s)
+=== RUN   TestDomainRejectionHasSeparateStage
+--- PASS: TestDomainRejectionHasSeparateStage (0.00s)
+=== RUN   TestPinnedSelectionRejectsAffinityAndIdentityChanges
+=== RUN   TestPinnedSelectionRejectsAffinityAndIdentityChanges/expiry
+=== RUN   TestPinnedSelectionRejectsAffinityAndIdentityChanges/weakened
+=== RUN   TestPinnedSelectionRejectsAffinityAndIdentityChanges/scope
+=== RUN   TestPinnedSelectionRejectsAffinityAndIdentityChanges/fingerprint
+=== RUN   TestPinnedSelectionRejectsAffinityAndIdentityChanges/compatibility
+--- PASS: TestPinnedSelectionRejectsAffinityAndIdentityChanges (0.00s)
+    --- PASS: TestPinnedSelectionRejectsAffinityAndIdentityChanges/expiry (0.00s)
+    --- PASS: TestPinnedSelectionRejectsAffinityAndIdentityChanges/weakened (0.00s)
+    --- PASS: TestPinnedSelectionRejectsAffinityAndIdentityChanges/scope (0.00s)
+    --- PASS: TestPinnedSelectionRejectsAffinityAndIdentityChanges/fingerprint (0.00s)
+    --- PASS: TestPinnedSelectionRejectsAffinityAndIdentityChanges/compatibility (0.00s)
+=== RUN   TestDispatchRequiresValidatorAndRechecksCancellation
+--- PASS: TestDispatchRequiresValidatorAndRechecksCancellation (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/policy	(cached)
+=== RUN   TestCoordinatorIdentityPhasesAndReconciliation
+--- PASS: TestCoordinatorIdentityPhasesAndReconciliation (0.00s)
+=== RUN   TestReplayDecisionMatrix
+=== RUN   TestReplayDecisionMatrix/before_dispatch
+=== RUN   TestReplayDecisionMatrix/visible_partial
+=== RUN   TestReplayDecisionMatrix/buffered_unknown
+=== RUN   TestReplayDecisionMatrix/unknown_reconcile
+=== RUN   TestReplayDecisionMatrix/safe_duplicate_fallback
+--- PASS: TestReplayDecisionMatrix (0.00s)
+    --- PASS: TestReplayDecisionMatrix/before_dispatch (0.00s)
+    --- PASS: TestReplayDecisionMatrix/visible_partial (0.00s)
+    --- PASS: TestReplayDecisionMatrix/buffered_unknown (0.00s)
+    --- PASS: TestReplayDecisionMatrix/unknown_reconcile (0.00s)
+    --- PASS: TestReplayDecisionMatrix/safe_duplicate_fallback (0.00s)
+=== RUN   TestSchedulingDeadlineHintScopeAndCancellation
+--- PASS: TestSchedulingDeadlineHintScopeAndCancellation (0.00s)
+=== RUN   TestRepeatAuthorizationOrdersLateEvents
+=== RUN   TestRepeatAuthorizationOrdersLateEvents/event_before_authorization
+=== RUN   TestRepeatAuthorizationOrdersLateEvents/event_after_authorization
+--- PASS: TestRepeatAuthorizationOrdersLateEvents (0.00s)
+    --- PASS: TestRepeatAuthorizationOrdersLateEvents/event_before_authorization (0.00s)
+    --- PASS: TestRepeatAuthorizationOrdersLateEvents/event_after_authorization (0.00s)
+=== RUN   TestConcurrentRepeatAllocationsRespectBudgetAndIdentity
+--- PASS: TestConcurrentRepeatAllocationsRespectBudgetAndIdentity (0.00s)
+=== RUN   TestReplayPredicateEvidence
+=== PAUSE TestReplayPredicateEvidence
+=== RUN   TestReplayPredicateDrivesRepeatFromHostFacts
+=== PAUSE TestReplayPredicateDrivesRepeatFromHostFacts
+=== RUN   TestSchedulingOverflowAndPastHint
+=== PAUSE TestSchedulingOverflowAndPastHint
+=== RUN   TestWaitClockValidationAndZeroDelayCancellation
+=== PAUSE TestWaitClockValidationAndZeroDelayCancellation
+=== RUN   TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation
+=== RUN   TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/phase
+=== RUN   TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/outcome
+=== RUN   TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/operation
+=== RUN   TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/attempt
+=== RUN   TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/regression
+=== RUN   TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/uncommit
+=== RUN   TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/not_executed_after_commit
+=== RUN   TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/nonterminal_completed
+--- PASS: TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation (0.00s)
+    --- PASS: TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/phase (0.00s)
+    --- PASS: TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/outcome (0.00s)
+    --- PASS: TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/operation (0.00s)
+    --- PASS: TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/attempt (0.00s)
+    --- PASS: TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/regression (0.00s)
+    --- PASS: TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/uncommit (0.00s)
+    --- PASS: TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/not_executed_after_commit (0.00s)
+    --- PASS: TestCoordinatorRejectsMalformedOrRegressiveFactsWithoutMutation/nonterminal_completed (0.00s)
+=== CONT  TestReplayPredicateDrivesRepeatFromHostFacts
+=== CONT  TestSchedulingOverflowAndPastHint
+=== CONT  TestReplayPredicateEvidence
+=== RUN   TestReplayPredicateEvidence/read-only
+=== RUN   TestReplayPredicateDrivesRepeatFromHostFacts/read-only
+--- PASS: TestSchedulingOverflowAndPastHint (0.00s)
+=== PAUSE TestReplayPredicateDrivesRepeatFromHostFacts/read-only
+=== CONT  TestWaitClockValidationAndZeroDelayCancellation
+=== PAUSE TestReplayPredicateEvidence/read-only
+=== RUN   TestReplayPredicateDrivesRepeatFromHostFacts/not-executed
+=== RUN   TestReplayPredicateEvidence/not-executed
+--- PASS: TestWaitClockValidationAndZeroDelayCancellation (0.00s)
+=== PAUSE TestReplayPredicateDrivesRepeatFromHostFacts/not-executed
+=== PAUSE TestReplayPredicateEvidence/not-executed
+=== RUN   TestReplayPredicateDrivesRepeatFromHostFacts/unknown-effect
+=== PAUSE TestReplayPredicateDrivesRepeatFromHostFacts/unknown-effect
+=== RUN   TestReplayPredicateEvidence/unknown
+=== RUN   TestReplayPredicateDrivesRepeatFromHostFacts/invalid-config
+=== PAUSE TestReplayPredicateDrivesRepeatFromHostFacts/invalid-config
+=== PAUSE TestReplayPredicateEvidence/unknown
+=== RUN   TestReplayPredicateDrivesRepeatFromHostFacts/cancelled-error
+=== RUN   TestReplayPredicateEvidence/unprepared
+=== PAUSE TestReplayPredicateEvidence/unprepared
+=== RUN   TestReplayPredicateEvidence/evidence-error
+=== PAUSE TestReplayPredicateEvidence/evidence-error
+=== CONT  TestReplayPredicateEvidence/evidence-error
+=== CONT  TestReplayPredicateEvidence/unprepared
+=== CONT  TestReplayPredicateEvidence/unknown
+=== CONT  TestReplayPredicateEvidence/not-executed
+=== CONT  TestReplayPredicateEvidence/read-only
+--- PASS: TestReplayPredicateEvidence (0.00s)
+    --- PASS: TestReplayPredicateEvidence/evidence-error (0.00s)
+    --- PASS: TestReplayPredicateEvidence/unprepared (0.00s)
+    --- PASS: TestReplayPredicateEvidence/unknown (0.00s)
+    --- PASS: TestReplayPredicateEvidence/not-executed (0.00s)
+    --- PASS: TestReplayPredicateEvidence/read-only (0.00s)
+=== PAUSE TestReplayPredicateDrivesRepeatFromHostFacts/cancelled-error
+=== CONT  TestReplayPredicateDrivesRepeatFromHostFacts/read-only
+=== CONT  TestReplayPredicateDrivesRepeatFromHostFacts/invalid-config
+=== CONT  TestReplayPredicateDrivesRepeatFromHostFacts/not-executed
+=== CONT  TestReplayPredicateDrivesRepeatFromHostFacts/cancelled-error
+=== CONT  TestReplayPredicateDrivesRepeatFromHostFacts/unknown-effect
+--- PASS: TestReplayPredicateDrivesRepeatFromHostFacts (0.00s)
+    --- PASS: TestReplayPredicateDrivesRepeatFromHostFacts/invalid-config (0.00s)
+    --- PASS: TestReplayPredicateDrivesRepeatFromHostFacts/read-only (0.00s)
+    --- PASS: TestReplayPredicateDrivesRepeatFromHostFacts/not-executed (0.00s)
+    --- PASS: TestReplayPredicateDrivesRepeatFromHostFacts/cancelled-error (0.00s)
+    --- PASS: TestReplayPredicateDrivesRepeatFromHostFacts/unknown-effect (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/policy/attempt	1.153s
+=== RUN   TestBoundaryQuotaFailurePolicyControlsDispatch
+=== RUN   TestBoundaryQuotaFailurePolicyControlsDispatch/fail_closed
+=== RUN   TestBoundaryQuotaFailurePolicyControlsDispatch/explicit_fail_open
+=== RUN   TestBoundaryQuotaFailurePolicyControlsDispatch/unknown_ack_overrides_fail_open
+--- PASS: TestBoundaryQuotaFailurePolicyControlsDispatch (0.00s)
+    --- PASS: TestBoundaryQuotaFailurePolicyControlsDispatch/fail_closed (0.00s)
+    --- PASS: TestBoundaryQuotaFailurePolicyControlsDispatch/explicit_fail_open (0.00s)
+    --- PASS: TestBoundaryQuotaFailurePolicyControlsDispatch/unknown_ack_overrides_fail_open (0.00s)
+=== RUN   TestAuthorizationRechecksAfterSettlementWait
+=== RUN   TestAuthorizationRechecksAfterSettlementWait/clock_advanced
+=== RUN   TestAuthorizationRechecksAfterSettlementWait/context_canceled
+--- PASS: TestAuthorizationRechecksAfterSettlementWait (0.00s)
+    --- PASS: TestAuthorizationRechecksAfterSettlementWait/clock_advanced (0.00s)
+    --- PASS: TestAuthorizationRechecksAfterSettlementWait/context_canceled (0.00s)
+=== RUN   TestBoundaryOrderingAndDefinitiveOutcome
+=== PAUSE TestBoundaryOrderingAndDefinitiveOutcome
+=== RUN   TestBoundaryDeniedDeferredAndCancellation
+=== PAUSE TestBoundaryDeniedDeferredAndCancellation
+=== RUN   TestBoundaryStreamPendingAndLateReconciliation
+=== PAUSE TestBoundaryStreamPendingAndLateReconciliation
+=== RUN   TestBoundaryFreshnessAfterAdmission
+=== PAUSE TestBoundaryFreshnessAfterAdmission
+=== RUN   TestBoundaryLocalFailureRetainsUnknown
+=== PAUSE TestBoundaryLocalFailureRetainsUnknown
+=== RUN   TestBoundaryLostSettlementAckCanReconcile
+=== PAUSE TestBoundaryLostSettlementAckCanReconcile
+=== RUN   TestBoundaryUniqueIdentityAndBudget
+=== PAUSE TestBoundaryUniqueIdentityAndBudget
+=== RUN   TestPartialAdmissionErrorRetainsFinishAndReconciliation
+--- PASS: TestPartialAdmissionErrorRetainsFinishAndReconciliation (0.00s)
+=== RUN   TestHostRetriesClassifiedPreDispatchFailureWithNewPhysicalIdentity
+--- PASS: TestHostRetriesClassifiedPreDispatchFailureWithNewPhysicalIdentity (0.00s)
+=== RUN   TestBoundaryQuotaHeldThroughStreamAndPending
+=== PAUSE TestBoundaryQuotaHeldThroughStreamAndPending
+=== RUN   TestRaceControlErrorCannotAuthorizeQueuedDispatch
+=== RUN   TestRaceControlErrorCannotAuthorizeQueuedDispatch/routery/attempt:_invalid_event
+=== RUN   TestRaceControlErrorCannotAuthorizeQueuedDispatch/routery/execution:_invalid_boundary
+=== RUN   TestRaceControlErrorCannotAuthorizeQueuedDispatch/wrapped:_routery/attempt:_invalid_event
+=== RUN   TestRaceControlErrorCannotAuthorizeQueuedDispatch/provider_routery/execution:_invalid_boundary
+--- PASS: TestRaceControlErrorCannotAuthorizeQueuedDispatch (0.00s)
+    --- PASS: TestRaceControlErrorCannotAuthorizeQueuedDispatch/routery/attempt:_invalid_event (0.00s)
+    --- PASS: TestRaceControlErrorCannotAuthorizeQueuedDispatch/routery/execution:_invalid_boundary (0.00s)
+    --- PASS: TestRaceControlErrorCannotAuthorizeQueuedDispatch/wrapped:_routery/attempt:_invalid_event (0.00s)
+    --- PASS: TestRaceControlErrorCannotAuthorizeQueuedDispatch/provider_routery/execution:_invalid_boundary (0.00s)
+=== RUN   TestRaceFatalDuringWinnerValidationPreventsAcceptance
+--- PASS: TestRaceFatalDuringWinnerValidationPreventsAcceptance (0.00s)
+=== RUN   TestRaceFatalErrorOverridesConcurrentWinnerBeforeCleanup
+--- PASS: TestRaceFatalErrorOverridesConcurrentWinnerBeforeCleanup (0.00s)
+=== RUN   TestRaceFatalErrorStopsQueueAcrossWorkers
+--- PASS: TestRaceFatalErrorStopsQueueAcrossWorkers (0.00s)
+=== RUN   TestRaceEarlyWinnerAndLateLoserRemainAccounted
+=== PAUSE TestRaceEarlyWinnerAndLateLoserRemainAccounted
+=== RUN   TestRaceConcurrencyIncludesOwnedResources
+=== PAUSE TestRaceConcurrencyIncludesOwnedResources
+=== RUN   TestRaceRejectsInvalidResultAndOwnsWinner
+=== PAUSE TestRaceRejectsInvalidResultAndOwnsWinner
+=== RUN   TestRaceRequiresExplicitDuplicatePermissions
+=== PAUSE TestRaceRequiresExplicitDuplicatePermissions
+=== RUN   TestRaceAttemptBudgetAndDeniedAdmission
+=== PAUSE TestRaceAttemptBudgetAndDeniedAdmission
+=== RUN   TestRaceDuplicateIdentityAndCancellationNeverDispatch
+=== PAUSE TestRaceDuplicateIdentityAndCancellationNeverDispatch
+=== RUN   TestRaceCompleteOnlyDoesNotAcceptStreamHandle
+=== PAUSE TestRaceCompleteOnlyDoesNotAcceptStreamHandle
+=== RUN   TestRaceRejectsCommittedOutputDuringValidation
+=== PAUSE TestRaceRejectsCommittedOutputDuringValidation
+=== RUN   TestHostRebuildRequiresAuthorizationFreshEligibilityAndSeparateAccounting
+=== RUN   TestHostRebuildRequiresAuthorizationFreshEligibilityAndSeparateAccounting/authorized
+=== RUN   TestHostRebuildRequiresAuthorizationFreshEligibilityAndSeparateAccounting/denied
+=== RUN   TestHostRebuildRequiresAuthorizationFreshEligibilityAndSeparateAccounting/foreign_scope
+=== RUN   TestHostRebuildRequiresAuthorizationFreshEligibilityAndSeparateAccounting/ineligible
+--- PASS: TestHostRebuildRequiresAuthorizationFreshEligibilityAndSeparateAccounting (0.00s)
+    --- PASS: TestHostRebuildRequiresAuthorizationFreshEligibilityAndSeparateAccounting/authorized (0.00s)
+    --- PASS: TestHostRebuildRequiresAuthorizationFreshEligibilityAndSeparateAccounting/denied (0.00s)
+    --- PASS: TestHostRebuildRequiresAuthorizationFreshEligibilityAndSeparateAccounting/foreign_scope (0.00s)
+    --- PASS: TestHostRebuildRequiresAuthorizationFreshEligibilityAndSeparateAccounting/ineligible (0.00s)
+=== RUN   TestExecutionValidatesCanonicalRouteActions
+=== RUN   TestExecutionValidatesCanonicalRouteActions/boundary/abort
+=== RUN   TestExecutionValidatesCanonicalRouteActions/boundary/unknown
+=== RUN   TestExecutionValidatesCanonicalRouteActions/sequence/abort
+=== RUN   TestExecutionValidatesCanonicalRouteActions/sequence/unknown
+=== RUN   TestExecutionValidatesCanonicalRouteActions/race/abort
+=== RUN   TestExecutionValidatesCanonicalRouteActions/race/unknown
+--- PASS: TestExecutionValidatesCanonicalRouteActions (0.00s)
+    --- PASS: TestExecutionValidatesCanonicalRouteActions/boundary/abort (0.00s)
+    --- PASS: TestExecutionValidatesCanonicalRouteActions/boundary/unknown (0.00s)
+    --- PASS: TestExecutionValidatesCanonicalRouteActions/sequence/abort (0.00s)
+    --- PASS: TestExecutionValidatesCanonicalRouteActions/sequence/unknown (0.00s)
+    --- PASS: TestExecutionValidatesCanonicalRouteActions/race/abort (0.00s)
+    --- PASS: TestExecutionValidatesCanonicalRouteActions/race/unknown (0.00s)
+=== RUN   TestSequenceFallbackReselectsWithoutWeakeningHardConstraints
+=== RUN   TestSequenceFallbackReselectsWithoutWeakeningHardConstraints/capability
+=== RUN   TestSequenceFallbackReselectsWithoutWeakeningHardConstraints/residency
+--- PASS: TestSequenceFallbackReselectsWithoutWeakeningHardConstraints (0.00s)
+    --- PASS: TestSequenceFallbackReselectsWithoutWeakeningHardConstraints/capability (0.00s)
+    --- PASS: TestSequenceFallbackReselectsWithoutWeakeningHardConstraints/residency (0.00s)
+=== RUN   TestSequenceLateCommitDuringNextBlocksDispatch
+--- PASS: TestSequenceLateCommitDuringNextBlocksDispatch (0.00s)
+=== RUN   TestSequenceDeadlineCrossedDuringAdmissionBlocksDispatch
+--- PASS: TestSequenceDeadlineCrossedDuringAdmissionBlocksDispatch (0.00s)
+=== RUN   TestSequenceCommitAcrossRepeatPreparation
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/wait/stop
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/wait/reset
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/next/stop
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/next/reset
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/fresh_before_admission/stop
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/fresh_before_admission/reset
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/admit/stop
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/admit/reset
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/fresh_after_admission/stop
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/fresh_after_admission/reset
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/replay/stop
+=== RUN   TestSequenceCommitAcrossRepeatPreparation/replay/reset
+--- PASS: TestSequenceCommitAcrossRepeatPreparation (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/wait/stop (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/wait/reset (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/next/stop (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/next/reset (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/fresh_before_admission/stop (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/fresh_before_admission/reset (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/admit/stop (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/admit/reset (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/fresh_after_admission/stop (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/fresh_after_admission/reset (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/replay/stop (0.00s)
+    --- PASS: TestSequenceCommitAcrossRepeatPreparation/replay/reset (0.00s)
+=== RUN   TestSequenceDeadlineAcrossPreparation
+=== RUN   TestSequenceDeadlineAcrossPreparation/fresh_first
+=== RUN   TestSequenceDeadlineAcrossPreparation/admit_first
+=== RUN   TestSequenceDeadlineAcrossPreparation/fresh_second
+=== RUN   TestSequenceDeadlineAcrossPreparation/wait
+=== RUN   TestSequenceDeadlineAcrossPreparation/next
+=== RUN   TestSequenceDeadlineAcrossPreparation/fresh_third
+=== RUN   TestSequenceDeadlineAcrossPreparation/admit_second
+=== RUN   TestSequenceDeadlineAcrossPreparation/fresh_fourth
+--- PASS: TestSequenceDeadlineAcrossPreparation (0.00s)
+    --- PASS: TestSequenceDeadlineAcrossPreparation/fresh_first (0.00s)
+    --- PASS: TestSequenceDeadlineAcrossPreparation/admit_first (0.00s)
+    --- PASS: TestSequenceDeadlineAcrossPreparation/fresh_second (0.00s)
+    --- PASS: TestSequenceDeadlineAcrossPreparation/wait (0.00s)
+    --- PASS: TestSequenceDeadlineAcrossPreparation/next (0.00s)
+    --- PASS: TestSequenceDeadlineAcrossPreparation/fresh_third (0.00s)
+    --- PASS: TestSequenceDeadlineAcrossPreparation/admit_second (0.00s)
+    --- PASS: TestSequenceDeadlineAcrossPreparation/fresh_fourth (0.00s)
+=== RUN   TestSequenceRefreshesReplayAfterAdmission
+--- PASS: TestSequenceRefreshesReplayAfterAdmission (0.00s)
+=== RUN   TestSequenceConcurrentRecordAroundAuthorization
+=== RUN   TestSequenceConcurrentRecordAroundAuthorization/before
+=== RUN   TestSequenceConcurrentRecordAroundAuthorization/after
+--- PASS: TestSequenceConcurrentRecordAroundAuthorization (0.00s)
+    --- PASS: TestSequenceConcurrentRecordAroundAuthorization/before (0.00s)
+    --- PASS: TestSequenceConcurrentRecordAroundAuthorization/after (0.00s)
+=== RUN   TestSequenceOwnedContextRetainedUntilCloseOrDeadline
+=== RUN   TestSequenceOwnedContextRetainedUntilCloseOrDeadline/success
+=== RUN   TestSequenceOwnedContextRetainedUntilCloseOrDeadline/partial_error
+--- PASS: TestSequenceOwnedContextRetainedUntilCloseOrDeadline (0.00s)
+    --- PASS: TestSequenceOwnedContextRetainedUntilCloseOrDeadline/success (0.00s)
+    --- PASS: TestSequenceOwnedContextRetainedUntilCloseOrDeadline/partial_error (0.00s)
+=== RUN   TestSequenceCannotExtendContextDeadline
+--- PASS: TestSequenceCannotExtendContextDeadline (0.00s)
+=== RUN   TestSequenceRejectsExtendingDeadlineFactory
+--- PASS: TestSequenceRejectsExtendingDeadlineFactory (0.00s)
+=== RUN   TestReceiptSettlementCallbacksRunOutsideMutex
+--- PASS: TestReceiptSettlementCallbacksRunOutsideMutex (0.00s)
+=== RUN   TestSequenceConsumerResetDoesNotReplaceReplayEvidence
+=== RUN   TestSequenceConsumerResetDoesNotReplaceReplayEvidence/no_reset
+=== RUN   TestSequenceConsumerResetDoesNotReplaceReplayEvidence/reset_alone
+=== RUN   TestSequenceConsumerResetDoesNotReplaceReplayEvidence/reset_and_duplicate_evidence
+--- PASS: TestSequenceConsumerResetDoesNotReplaceReplayEvidence (0.00s)
+    --- PASS: TestSequenceConsumerResetDoesNotReplaceReplayEvidence/no_reset (0.00s)
+    --- PASS: TestSequenceConsumerResetDoesNotReplaceReplayEvidence/reset_alone (0.00s)
+    --- PASS: TestSequenceConsumerResetDoesNotReplaceReplayEvidence/reset_and_duplicate_evidence (0.00s)
+=== RUN   TestSequenceNestedPhysicalAttemptsConsumeSharedBudget
+--- PASS: TestSequenceNestedPhysicalAttemptsConsumeSharedBudget (0.00s)
+=== RUN   TestSequenceReportsUnobservableNestedAttempts
+--- PASS: TestSequenceReportsUnobservableNestedAttempts (0.00s)
+=== RUN   TestSequenceCancellationAroundBackoff
+=== PAUSE TestSequenceCancellationAroundBackoff
+=== RUN   TestSequenceHintBeyondDeadlineDefers
+=== PAUSE TestSequenceHintBeyondDeadlineDefers
+=== RUN   TestSequenceWaitCannotDispatchEarlyOrAfterDeadline
+=== PAUSE TestSequenceWaitCannotDispatchEarlyOrAfterDeadline
+=== RUN   TestSequenceRechecksLateCommitBeforeRepeat
+=== PAUSE TestSequenceRechecksLateCommitBeforeRepeat
+=== RUN   TestSequenceSettlementFailureBlocksRepeat
+=== PAUSE TestSequenceSettlementFailureBlocksRepeat
+=== RUN   TestSequenceCancelledBeforeInitialAttempt
+=== PAUSE TestSequenceCancelledBeforeInitialAttempt
+=== RUN   TestSequenceUnknownAdmissionAckCannotRetry
+=== PAUSE TestSequenceUnknownAdmissionAckCannotRetry
+=== RUN   TestSequenceMalformedLifecycleCannotBecomeProviderRetry
+--- PASS: TestSequenceMalformedLifecycleCannotBecomeProviderRetry (0.00s)
+=== RUN   TestSequenceFallbackHintAndPerAttemptAdmission
+=== PAUSE TestSequenceFallbackHintAndPerAttemptAdmission
+=== RUN   TestSequenceUnsafePartialMatrix
+=== PAUSE TestSequenceUnsafePartialMatrix
+=== CONT  TestBoundaryOrderingAndDefinitiveOutcome
+=== CONT  TestRaceAttemptBudgetAndDeniedAdmission
+=== CONT  TestSequenceFallbackHintAndPerAttemptAdmission
+--- PASS: TestBoundaryOrderingAndDefinitiveOutcome (0.00s)
+=== CONT  TestRaceCompleteOnlyDoesNotAcceptStreamHandle
+=== CONT  TestSequenceWaitCannotDispatchEarlyOrAfterDeadline
+=== RUN   TestSequenceWaitCannotDispatchEarlyOrAfterDeadline/early_wait
+=== CONT  TestSequenceUnknownAdmissionAckCannotRetry
+--- PASS: TestSequenceUnknownAdmissionAckCannotRetry (0.00s)
+=== CONT  TestRaceRejectsInvalidResultAndOwnsWinner
+=== PAUSE TestSequenceWaitCannotDispatchEarlyOrAfterDeadline/early_wait
+=== RUN   TestSequenceWaitCannotDispatchEarlyOrAfterDeadline/late_wait
+=== PAUSE TestSequenceWaitCannotDispatchEarlyOrAfterDeadline/late_wait
+=== CONT  TestSequenceCancellationAroundBackoff
+=== RUN   TestSequenceCancellationAroundBackoff/0s
+=== PAUSE TestSequenceCancellationAroundBackoff/0s
+--- PASS: TestSequenceFallbackHintAndPerAttemptAdmission (0.00s)
+=== RUN   TestSequenceCancellationAroundBackoff/1m0s
+=== CONT  TestRaceRequiresExplicitDuplicatePermissions
+=== CONT  TestRaceConcurrencyIncludesOwnedResources
+=== CONT  TestRaceEarlyWinnerAndLateLoserRemainAccounted
+=== CONT  TestSequenceCancelledBeforeInitialAttempt
+=== CONT  TestSequenceHintBeyondDeadlineDefers
+=== PAUSE TestSequenceCancellationAroundBackoff/1m0s
+=== CONT  TestSequenceSettlementFailureBlocksRepeat
+=== CONT  TestSequenceRechecksLateCommitBeforeRepeat
+=== CONT  TestSequenceUnsafePartialMatrix
+=== CONT  TestSequenceWaitCannotDispatchEarlyOrAfterDeadline/early_wait
+=== RUN   TestSequenceUnsafePartialMatrix/visible_partial
+=== CONT  TestRaceRejectsCommittedOutputDuringValidation
+=== PAUSE TestSequenceUnsafePartialMatrix/visible_partial
+=== CONT  TestSequenceWaitCannotDispatchEarlyOrAfterDeadline/late_wait
+=== RUN   TestSequenceUnsafePartialMatrix/buffered_unknown
+=== CONT  TestRaceDuplicateIdentityAndCancellationNeverDispatch
+=== PAUSE TestSequenceUnsafePartialMatrix/buffered_unknown
+=== CONT  TestBoundaryLostSettlementAckCanReconcile
+=== RUN   TestSequenceUnsafePartialMatrix/unknown_reconcile
+=== CONT  TestBoundaryFreshnessAfterAdmission
+=== CONT  TestBoundaryLocalFailureRetainsUnknown
+=== CONT  TestBoundaryDeniedDeferredAndCancellation
+=== PAUSE TestSequenceUnsafePartialMatrix/unknown_reconcile
+=== CONT  TestBoundaryStreamPendingAndLateReconciliation
+=== RUN   TestSequenceUnsafePartialMatrix/not_replayable
+=== CONT  TestBoundaryUniqueIdentityAndBudget
+=== CONT  TestBoundaryQuotaHeldThroughStreamAndPending
+=== CONT  TestSequenceCancellationAroundBackoff/1m0s
+--- PASS: TestRaceCompleteOnlyDoesNotAcceptStreamHandle (0.00s)
+=== PAUSE TestSequenceUnsafePartialMatrix/not_replayable
+--- PASS: TestSequenceCancelledBeforeInitialAttempt (0.00s)
+=== CONT  TestSequenceCancellationAroundBackoff/0s
+--- PASS: TestBoundaryQuotaHeldThroughStreamAndPending (0.00s)
+=== CONT  TestSequenceUnsafePartialMatrix/visible_partial
+=== RUN   TestBoundaryDeniedDeferredAndCancellation/denied
+=== PAUSE TestBoundaryDeniedDeferredAndCancellation/denied
+--- PASS: TestRaceAttemptBudgetAndDeniedAdmission (0.00s)
+--- PASS: TestSequenceRechecksLateCommitBeforeRepeat (0.00s)
+--- PASS: TestSequenceSettlementFailureBlocksRepeat (0.00s)
+=== CONT  TestSequenceUnsafePartialMatrix/not_replayable
+=== CONT  TestSequenceUnsafePartialMatrix/buffered_unknown
+--- PASS: TestSequenceHintBeyondDeadlineDefers (0.00s)
+=== CONT  TestSequenceUnsafePartialMatrix/unknown_reconcile
+--- PASS: TestRaceDuplicateIdentityAndCancellationNeverDispatch (0.00s)
+--- PASS: TestBoundaryLostSettlementAckCanReconcile (0.00s)
+--- PASS: TestRaceConcurrencyIncludesOwnedResources (0.00s)
+--- PASS: TestBoundaryFreshnessAfterAdmission (0.00s)
+--- PASS: TestBoundaryLocalFailureRetainsUnknown (0.00s)
+--- PASS: TestBoundaryStreamPendingAndLateReconciliation (0.00s)
+--- PASS: TestBoundaryUniqueIdentityAndBudget (0.00s)
+--- PASS: TestSequenceCancellationAroundBackoff (0.00s)
+    --- PASS: TestSequenceCancellationAroundBackoff/1m0s (0.00s)
+    --- PASS: TestSequenceCancellationAroundBackoff/0s (0.00s)
+=== RUN   TestBoundaryDeniedDeferredAndCancellation/deferred
+=== PAUSE TestBoundaryDeniedDeferredAndCancellation/deferred
+=== RUN   TestBoundaryDeniedDeferredAndCancellation/cancel_after_reserve
+=== PAUSE TestBoundaryDeniedDeferredAndCancellation/cancel_after_reserve
+=== CONT  TestBoundaryDeniedDeferredAndCancellation/cancel_after_reserve
+=== CONT  TestBoundaryDeniedDeferredAndCancellation/deferred
+=== CONT  TestBoundaryDeniedDeferredAndCancellation/denied
+--- PASS: TestBoundaryDeniedDeferredAndCancellation (0.00s)
+    --- PASS: TestBoundaryDeniedDeferredAndCancellation/cancel_after_reserve (0.00s)
+    --- PASS: TestBoundaryDeniedDeferredAndCancellation/deferred (0.00s)
+    --- PASS: TestBoundaryDeniedDeferredAndCancellation/denied (0.00s)
+--- PASS: TestRaceRejectsInvalidResultAndOwnsWinner (0.00s)
+--- PASS: TestSequenceUnsafePartialMatrix (0.00s)
+    --- PASS: TestSequenceUnsafePartialMatrix/not_replayable (0.00s)
+    --- PASS: TestSequenceUnsafePartialMatrix/buffered_unknown (0.00s)
+    --- PASS: TestSequenceUnsafePartialMatrix/visible_partial (0.00s)
+    --- PASS: TestSequenceUnsafePartialMatrix/unknown_reconcile (0.00s)
+--- PASS: TestRaceRequiresExplicitDuplicatePermissions (0.00s)
+--- PASS: TestSequenceWaitCannotDispatchEarlyOrAfterDeadline (0.00s)
+    --- PASS: TestSequenceWaitCannotDispatchEarlyOrAfterDeadline/late_wait (0.00s)
+    --- PASS: TestSequenceWaitCannotDispatchEarlyOrAfterDeadline/early_wait (0.00s)
+--- PASS: TestRaceRejectsCommittedOutputDuringValidation (0.00s)
+--- PASS: TestRaceEarlyWinnerAndLateLoserRemainAccounted (0.00s)
+=== RUN   ExampleBoundary_authorizedAffinityRebuild
+--- PASS: ExampleBoundary_authorizedAffinityRebuild (0.00s)
+=== RUN   ExampleBoundary_modelExecution
+--- PASS: ExampleBoundary_modelExecution (0.00s)
+=== RUN   ExampleBoundary_ordinaryOperation
+--- PASS: ExampleBoundary_ordinaryOperation (0.00s)
+=== RUN   ExampleRace_lateJournalObservations
+--- PASS: ExampleRace_lateJournalObservations (0.00s)
+=== RUN   ExampleBoundary_modelValueLifecycle
+--- PASS: ExampleBoundary_modelValueLifecycle (0.00s)
+=== RUN   ExampleSequence_externalResourceLifecycle
+--- PASS: ExampleSequence_externalResourceLifecycle (0.00s)
+=== RUN   ExampleBoundary_quotaReconciliation
+--- PASS: ExampleBoundary_quotaReconciliation (0.00s)
+=== RUN   ExampleSequence_ordinaryOperation
+--- PASS: ExampleSequence_ordinaryOperation (0.00s)
+=== RUN   ExampleSequence_resourceResult
+--- PASS: ExampleSequence_resourceResult (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/policy/execution	1.174s
+=== RUN   TestHardModelConstraintsRunBeforeRanking
+=== RUN   TestHardModelConstraintsRunBeforeRanking/context_window
+=== RUN   TestHardModelConstraintsRunBeforeRanking/residency
+=== RUN   TestHardModelConstraintsRunBeforeRanking/retention
+=== RUN   TestHardModelConstraintsRunBeforeRanking/quality_floor
+=== RUN   TestHardModelConstraintsRunBeforeRanking/stale_quality
+--- PASS: TestHardModelConstraintsRunBeforeRanking (0.00s)
+    --- PASS: TestHardModelConstraintsRunBeforeRanking/context_window (0.00s)
+    --- PASS: TestHardModelConstraintsRunBeforeRanking/residency (0.00s)
+    --- PASS: TestHardModelConstraintsRunBeforeRanking/retention (0.00s)
+    --- PASS: TestHardModelConstraintsRunBeforeRanking/quality_floor (0.00s)
+    --- PASS: TestHardModelConstraintsRunBeforeRanking/stale_quality (0.00s)
+=== RUN   TestModelInvalidPolicyAndRequiredEstimatesReject
+=== RUN   TestModelInvalidPolicyAndRequiredEstimatesReject/unsupported_policy
+=== RUN   TestModelInvalidPolicyAndRequiredEstimatesReject/invalid_floor
+=== RUN   TestModelInvalidPolicyAndRequiredEstimatesReject/stale_descriptor
+=== RUN   TestModelInvalidPolicyAndRequiredEstimatesReject/missing_cost
+--- PASS: TestModelInvalidPolicyAndRequiredEstimatesReject (0.00s)
+    --- PASS: TestModelInvalidPolicyAndRequiredEstimatesReject/unsupported_policy (0.00s)
+    --- PASS: TestModelInvalidPolicyAndRequiredEstimatesReject/invalid_floor (0.00s)
+    --- PASS: TestModelInvalidPolicyAndRequiredEstimatesReject/stale_descriptor (0.00s)
+    --- PASS: TestModelInvalidPolicyAndRequiredEstimatesReject/missing_cost (0.00s)
+=== RUN   TestModelHardConstraintsAndQualityNeverUseDefaults
+=== RUN   TestModelHardConstraintsAndQualityNeverUseDefaults/unknown_schema
+=== RUN   TestModelHardConstraintsAndQualityNeverUseDefaults/unknown_retention
+=== RUN   TestModelHardConstraintsAndQualityNeverUseDefaults/missing_quality
+=== RUN   TestModelHardConstraintsAndQualityNeverUseDefaults/wrong_task_quality
+--- PASS: TestModelHardConstraintsAndQualityNeverUseDefaults (0.00s)
+    --- PASS: TestModelHardConstraintsAndQualityNeverUseDefaults/unknown_schema (0.00s)
+    --- PASS: TestModelHardConstraintsAndQualityNeverUseDefaults/unknown_retention (0.00s)
+    --- PASS: TestModelHardConstraintsAndQualityNeverUseDefaults/missing_quality (0.00s)
+    --- PASS: TestModelHardConstraintsAndQualityNeverUseDefaults/wrong_task_quality (0.00s)
+=== RUN   TestOptionalEstimatesPreserveMeasurementSemantics
+--- PASS: TestOptionalEstimatesPreserveMeasurementSemantics (0.00s)
+=== RUN   TestOptionalAndDefaultQualityAreTaskScopedAtRank
+=== PAUSE TestOptionalAndDefaultQualityAreTaskScopedAtRank
+=== RUN   TestPinnedModelRequiresCurrentDescriptorAndQualityWindows
+=== RUN   TestPinnedModelRequiresCurrentDescriptorAndQualityWindows/descriptor
+=== RUN   TestPinnedModelRequiresCurrentDescriptorAndQualityWindows/quality
+--- PASS: TestPinnedModelRequiresCurrentDescriptorAndQualityWindows (0.00s)
+    --- PASS: TestPinnedModelRequiresCurrentDescriptorAndQualityWindows/descriptor (0.00s)
+    --- PASS: TestPinnedModelRequiresCurrentDescriptorAndQualityWindows/quality (0.00s)
+=== CONT  TestOptionalAndDefaultQualityAreTaskScopedAtRank
+=== RUN   TestOptionalAndDefaultQualityAreTaskScopedAtRank/current
+=== PAUSE TestOptionalAndDefaultQualityAreTaskScopedAtRank/current
+=== RUN   TestOptionalAndDefaultQualityAreTaskScopedAtRank/wrong
+=== PAUSE TestOptionalAndDefaultQualityAreTaskScopedAtRank/wrong
+=== RUN   TestOptionalAndDefaultQualityAreTaskScopedAtRank/missing-task
+=== PAUSE TestOptionalAndDefaultQualityAreTaskScopedAtRank/missing-task
+=== RUN   TestOptionalAndDefaultQualityAreTaskScopedAtRank/current-default
+=== PAUSE TestOptionalAndDefaultQualityAreTaskScopedAtRank/current-default
+=== RUN   TestOptionalAndDefaultQualityAreTaskScopedAtRank/absent
+=== PAUSE TestOptionalAndDefaultQualityAreTaskScopedAtRank/absent
+=== RUN   TestOptionalAndDefaultQualityAreTaskScopedAtRank/expired
+=== PAUSE TestOptionalAndDefaultQualityAreTaskScopedAtRank/expired
+=== RUN   TestOptionalAndDefaultQualityAreTaskScopedAtRank/invalid-provenance
+=== PAUSE TestOptionalAndDefaultQualityAreTaskScopedAtRank/invalid-provenance
+=== RUN   TestOptionalAndDefaultQualityAreTaskScopedAtRank/future
+=== PAUSE TestOptionalAndDefaultQualityAreTaskScopedAtRank/future
+=== RUN   TestOptionalAndDefaultQualityAreTaskScopedAtRank/invalid-default
+=== PAUSE TestOptionalAndDefaultQualityAreTaskScopedAtRank/invalid-default
+=== CONT  TestOptionalAndDefaultQualityAreTaskScopedAtRank/wrong
+=== CONT  TestOptionalAndDefaultQualityAreTaskScopedAtRank/future
+=== CONT  TestOptionalAndDefaultQualityAreTaskScopedAtRank/invalid-provenance
+=== CONT  TestOptionalAndDefaultQualityAreTaskScopedAtRank/invalid-default
+=== CONT  TestOptionalAndDefaultQualityAreTaskScopedAtRank/absent
+=== CONT  TestOptionalAndDefaultQualityAreTaskScopedAtRank/expired
+=== CONT  TestOptionalAndDefaultQualityAreTaskScopedAtRank/missing-task
+=== CONT  TestOptionalAndDefaultQualityAreTaskScopedAtRank/current-default
+=== CONT  TestOptionalAndDefaultQualityAreTaskScopedAtRank/current
+--- PASS: TestOptionalAndDefaultQualityAreTaskScopedAtRank (0.00s)
+    --- PASS: TestOptionalAndDefaultQualityAreTaskScopedAtRank/wrong (0.00s)
+    --- PASS: TestOptionalAndDefaultQualityAreTaskScopedAtRank/future (0.00s)
+    --- PASS: TestOptionalAndDefaultQualityAreTaskScopedAtRank/invalid-provenance (0.00s)
+    --- PASS: TestOptionalAndDefaultQualityAreTaskScopedAtRank/invalid-default (0.00s)
+    --- PASS: TestOptionalAndDefaultQualityAreTaskScopedAtRank/absent (0.00s)
+    --- PASS: TestOptionalAndDefaultQualityAreTaskScopedAtRank/expired (0.00s)
+    --- PASS: TestOptionalAndDefaultQualityAreTaskScopedAtRank/missing-task (0.00s)
+    --- PASS: TestOptionalAndDefaultQualityAreTaskScopedAtRank/current-default (0.00s)
+    --- PASS: TestOptionalAndDefaultQualityAreTaskScopedAtRank/current (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/policy/model	(cached)
+=== RUN   TestIndependentSessionsRejectConcurrentFinalization
+--- PASS: TestIndependentSessionsRejectConcurrentFinalization (0.00s)
+=== RUN   TestExpiredHandleNeverBecomesZeroUsage
+=== RUN   TestExpiredHandleNeverBecomesZeroUsage/complete
+=== RUN   TestExpiredHandleNeverBecomesZeroUsage/incomplete
+=== RUN   TestExpiredHandleNeverBecomesZeroUsage/release
+--- PASS: TestExpiredHandleNeverBecomesZeroUsage (0.00s)
+    --- PASS: TestExpiredHandleNeverBecomesZeroUsage/complete (0.00s)
+    --- PASS: TestExpiredHandleNeverBecomesZeroUsage/incomplete (0.00s)
+    --- PASS: TestExpiredHandleNeverBecomesZeroUsage/release (0.00s)
+=== RUN   TestDuplicateReserveRejectsChangedFacts
+=== RUN   TestDuplicateReserveRejectsChangedFacts/scope
+=== RUN   TestDuplicateReserveRejectsChangedFacts/policy
+=== RUN   TestDuplicateReserveRejectsChangedFacts/estimate
+--- PASS: TestDuplicateReserveRejectsChangedFacts (0.00s)
+    --- PASS: TestDuplicateReserveRejectsChangedFacts/scope (0.00s)
+    --- PASS: TestDuplicateReserveRejectsChangedFacts/policy (0.00s)
+    --- PASS: TestDuplicateReserveRejectsChangedFacts/estimate (0.00s)
+=== RUN   TestAtomicAdmissionAndDuplicateIdentity
+--- PASS: TestAtomicAdmissionAndDuplicateIdentity (0.00s)
+=== RUN   TestSettlementLostAckOverageAndConflicts
+--- PASS: TestSettlementLostAckOverageAndConflicts (0.00s)
+=== RUN   TestIncompleteCancelledUsageRetainedAndResolved
+--- PASS: TestIncompleteCancelledUsageRetainedAndResolved (0.00s)
+=== RUN   TestBackendFailurePolicyAndCancellation
+--- PASS: TestBackendFailurePolicyAndCancellation (0.00s)
+=== RUN   TestSessionCancellationAndStateDuringIO
+--- PASS: TestSessionCancellationAndStateDuringIO (0.00s)
+=== RUN   TestSessionConcurrentCommitAndBackendStateCallback
+--- PASS: TestSessionConcurrentCommitAndBackendStateCallback (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/policy/quota	(cached)
+=== RUN   TestHostBackendConformance
+=== PAUSE TestHostBackendConformance
+=== RUN   TestBrokenIndependentClientFinalizationIsDetected
+=== PAUSE TestBrokenIndependentClientFinalizationIsDetected
+=== RUN   TestUnsupportedFaultCapabilitiesAreNotPassed
+=== PAUSE TestUnsupportedFaultCapabilitiesAreNotPassed
+=== RUN   TestFixtureErrorsAndCleanupAreVisible
+=== PAUSE TestFixtureErrorsAndCleanupAreVisible
+=== RUN   TestUnknownAcknowledgmentRefundIsDetected
+=== PAUSE TestUnknownAcknowledgmentRefundIsDetected
+=== CONT  TestBrokenIndependentClientFinalizationIsDetected
+=== CONT  TestFixtureErrorsAndCleanupAreVisible
+=== CONT  TestUnsupportedFaultCapabilitiesAreNotPassed
+=== CONT  TestUnknownAcknowledgmentRefundIsDetected
+=== CONT  TestHostBackendConformance
+--- PASS: TestUnsupportedFaultCapabilitiesAreNotPassed (0.00s)
+--- PASS: TestBrokenIndependentClientFinalizationIsDetected (0.00s)
+--- PASS: TestFixtureErrorsAndCleanupAreVisible (0.00s)
+--- PASS: TestUnknownAcknowledgmentRefundIsDetected (0.00s)
+=== RUN   TestHostBackendConformance/deduplication
+    suite.go:167: PASS: conformance evidence recorded
+=== RUN   TestHostBackendConformance/mismatched-reserve
+    suite.go:167: PASS: conformance evidence recorded
+=== RUN   TestHostBackendConformance/concurrent-finalization
+    suite.go:167: PASS: conformance evidence recorded
+=== RUN   TestHostBackendConformance/release-idempotency
+    suite.go:167: PASS: conformance evidence recorded
+=== RUN   TestHostBackendConformance/pending-overage
+    suite.go:167: PASS: conformance evidence recorded
+=== RUN   TestHostBackendConformance/lost-reserve-ack
+    suite.go:167: PASS: conformance evidence recorded
+=== RUN   TestHostBackendConformance/lost-commit-ack
+    suite.go:167: PASS: conformance evidence recorded
+=== RUN   TestHostBackendConformance/expiration
+    suite.go:167: PASS: conformance evidence recorded
+=== RUN   TestHostBackendConformance/restart-recovery
+    suite.go:167: PASS: conformance evidence recorded
+--- PASS: TestHostBackendConformance (0.00s)
+    --- PASS: TestHostBackendConformance/deduplication (0.00s)
+    --- PASS: TestHostBackendConformance/mismatched-reserve (0.00s)
+    --- PASS: TestHostBackendConformance/concurrent-finalization (0.00s)
+    --- PASS: TestHostBackendConformance/release-idempotency (0.00s)
+    --- PASS: TestHostBackendConformance/pending-overage (0.00s)
+    --- PASS: TestHostBackendConformance/lost-reserve-ack (0.00s)
+    --- PASS: TestHostBackendConformance/lost-commit-ack (0.00s)
+    --- PASS: TestHostBackendConformance/expiration (0.00s)
+    --- PASS: TestHostBackendConformance/restart-recovery (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/policy/quota/quotatest	(cached)
+test - ./ext/s3
+=== RUN   TestGetWinnerOwnsStreamUntilClose
+=== PAUSE TestGetWinnerOwnsStreamUntilClose
+=== RUN   TestNewPutObjectRouteHandlerNil
+=== PAUSE TestNewPutObjectRouteHandlerNil
+=== RUN   TestNewPutObjectRouteHandlerOK
+=== PAUSE TestNewPutObjectRouteHandlerOK
+=== RUN   TestNewGetObjectRouteHandlerNil
+=== PAUSE TestNewGetObjectRouteHandlerNil
+=== RUN   TestNewGetObjectRouteHandlerOK
+=== PAUSE TestNewGetObjectRouteHandlerOK
+=== RUN   TestPutRouteHandlerConcurrent
+=== PAUSE TestPutRouteHandlerConcurrent
+=== RUN   TestPreparedPutHasIndependentFullBodies
+=== PAUSE TestPreparedPutHasIndependentFullBodies
+=== RUN   TestPutPreparationFailureOwnership
+=== PAUSE TestPutPreparationFailureOwnership
+=== RUN   TestPutRejectsUnpreparedAndClosesFactoryFailures
+=== PAUSE TestPutRejectsUnpreparedAndClosesFactoryFailures
+=== RUN   TestPartialDownloadKeepsOwnershipOnError
+=== PAUSE TestPartialDownloadKeepsOwnershipOnError
+=== RUN   TestIsTransientError
+=== PAUSE TestIsTransientError
+=== CONT  TestGetWinnerOwnsStreamUntilClose
+=== CONT  TestPutRouteHandlerConcurrent
+--- PASS: TestGetWinnerOwnsStreamUntilClose (0.00s)
+=== CONT  TestPreparedPutHasIndependentFullBodies
+=== CONT  TestPartialDownloadKeepsOwnershipOnError
+--- PASS: TestPartialDownloadKeepsOwnershipOnError (0.00s)
+=== CONT  TestNewGetObjectRouteHandlerNil
+=== CONT  TestNewPutObjectRouteHandlerOK
+=== CONT  TestNewGetObjectRouteHandlerOK
+--- PASS: TestNewPutObjectRouteHandlerOK (0.00s)
+--- PASS: TestNewGetObjectRouteHandlerOK (0.00s)
+=== CONT  TestNewPutObjectRouteHandlerNil
+=== CONT  TestIsTransientError
+=== CONT  TestPutRejectsUnpreparedAndClosesFactoryFailures
+=== CONT  TestPutPreparationFailureOwnership
+--- PASS: TestNewGetObjectRouteHandlerNil (0.00s)
+=== RUN   TestPutPreparationFailureOwnership/invalid-limit
+--- PASS: TestNewPutObjectRouteHandlerNil (0.00s)
+=== RUN   TestIsTransientError/nil
+=== PAUSE TestPutPreparationFailureOwnership/invalid-limit
+--- PASS: TestPutRejectsUnpreparedAndClosesFactoryFailures (0.00s)
+=== PAUSE TestIsTransientError/nil
+--- PASS: TestPreparedPutHasIndependentFullBodies (0.00s)
+=== RUN   TestPutPreparationFailureOwnership/overflow
+=== RUN   TestIsTransientError/canceled
+=== PAUSE TestPutPreparationFailureOwnership/overflow
+=== PAUSE TestIsTransientError/canceled
+=== RUN   TestPutPreparationFailureOwnership/close-error
+=== RUN   TestIsTransientError/deadline
+=== PAUSE TestPutPreparationFailureOwnership/close-error
+=== PAUSE TestIsTransientError/deadline
+=== RUN   TestIsTransientError/503
+=== PAUSE TestIsTransientError/503
+=== RUN   TestIsTransientError/429
+=== CONT  TestPutPreparationFailureOwnership/invalid-limit
+=== CONT  TestPutPreparationFailureOwnership/overflow
+=== CONT  TestPutPreparationFailureOwnership/close-error
+=== PAUSE TestIsTransientError/429
+--- PASS: TestPutPreparationFailureOwnership (0.00s)
+    --- PASS: TestPutPreparationFailureOwnership/invalid-limit (0.00s)
+    --- PASS: TestPutPreparationFailureOwnership/overflow (0.00s)
+    --- PASS: TestPutPreparationFailureOwnership/close-error (0.00s)
+--- PASS: TestPutRouteHandlerConcurrent (0.00s)
+=== RUN   TestIsTransientError/404
+=== PAUSE TestIsTransientError/404
+=== RUN   TestIsTransientError/403
+=== PAUSE TestIsTransientError/403
+=== RUN   TestIsTransientError/timeout
+=== PAUSE TestIsTransientError/timeout
+=== RUN   TestIsTransientError/slow_msg
+=== PAUSE TestIsTransientError/slow_msg
+=== RUN   TestIsTransientError/plain
+=== PAUSE TestIsTransientError/plain
+=== RUN   TestIsTransientError/local-throttle
+=== PAUSE TestIsTransientError/local-throttle
+=== RUN   TestIsTransientError/similar-api-code
+=== PAUSE TestIsTransientError/similar-api-code
+=== RUN   TestIsTransientError/numeric-api-code
+=== PAUSE TestIsTransientError/numeric-api-code
+=== RUN   TestIsTransientError/exact-throttle
+=== PAUSE TestIsTransientError/exact-throttle
+=== RUN   TestIsTransientError/api_slow
+=== PAUSE TestIsTransientError/api_slow
+=== CONT  TestIsTransientError/nil
+=== CONT  TestIsTransientError/api_slow
+=== CONT  TestIsTransientError/slow_msg
+=== CONT  TestIsTransientError/timeout
+=== CONT  TestIsTransientError/503
+=== CONT  TestIsTransientError/404
+=== CONT  TestIsTransientError/403
+=== CONT  TestIsTransientError/429
+=== CONT  TestIsTransientError/exact-throttle
+=== CONT  TestIsTransientError/numeric-api-code
+=== CONT  TestIsTransientError/canceled
+=== CONT  TestIsTransientError/similar-api-code
+=== CONT  TestIsTransientError/plain
+=== CONT  TestIsTransientError/local-throttle
+=== CONT  TestIsTransientError/deadline
+--- PASS: TestIsTransientError (0.00s)
+    --- PASS: TestIsTransientError/nil (0.00s)
+    --- PASS: TestIsTransientError/api_slow (0.00s)
+    --- PASS: TestIsTransientError/503 (0.00s)
+    --- PASS: TestIsTransientError/timeout (0.00s)
+    --- PASS: TestIsTransientError/404 (0.00s)
+    --- PASS: TestIsTransientError/403 (0.00s)
+    --- PASS: TestIsTransientError/429 (0.00s)
+    --- PASS: TestIsTransientError/exact-throttle (0.00s)
+    --- PASS: TestIsTransientError/numeric-api-code (0.00s)
+    --- PASS: TestIsTransientError/canceled (0.00s)
+    --- PASS: TestIsTransientError/similar-api-code (0.00s)
+    --- PASS: TestIsTransientError/plain (0.00s)
+    --- PASS: TestIsTransientError/slow_msg (0.00s)
+    --- PASS: TestIsTransientError/local-throttle (0.00s)
+    --- PASS: TestIsTransientError/deadline (0.00s)
+=== RUN   ExampleNewPutObjectRouteHandler_withRetryIf
+--- PASS: ExampleNewPutObjectRouteHandler_withRetryIf (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/ext/s3	1.889s
+test - ./ext/grpc
+=== RUN   TestNewUnaryRouteHandlerNilInvoker
+=== PAUSE TestNewUnaryRouteHandlerNilInvoker
+=== RUN   TestNewUnaryRouteHandlerOK
+=== PAUSE TestNewUnaryRouteHandlerOK
+=== RUN   TestNewUnaryRouteHandlerConcurrent
+=== PAUSE TestNewUnaryRouteHandlerConcurrent
+=== RUN   TestRetryUnaryInterceptorNormalizesAttempts
+=== PAUSE TestRetryUnaryInterceptorNormalizesAttempts
+=== RUN   TestRetryStreamInterceptorCustomPredicate
+=== PAUSE TestRetryStreamInterceptorCustomPredicate
+=== RUN   TestNegativeInterceptorOptionsRejectBeforeDispatch
+--- PASS: TestNegativeInterceptorOptionsRejectBeforeDispatch (0.00s)
+=== RUN   TestRetryUnaryInterceptorRetriesUnavailable
+=== PAUSE TestRetryUnaryInterceptorRetriesUnavailable
+=== RUN   TestRetryStreamInterceptorOK
+=== PAUSE TestRetryStreamInterceptorOK
+=== RUN   TestRetryStreamInterceptorMissingPayload
+=== PAUSE TestRetryStreamInterceptorMissingPayload
+=== RUN   TestLostResponseReplayEvidence
+=== PAUSE TestLostResponseReplayEvidence
+=== RUN   TestIsTransientError
+=== PAUSE TestIsTransientError
+=== RUN   TestEstablishedStreamFailureNeverRestartsRPC
+=== PAUSE TestEstablishedStreamFailureNeverRestartsRPC
+=== CONT  TestNewUnaryRouteHandlerNilInvoker
+--- PASS: TestNewUnaryRouteHandlerNilInvoker (0.00s)
+=== CONT  TestRetryStreamInterceptorCustomPredicate
+=== CONT  TestRetryUnaryInterceptorRetriesUnavailable
+=== CONT  TestIsTransientError
+=== RUN   TestIsTransientError/nil
+=== PAUSE TestIsTransientError/nil
+=== CONT  TestEstablishedStreamFailureNeverRestartsRPC
+--- PASS: TestEstablishedStreamFailureNeverRestartsRPC (0.00s)
+=== CONT  TestRetryUnaryInterceptorNormalizesAttempts
+=== CONT  TestRetryStreamInterceptorOK
+=== RUN   TestIsTransientError/canceled
+=== PAUSE TestIsTransientError/canceled
+=== RUN   TestIsTransientError/deadline_ctx
+=== PAUSE TestIsTransientError/deadline_ctx
+=== RUN   TestIsTransientError/unavailable
+=== CONT  TestLostResponseReplayEvidence
+=== CONT  TestRetryStreamInterceptorMissingPayload
+=== CONT  TestNewUnaryRouteHandlerOK
+=== CONT  TestNewUnaryRouteHandlerConcurrent
+=== PAUSE TestIsTransientError/unavailable
+--- PASS: TestRetryStreamInterceptorMissingPayload (0.00s)
+=== RUN   TestLostResponseReplayEvidence/unknown-denied
+=== RUN   TestIsTransientError/data_loss
+=== PAUSE TestLostResponseReplayEvidence/unknown-denied
+=== PAUSE TestIsTransientError/data_loss
+--- PASS: TestNewUnaryRouteHandlerOK (0.00s)
+=== RUN   TestLostResponseReplayEvidence/verified-dedup
+=== RUN   TestIsTransientError/invalid_arg
+=== PAUSE TestLostResponseReplayEvidence/verified-dedup
+=== CONT  TestLostResponseReplayEvidence/unknown-denied
+=== CONT  TestLostResponseReplayEvidence/verified-dedup
+=== PAUSE TestIsTransientError/invalid_arg
+=== RUN   TestIsTransientError/unauthenticated
+=== PAUSE TestIsTransientError/unauthenticated
+--- PASS: TestLostResponseReplayEvidence (0.00s)
+    --- PASS: TestLostResponseReplayEvidence/unknown-denied (0.00s)
+    --- PASS: TestLostResponseReplayEvidence/verified-dedup (0.00s)
+=== RUN   TestIsTransientError/permission_denied
+=== PAUSE TestIsTransientError/permission_denied
+=== RUN   TestIsTransientError/already_exists
+=== PAUSE TestIsTransientError/already_exists
+=== RUN   TestIsTransientError/not_found
+=== PAUSE TestIsTransientError/not_found
+=== RUN   TestIsTransientError/unimplemented
+=== PAUSE TestIsTransientError/unimplemented
+=== RUN   TestIsTransientError/internal
+=== PAUSE TestIsTransientError/internal
+=== RUN   TestIsTransientError/unknown
+=== PAUSE TestIsTransientError/unknown
+=== RUN   TestIsTransientError/deadline_grpc_not_idempotent
+=== PAUSE TestIsTransientError/deadline_grpc_not_idempotent
+=== RUN   TestIsTransientError/deadline_grpc_idempotent
+=== PAUSE TestIsTransientError/deadline_grpc_idempotent
+=== RUN   TestIsTransientError/eof
+=== PAUSE TestIsTransientError/eof
+=== RUN   TestIsTransientError/plain_error
+=== PAUSE TestIsTransientError/plain_error
+=== CONT  TestIsTransientError/data_loss
+=== CONT  TestIsTransientError/eof
+=== CONT  TestIsTransientError/permission_denied
+=== CONT  TestIsTransientError/deadline_ctx
+=== CONT  TestIsTransientError/canceled
+=== CONT  TestIsTransientError/already_exists
+=== CONT  TestIsTransientError/nil
+=== CONT  TestIsTransientError/invalid_arg
+=== CONT  TestIsTransientError/unauthenticated
+=== CONT  TestIsTransientError/unknown
+=== CONT  TestIsTransientError/unavailable
+=== CONT  TestIsTransientError/unimplemented
+=== CONT  TestIsTransientError/internal
+=== CONT  TestIsTransientError/plain_error
+=== CONT  TestIsTransientError/deadline_grpc_not_idempotent
+=== CONT  TestIsTransientError/not_found
+=== CONT  TestIsTransientError/deadline_grpc_idempotent
+--- PASS: TestNewUnaryRouteHandlerConcurrent (0.00s)
+--- PASS: TestIsTransientError (0.00s)
+    --- PASS: TestIsTransientError/data_loss (0.00s)
+    --- PASS: TestIsTransientError/eof (0.00s)
+    --- PASS: TestIsTransientError/permission_denied (0.00s)
+    --- PASS: TestIsTransientError/deadline_ctx (0.00s)
+    --- PASS: TestIsTransientError/already_exists (0.00s)
+    --- PASS: TestIsTransientError/nil (0.00s)
+    --- PASS: TestIsTransientError/invalid_arg (0.00s)
+    --- PASS: TestIsTransientError/unauthenticated (0.00s)
+    --- PASS: TestIsTransientError/unknown (0.00s)
+    --- PASS: TestIsTransientError/unavailable (0.00s)
+    --- PASS: TestIsTransientError/internal (0.00s)
+    --- PASS: TestIsTransientError/plain_error (0.00s)
+    --- PASS: TestIsTransientError/not_found (0.00s)
+    --- PASS: TestIsTransientError/deadline_grpc_not_idempotent (0.00s)
+    --- PASS: TestIsTransientError/unimplemented (0.00s)
+    --- PASS: TestIsTransientError/deadline_grpc_idempotent (0.00s)
+    --- PASS: TestIsTransientError/canceled (0.00s)
+--- PASS: TestRetryUnaryInterceptorNormalizesAttempts (0.01s)
+--- PASS: TestRetryStreamInterceptorOK (0.01s)
+--- PASS: TestRetryStreamInterceptorCustomPredicate (0.01s)
+--- PASS: TestRetryUnaryInterceptorRetriesUnavailable (0.01s)
+=== RUN   FuzzIsTransientErrorNoPanics
+=== RUN   FuzzIsTransientErrorNoPanics/seed#0
+--- PASS: FuzzIsTransientErrorNoPanics (0.00s)
+    --- PASS: FuzzIsTransientErrorNoPanics/seed#0 (0.00s)
+=== RUN   ExampleNewUnaryRouteHandler_withRetryIf
+--- PASS: ExampleNewUnaryRouteHandler_withRetryIf (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/ext/grpc	1.503s
+test - ./ext/redis
+=== RUN   TestNewRouteHandlerNilInvoker
+--- PASS: TestNewRouteHandlerNilInvoker (0.00s)
+=== RUN   TestNewRouteHandlerNilScan
+=== PAUSE TestNewRouteHandlerNilScan
+=== RUN   TestNewRouteHandlerGetHit
+=== PAUSE TestNewRouteHandlerGetHit
+=== RUN   TestNewRouteHandlerGetMiss
+=== PAUSE TestNewRouteHandlerGetMiss
+=== RUN   TestNewRouteHandlerExtractorError
+=== PAUSE TestNewRouteHandlerExtractorError
+=== RUN   TestNewRouteHandlerNilCmdFromExtractor
+=== PAUSE TestNewRouteHandlerNilCmdFromExtractor
+=== RUN   TestNewStringRouteHandlerWrongCmdType
+=== PAUSE TestNewStringRouteHandlerWrongCmdType
+=== RUN   TestRouteHandlerConcurrent
+=== PAUSE TestRouteHandlerConcurrent
+=== RUN   TestLostResponseReplayEvidence
+=== PAUSE TestLostResponseReplayEvidence
+=== RUN   TestIsTransientError
+=== PAUSE TestIsTransientError
+=== CONT  TestNewRouteHandlerGetHit
+=== CONT  TestNewStringRouteHandlerWrongCmdType
+=== CONT  TestLostResponseReplayEvidence
+=== RUN   TestLostResponseReplayEvidence/unknown-denied
+=== CONT  TestIsTransientError
+=== RUN   TestIsTransientError/nil
+=== CONT  TestRouteHandlerConcurrent
+=== CONT  TestNewRouteHandlerGetMiss
+=== PAUSE TestIsTransientError/nil
+=== RUN   TestIsTransientError/canceled
+=== PAUSE TestLostResponseReplayEvidence/unknown-denied
+=== RUN   TestLostResponseReplayEvidence/verified-dedup
+=== PAUSE TestIsTransientError/canceled
+=== PAUSE TestLostResponseReplayEvidence/verified-dedup
+=== RUN   TestIsTransientError/deadline
+=== CONT  TestNewRouteHandlerNilCmdFromExtractor
+=== PAUSE TestIsTransientError/deadline
+=== RUN   TestIsTransientError/redis_nil
+=== PAUSE TestIsTransientError/redis_nil
+=== RUN   TestIsTransientError/tx_failed
+=== PAUSE TestIsTransientError/tx_failed
+=== RUN   TestIsTransientError/timeout
+=== PAUSE TestIsTransientError/timeout
+=== RUN   TestIsTransientError/eof
+=== PAUSE TestIsTransientError/eof
+=== RUN   TestIsTransientError/connection_reset
+=== PAUSE TestIsTransientError/connection_reset
+=== RUN   TestIsTransientError/broken_pipe
+=== PAUSE TestIsTransientError/broken_pipe
+=== RUN   TestIsTransientError/noauth
+=== PAUSE TestIsTransientError/noauth
+=== RUN   TestIsTransientError/wrongpass
+=== PAUSE TestIsTransientError/wrongpass
+=== CONT  TestLostResponseReplayEvidence/unknown-denied
+=== RUN   TestIsTransientError/noperm
+=== CONT  TestNewRouteHandlerNilScan
+--- PASS: TestNewRouteHandlerNilCmdFromExtractor (0.00s)
+=== CONT  TestLostResponseReplayEvidence/verified-dedup
+=== CONT  TestNewRouteHandlerExtractorError
+--- PASS: TestNewRouteHandlerExtractorError (0.00s)
+=== PAUSE TestIsTransientError/noperm
+=== RUN   TestIsTransientError/syntax
+=== PAUSE TestIsTransientError/syntax
+=== RUN   TestIsTransientError/wrongtype
+=== PAUSE TestIsTransientError/wrongtype
+--- PASS: TestLostResponseReplayEvidence (0.00s)
+    --- PASS: TestLostResponseReplayEvidence/unknown-denied (0.00s)
+    --- PASS: TestLostResponseReplayEvidence/verified-dedup (0.00s)
+=== RUN   TestIsTransientError/unknown_cmd
+=== PAUSE TestIsTransientError/unknown_cmd
+=== RUN   TestIsTransientError/generic
+=== PAUSE TestIsTransientError/generic
+=== CONT  TestIsTransientError/nil
+=== CONT  TestIsTransientError/generic
+=== CONT  TestIsTransientError/unknown_cmd
+=== CONT  TestIsTransientError/wrongtype
+=== CONT  TestIsTransientError/syntax
+=== CONT  TestIsTransientError/wrongpass
+=== CONT  TestIsTransientError/noperm
+=== CONT  TestIsTransientError/tx_failed
+=== CONT  TestIsTransientError/canceled
+=== CONT  TestIsTransientError/broken_pipe
+=== CONT  TestIsTransientError/eof
+=== CONT  TestIsTransientError/timeout
+=== CONT  TestIsTransientError/connection_reset
+=== CONT  TestIsTransientError/noauth
+=== CONT  TestIsTransientError/redis_nil
+=== CONT  TestIsTransientError/deadline
+--- PASS: TestNewRouteHandlerNilScan (0.00s)
+--- PASS: TestIsTransientError (0.00s)
+    --- PASS: TestIsTransientError/nil (0.00s)
+    --- PASS: TestIsTransientError/generic (0.00s)
+    --- PASS: TestIsTransientError/unknown_cmd (0.00s)
+    --- PASS: TestIsTransientError/wrongtype (0.00s)
+    --- PASS: TestIsTransientError/syntax (0.00s)
+    --- PASS: TestIsTransientError/wrongpass (0.00s)
+    --- PASS: TestIsTransientError/noperm (0.00s)
+    --- PASS: TestIsTransientError/canceled (0.00s)
+    --- PASS: TestIsTransientError/tx_failed (0.00s)
+    --- PASS: TestIsTransientError/broken_pipe (0.00s)
+    --- PASS: TestIsTransientError/eof (0.00s)
+    --- PASS: TestIsTransientError/connection_reset (0.00s)
+    --- PASS: TestIsTransientError/noauth (0.00s)
+    --- PASS: TestIsTransientError/deadline (0.00s)
+    --- PASS: TestIsTransientError/timeout (0.00s)
+    --- PASS: TestIsTransientError/redis_nil (0.00s)
+--- PASS: TestNewRouteHandlerGetMiss (0.01s)
+--- PASS: TestNewRouteHandlerGetHit (0.01s)
+--- PASS: TestNewStringRouteHandlerWrongCmdType (0.02s)
+--- PASS: TestRouteHandlerConcurrent (0.02s)
+=== RUN   FuzzIsTransientErrorNoPanics
+=== RUN   FuzzIsTransientErrorNoPanics/seed#0
+--- PASS: FuzzIsTransientErrorNoPanics (0.00s)
+    --- PASS: FuzzIsTransientErrorNoPanics/seed#0 (0.00s)
+=== RUN   ExampleNewStringRouteHandler_withRetryIf
+--- PASS: ExampleNewStringRouteHandler_withRetryIf (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/ext/redis	1.490s
+test - ./ext/otel
+=== RUN   TestTracingOwnershipThroughBoundaryBulkheadAndFirstSuccessfulPayload
+--- PASS: TestTracingOwnershipThroughBoundaryBulkheadAndFirstSuccessfulPayload (0.00s)
+=== RUN   TestTracingRetainsOwnedPartialAndValidatesActions
+=== RUN   TestTracingRetainsOwnedPartialAndValidatesActions/provider_error
+=== RUN   TestTracingRetainsOwnedPartialAndValidatesActions/abort_without_error
+=== RUN   TestTracingRetainsOwnedPartialAndValidatesActions/unknown_action
+--- PASS: TestTracingRetainsOwnedPartialAndValidatesActions (0.00s)
+    --- PASS: TestTracingRetainsOwnedPartialAndValidatesActions/provider_error (0.00s)
+    --- PASS: TestTracingRetainsOwnedPartialAndValidatesActions/abort_without_error (0.00s)
+    --- PASS: TestTracingRetainsOwnedPartialAndValidatesActions/unknown_action (0.00s)
+=== RUN   TestTracingDefaultsDoNotExportCallerSecrets
+=== RUN   TestTracingDefaultsDoNotExportCallerSecrets/success
+=== RUN   TestTracingDefaultsDoNotExportCallerSecrets/error
+--- PASS: TestTracingDefaultsDoNotExportCallerSecrets (0.00s)
+    --- PASS: TestTracingDefaultsDoNotExportCallerSecrets/success (0.00s)
+    --- PASS: TestTracingDefaultsDoNotExportCallerSecrets/error (0.00s)
+=== RUN   TestTracingExplicitProjectionUsesCanonicalMetadata
+--- PASS: TestTracingExplicitProjectionUsesCanonicalMetadata (0.00s)
+=== RUN   TestTracingRecordsSpanAndStatus
+=== PAUSE TestTracingRecordsSpanAndStatus
+=== RUN   TestTracingSuccessUsesSafeDefaults
+=== PAUSE TestTracingSuccessUsesSafeDefaults
+=== RUN   TestTracingRecordsActionNext
+=== PAUSE TestTracingRecordsActionNext
+=== RUN   TestTracingNilTracer
+=== PAUSE TestTracingNilTracer
+=== RUN   TestTracingNilNext
+=== PAUSE TestTracingNilNext
+=== RUN   TestLifecycleCorrelationRequiresHostAllowlistAndKeepsOwner
+=== PAUSE TestLifecycleCorrelationRequiresHostAllowlistAndKeepsOwner
+=== RUN   TestLifecycleRetainsFirstSettlementFailure
+=== PAUSE TestLifecycleRetainsFirstSettlementFailure
+=== CONT  TestTracingRecordsSpanAndStatus
+=== CONT  TestTracingNilNext
+--- PASS: TestTracingRecordsSpanAndStatus (0.00s)
+=== CONT  TestTracingNilTracer
+=== CONT  TestTracingSuccessUsesSafeDefaults
+=== CONT  TestTracingRecordsActionNext
+=== CONT  TestLifecycleCorrelationRequiresHostAllowlistAndKeepsOwner
+=== CONT  TestLifecycleRetainsFirstSettlementFailure
+--- PASS: TestTracingNilTracer (0.00s)
+--- PASS: TestTracingNilNext (0.00s)
+--- PASS: TestTracingSuccessUsesSafeDefaults (0.00s)
+--- PASS: TestTracingRecordsActionNext (0.00s)
+--- PASS: TestLifecycleCorrelationRequiresHostAllowlistAndKeepsOwner (0.00s)
+--- PASS: TestLifecycleRetainsFirstSettlementFailure (0.00s)
+=== RUN   ExampleTracing
+--- PASS: ExampleTracing (0.00s)
+=== RUN   ExampleTracing_lifecycleCorrelation
+--- PASS: ExampleTracing_lifecycleCorrelation (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/ext/otel	1.436s
+test - ./ext/http
+=== RUN   TestNewRouteHandlerReturnsConfigErrorForNilClient
+=== PAUSE TestNewRouteHandlerReturnsConfigErrorForNilClient
+=== RUN   TestNewRouteHandlerReturnsConfigErrorForNilRequest
+=== PAUSE TestNewRouteHandlerReturnsConfigErrorForNilRequest
+=== RUN   TestNewRouteHandlerReturnsResponseForSuccessStatus
+=== PAUSE TestNewRouteHandlerReturnsResponseForSuccessStatus
+=== RUN   TestNewRouteHandlerWrapsNon2xxAsStatusError
+=== PAUSE TestNewRouteHandlerWrapsNon2xxAsStatusError
+=== RUN   TestPrepareRequestBuffersWithoutMutatingOriginal
+--- PASS: TestPrepareRequestBuffersWithoutMutatingOriginal (0.00s)
+=== RUN   TestPrepareRequestCorrectsTemplateLength
+--- PASS: TestPrepareRequestCorrectsTemplateLength (0.00s)
+=== RUN   TestCloneForAttemptNoBodyNoMutation
+=== PAUSE TestCloneForAttemptNoBodyNoMutation
+=== RUN   TestDefaultRetryNeverDuplicatesCommittedPostOrPatch
+=== RUN   TestDefaultRetryNeverDuplicatesCommittedPostOrPatch/POST
+=== RUN   TestDefaultRetryNeverDuplicatesCommittedPostOrPatch/PATCH
+--- PASS: TestDefaultRetryNeverDuplicatesCommittedPostOrPatch (0.00s)
+    --- PASS: TestDefaultRetryNeverDuplicatesCommittedPostOrPatch/POST (0.00s)
+    --- PASS: TestDefaultRetryNeverDuplicatesCommittedPostOrPatch/PATCH (0.00s)
+=== RUN   TestPrepareRequestFailurePreventsDispatch
+--- PASS: TestPrepareRequestFailurePreventsDispatch (0.00s)
+=== RUN   TestUnpreparedBodyRejectedBeforeTransport
+--- PASS: TestUnpreparedBodyRejectedBeforeTransport (0.00s)
+=== RUN   TestReadAllLimitedWrapsUnlimitedReadError
+=== PAUSE TestReadAllLimitedWrapsUnlimitedReadError
+=== RUN   TestPrepareRequestUnlimitedAndExactLimit
+--- PASS: TestPrepareRequestUnlimitedAndExactLimit (0.00s)
+=== RUN   TestNewRouteHandlerRespectsRequestContextTimeout
+=== PAUSE TestNewRouteHandlerRespectsRequestContextTimeout
+=== RUN   TestDefaultRetryPolicyRetryableStatusPreservesBody
+=== PAUSE TestDefaultRetryPolicyRetryableStatusPreservesBody
+=== RUN   TestDefaultRetryPolicyNonRetryableStatusDoesNotCloseBody
+=== PAUSE TestDefaultRetryPolicyNonRetryableStatusDoesNotCloseBody
+=== RUN   TestDefaultRetryPolicyRequiresReplayableBody
+=== PAUSE TestDefaultRetryPolicyRequiresReplayableBody
+=== RUN   TestDefaultRetryPolicyTransportRules
+=== PAUSE TestDefaultRetryPolicyTransportRules
+=== RUN   TestRetryIfWithDefaultRetryPolicyKeepsFinalBodyOpen
+=== PAUSE TestRetryIfWithDefaultRetryPolicyKeepsFinalBodyOpen
+=== RUN   TestRetryIfClosesIntermediateStatusBodies
+=== PAUSE TestRetryIfClosesIntermediateStatusBodies
+=== RUN   TestIsRetryableStatus
+=== PAUSE TestIsRetryableStatus
+=== RUN   TestTimeoutBodyReadableAfterReturn
+=== PAUSE TestTimeoutBodyReadableAfterReturn
+=== RUN   TestTimeoutCancelOnBodyClose
+=== PAUSE TestTimeoutCancelOnBodyClose
+=== RUN   TestTimeoutCancelOnError
+=== PAUSE TestTimeoutCancelOnError
+=== RUN   TestHTTPTimeoutCopiesNextAndIgnoreOutcome
+=== PAUSE TestHTTPTimeoutCopiesNextAndIgnoreOutcome
+=== RUN   TestTimeoutNoBodyResponseCancelsImmediately
+=== PAUSE TestTimeoutNoBodyResponseCancelsImmediately
+=== RUN   TestTimeoutDoubleCloseSafe
+=== PAUSE TestTimeoutDoubleCloseSafe
+=== RUN   TestHTTPBodyAndLifetimeShareExactlyOnceCleanup
+=== PAUSE TestHTTPBodyAndLifetimeShareExactlyOnceCleanup
+=== RUN   TestHTTPTimeoutDoesNotInferOwnershipFromBody
+--- PASS: TestHTTPTimeoutDoesNotInferOwnershipFromBody (0.00s)
+=== RUN   TestHTTPTimeoutRetainsOwnedPartialResultOnError
+--- PASS: TestHTTPTimeoutRetainsOwnedPartialResultOnError (0.00s)
+=== RUN   TestTimeoutCancelOnPanicInNext
+=== PAUSE TestTimeoutCancelOnPanicInNext
+=== RUN   TestTimeoutZeroPassesThrough
+=== PAUSE TestTimeoutZeroPassesThrough
+=== RUN   TestTimeoutDoesNotCloneRequestShadowGuard
+=== PAUSE TestTimeoutDoesNotCloneRequestShadowGuard
+=== RUN   TestTimeoutWithRetryIfPreparedPutBodyReplayed
+=== PAUSE TestTimeoutWithRetryIfPreparedPutBodyReplayed
+=== RUN   TestFirstSuccessfulPayloadKeepsWinnerBodyAlive
+--- PASS: TestFirstSuccessfulPayloadKeepsWinnerBodyAlive (0.00s)
+=== RUN   TestPreparedFanoutUsesIndependentCompleteBodies
+--- PASS: TestPreparedFanoutUsesIndependentCompleteBodies (0.00s)
+=== RUN   TestExplicitVerifiedReplayDeduplicatesCommittedPost
+--- PASS: TestExplicitVerifiedReplayDeduplicatesCommittedPost (0.00s)
+=== RUN   TestFirstSuccessfulPayloadCleansLateResultsAndParentCancel
+--- PASS: TestFirstSuccessfulPayloadCleansLateResultsAndParentCancel (0.00s)
+=== RUN   TestPreparedFanoutRequestReaderOwnership
+=== RUN   TestPreparedFanoutRequestReaderOwnership/prepare_original
+=== RUN   TestPreparedFanoutRequestReaderOwnership/ready_GetBody
+--- PASS: TestPreparedFanoutRequestReaderOwnership (0.00s)
+    --- PASS: TestPreparedFanoutRequestReaderOwnership/prepare_original (0.00s)
+    --- PASS: TestPreparedFanoutRequestReaderOwnership/ready_GetBody (0.00s)
+=== RUN   TestHTTPHintDefersActualDispatchBeyondDeadline
+=== PAUSE TestHTTPHintDefersActualDispatchBeyondDeadline
+=== RUN   TestRetryAfterHintNormalizedForms
+=== PAUSE TestRetryAfterHintNormalizedForms
+=== RUN   TestRetryAfterHintRejectOrExplicitIgnore
+=== PAUSE TestRetryAfterHintRejectOrExplicitIgnore
+=== RUN   TestRetryAfterHintClockAndUncertaintyValidation
+=== PAUSE TestRetryAfterHintClockAndUncertaintyValidation
+=== RUN   TestRetryAfterHintSchedulingDeadlineAndScope
+=== PAUSE TestRetryAfterHintSchedulingDeadlineAndScope
+=== RUN   TestStatusErrorDoesNotPublishRawProviderReason
+=== PAUSE TestStatusErrorDoesNotPublishRawProviderReason
+=== RUN   TestStatusErrorError
+=== PAUSE TestStatusErrorError
+=== RUN   TestDefaultRetryPolicyGuards
+=== PAUSE TestDefaultRetryPolicyGuards
+=== RUN   TestDefaultRetryPolicyStatusMethodMatrix
+=== PAUSE TestDefaultRetryPolicyStatusMethodMatrix
+=== RUN   TestDefaultRetryPolicyTransportMatrix
+=== PAUSE TestDefaultRetryPolicyTransportMatrix
+=== RUN   TestCloneForAttemptWithoutBody
+=== PAUSE TestCloneForAttemptWithoutBody
+=== RUN   TestCloneForAttemptNoBodySentinel
+=== PAUSE TestCloneForAttemptNoBodySentinel
+=== RUN   TestCloneForAttemptRequiresPreparation
+--- PASS: TestCloneForAttemptRequiresPreparation (0.00s)
+=== RUN   TestCloneForAttemptBodyWithGetBody
+=== PAUSE TestCloneForAttemptBodyWithGetBody
+=== RUN   TestCloneForAttemptGetBodyError
+=== PAUSE TestCloneForAttemptGetBodyError
+=== RUN   TestRetryIfWithDefaultRetryPolicyThree503Then200
+=== PAUSE TestRetryIfWithDefaultRetryPolicyThree503Then200
+=== RUN   TestRetryIfClosesAllIntermediateStatusBodies
+=== PAUSE TestRetryIfClosesAllIntermediateStatusBodies
+=== RUN   TestRetryIfContextCanceledDuringBackoffStopsRetries
+=== PAUSE TestRetryIfContextCanceledDuringBackoffStopsRetries
+=== RUN   TestRetryPolicyVetoRetainsFinalBody
+--- PASS: TestRetryPolicyVetoRetainsFinalBody (0.00s)
+=== CONT  TestNewRouteHandlerReturnsConfigErrorForNilRequest
+=== CONT  TestRetryIfContextCanceledDuringBackoffStopsRetries
+=== CONT  TestTimeoutCancelOnPanicInNext
+=== CONT  TestRetryIfWithDefaultRetryPolicyThree503Then200
+--- PASS: TestNewRouteHandlerReturnsConfigErrorForNilRequest (0.00s)
+=== CONT  TestDefaultRetryPolicyRequiresReplayableBody
+--- PASS: TestRetryIfContextCanceledDuringBackoffStopsRetries (0.00s)
+=== CONT  TestDefaultRetryPolicyTransportMatrix
+--- PASS: TestDefaultRetryPolicyRequiresReplayableBody (0.00s)
+=== CONT  TestStatusErrorDoesNotPublishRawProviderReason
+=== CONT  TestDefaultRetryPolicyStatusMethodMatrix
+=== CONT  TestRetryIfClosesAllIntermediateStatusBodies
+=== CONT  TestCloneForAttemptNoBodySentinel
+=== CONT  TestCloneForAttemptWithoutBody
+=== CONT  TestCloneForAttemptBodyWithGetBody
+=== CONT  TestTimeoutDoubleCloseSafe
+=== CONT  TestReadAllLimitedWrapsUnlimitedReadError
+=== CONT  TestCloneForAttemptGetBodyError
+=== CONT  TestIsRetryableStatus
+--- PASS: TestTimeoutCancelOnPanicInNext (0.00s)
+=== RUN   TestDefaultRetryPolicyTransportMatrix/get_replayable_io_eof
+=== CONT  TestTimeoutNoBodyResponseCancelsImmediately
+=== PAUSE TestDefaultRetryPolicyTransportMatrix/get_replayable_io_eof
+=== RUN   TestDefaultRetryPolicyStatusMethodMatrix/get_503_replayable
+=== CONT  TestNewRouteHandlerRespectsRequestContextTimeout
+=== PAUSE TestDefaultRetryPolicyStatusMethodMatrix/get_503_replayable
+=== CONT  TestTimeoutCancelOnError
+=== RUN   TestDefaultRetryPolicyStatusMethodMatrix/post_503_replayable
+=== CONT  TestTimeoutBodyReadableAfterReturn
+=== CONT  TestCloneForAttemptNoBodyNoMutation
+=== CONT  TestRetryIfClosesIntermediateStatusBodies
+=== CONT  TestStatusErrorError
+=== RUN   TestStatusErrorError/nil_receiver
+=== CONT  TestDefaultRetryPolicyRetryableStatusPreservesBody
+=== CONT  TestDefaultRetryPolicyNonRetryableStatusDoesNotCloseBody
+=== PAUSE TestStatusErrorError/nil_receiver
+--- PASS: TestStatusErrorDoesNotPublishRawProviderReason (0.00s)
+=== CONT  TestHTTPBodyAndLifetimeShareExactlyOnceCleanup
+=== RUN   TestStatusErrorError/with_response_status
+=== CONT  TestHTTPTimeoutCopiesNextAndIgnoreOutcome
+=== RUN   TestDefaultRetryPolicyTransportMatrix/get_replayable_unexpected_eof
+=== RUN   TestHTTPTimeoutCopiesNextAndIgnoreOutcome/next
+=== PAUSE TestStatusErrorError/with_response_status
+=== PAUSE TestHTTPTimeoutCopiesNextAndIgnoreOutcome/next
+=== RUN   TestHTTPTimeoutCopiesNextAndIgnoreOutcome/ignore
+=== PAUSE TestHTTPTimeoutCopiesNextAndIgnoreOutcome/ignore
+=== PAUSE TestDefaultRetryPolicyTransportMatrix/get_replayable_unexpected_eof
+=== RUN   TestStatusErrorError/without_response
+=== PAUSE TestStatusErrorError/without_response
+=== CONT  TestTimeoutCancelOnBodyClose
+=== CONT  TestNewRouteHandlerReturnsResponseForSuccessStatus
+=== CONT  TestNewRouteHandlerReturnsConfigErrorForNilClient
+=== RUN   TestDefaultRetryPolicyTransportMatrix/get_replayable_url_wrapped_eof
+=== CONT  TestHTTPHintDefersActualDispatchBeyondDeadline
+=== PAUSE TestDefaultRetryPolicyTransportMatrix/get_replayable_url_wrapped_eof
+=== CONT  TestDefaultRetryPolicyTransportRules
+=== RUN   TestDefaultRetryPolicyTransportRules/idempotent
+=== PAUSE TestDefaultRetryPolicyTransportRules/idempotent
+--- PASS: TestRetryIfClosesAllIntermediateStatusBodies (0.00s)
+--- PASS: TestCloneForAttemptNoBodySentinel (0.00s)
+--- PASS: TestCloneForAttemptWithoutBody (0.00s)
+--- PASS: TestCloneForAttemptBodyWithGetBody (0.00s)
+--- PASS: TestReadAllLimitedWrapsUnlimitedReadError (0.00s)
+=== PAUSE TestDefaultRetryPolicyStatusMethodMatrix/post_503_replayable
+=== CONT  TestNewRouteHandlerWrapsNon2xxAsStatusError
+=== RUN   TestDefaultRetryPolicyTransportMatrix/get_replayable_net_error
+=== RUN   TestDefaultRetryPolicyTransportRules/non-idempotent
+=== CONT  TestRetryAfterHintSchedulingDeadlineAndScope
+--- PASS: TestTimeoutDoubleCloseSafe (0.00s)
+--- PASS: TestCloneForAttemptGetBodyError (0.00s)
+--- PASS: TestIsRetryableStatus (0.00s)
+=== PAUSE TestDefaultRetryPolicyTransportMatrix/get_replayable_net_error
+=== RUN   TestDefaultRetryPolicyStatusMethodMatrix/patch_503_replayable
+=== CONT  TestDefaultRetryPolicyGuards
+=== PAUSE TestDefaultRetryPolicyStatusMethodMatrix/patch_503_replayable
+--- PASS: TestTimeoutNoBodyResponseCancelsImmediately (0.00s)
+=== PAUSE TestDefaultRetryPolicyTransportRules/non-idempotent
+=== RUN   TestDefaultRetryPolicyTransportMatrix/post_replayable_io_eof
+=== RUN   TestDefaultRetryPolicyStatusMethodMatrix/post_502_replayable
+=== CONT  TestRetryAfterHintClockAndUncertaintyValidation
+=== CONT  TestRetryIfWithDefaultRetryPolicyKeepsFinalBodyOpen
+=== CONT  TestTimeoutZeroPassesThrough
+=== CONT  TestRetryAfterHintNormalizedForms
+=== RUN   TestRetryAfterHintNormalizedForms/absent
+=== PAUSE TestDefaultRetryPolicyStatusMethodMatrix/post_502_replayable
+=== RUN   TestDefaultRetryPolicyStatusMethodMatrix/delete_503_replayable
+=== PAUSE TestDefaultRetryPolicyStatusMethodMatrix/delete_503_replayable
+=== PAUSE TestDefaultRetryPolicyTransportMatrix/post_replayable_io_eof
+=== RUN   TestDefaultRetryPolicyTransportMatrix/get_non_replayable_io_eof
+--- PASS: TestTimeoutCancelOnError (0.00s)
+=== RUN   TestDefaultRetryPolicyGuards/nil
+=== PAUSE TestDefaultRetryPolicyGuards/nil
+=== RUN   TestDefaultRetryPolicyStatusMethodMatrix/get_503_non_replayable
+=== RUN   TestDefaultRetryPolicyGuards/context_canceled
+=== PAUSE TestDefaultRetryPolicyStatusMethodMatrix/get_503_non_replayable
+--- PASS: TestCloneForAttemptNoBodyNoMutation (0.00s)
+=== CONT  TestTimeoutDoesNotCloneRequestShadowGuard
+=== PAUSE TestDefaultRetryPolicyGuards/context_canceled
+--- PASS: TestRetryIfClosesIntermediateStatusBodies (0.00s)
+=== RUN   TestDefaultRetryPolicyGuards/context_deadline_exceeded
+--- PASS: TestDefaultRetryPolicyNonRetryableStatusDoesNotCloseBody (0.00s)
+=== PAUSE TestDefaultRetryPolicyGuards/context_deadline_exceeded
+--- PASS: TestHTTPBodyAndLifetimeShareExactlyOnceCleanup (0.00s)
+=== RUN   TestDefaultRetryPolicyGuards/unknown
+=== PAUSE TestDefaultRetryPolicyGuards/unknown
+--- PASS: TestTimeoutCancelOnBodyClose (0.00s)
+=== CONT  TestTimeoutWithRetryIfPreparedPutBodyReplayed
+--- PASS: TestNewRouteHandlerReturnsConfigErrorForNilClient (0.00s)
+=== PAUSE TestRetryAfterHintNormalizedForms/absent
+=== PAUSE TestDefaultRetryPolicyTransportMatrix/get_non_replayable_io_eof
+=== CONT  TestRetryAfterHintRejectOrExplicitIgnore
+--- PASS: TestHTTPHintDefersActualDispatchBeyondDeadline (0.00s)
+=== RUN   TestRetryAfterHintNormalizedForms/zero
+--- PASS: TestRetryAfterHintSchedulingDeadlineAndScope (0.00s)
+=== PAUSE TestRetryAfterHintNormalizedForms/zero
+--- PASS: TestRetryAfterHintClockAndUncertaintyValidation (0.00s)
+=== CONT  TestStatusErrorError/with_response_status
+--- PASS: TestDefaultRetryPolicyRetryableStatusPreservesBody (0.00s)
+=== RUN   TestRetryAfterHintNormalizedForms/seconds_and_OWS
+=== RUN   TestDefaultRetryPolicyTransportMatrix/get_replayable_unknown
+--- PASS: TestTimeoutZeroPassesThrough (0.00s)
+=== PAUSE TestRetryAfterHintNormalizedForms/seconds_and_OWS
+=== PAUSE TestDefaultRetryPolicyTransportMatrix/get_replayable_unknown
+--- PASS: TestTimeoutDoesNotCloneRequestShadowGuard (0.00s)
+--- PASS: TestRetryAfterHintRejectOrExplicitIgnore (0.00s)
+=== CONT  TestStatusErrorError/without_response
+=== CONT  TestStatusErrorError/nil_receiver
+=== RUN   TestRetryAfterHintNormalizedForms/HTTP_date
+=== CONT  TestHTTPTimeoutCopiesNextAndIgnoreOutcome/ignore
+=== PAUSE TestRetryAfterHintNormalizedForms/HTTP_date
+=== CONT  TestHTTPTimeoutCopiesNextAndIgnoreOutcome/next
+=== RUN   TestRetryAfterHintNormalizedForms/past_HTTP_date
+=== CONT  TestDefaultRetryPolicyTransportRules/non-idempotent
+=== CONT  TestDefaultRetryPolicyStatusMethodMatrix/get_503_non_replayable
+--- PASS: TestStatusErrorError (0.00s)
+    --- PASS: TestStatusErrorError/with_response_status (0.00s)
+    --- PASS: TestStatusErrorError/nil_receiver (0.00s)
+    --- PASS: TestStatusErrorError/without_response (0.00s)
+=== CONT  TestDefaultRetryPolicyTransportRules/idempotent
+--- PASS: TestHTTPTimeoutCopiesNextAndIgnoreOutcome (0.00s)
+    --- PASS: TestHTTPTimeoutCopiesNextAndIgnoreOutcome/ignore (0.00s)
+    --- PASS: TestHTTPTimeoutCopiesNextAndIgnoreOutcome/next (0.00s)
+=== PAUSE TestRetryAfterHintNormalizedForms/past_HTTP_date
+=== RUN   TestRetryAfterHintNormalizedForms/largest_whole_seconds
+=== PAUSE TestRetryAfterHintNormalizedForms/largest_whole_seconds
+=== CONT  TestDefaultRetryPolicyStatusMethodMatrix/patch_503_replayable
+=== CONT  TestDefaultRetryPolicyStatusMethodMatrix/delete_503_replayable
+=== CONT  TestDefaultRetryPolicyStatusMethodMatrix/post_503_replayable
+=== CONT  TestDefaultRetryPolicyStatusMethodMatrix/get_503_replayable
+--- PASS: TestNewRouteHandlerReturnsResponseForSuccessStatus (0.00s)
+=== CONT  TestDefaultRetryPolicyGuards/unknown
+=== CONT  TestDefaultRetryPolicyStatusMethodMatrix/post_502_replayable
+=== CONT  TestDefaultRetryPolicyGuards/context_canceled
+=== CONT  TestDefaultRetryPolicyTransportMatrix/get_replayable_unexpected_eof
+--- PASS: TestDefaultRetryPolicyStatusMethodMatrix (0.00s)
+    --- PASS: TestDefaultRetryPolicyStatusMethodMatrix/get_503_non_replayable (0.00s)
+    --- PASS: TestDefaultRetryPolicyStatusMethodMatrix/delete_503_replayable (0.00s)
+    --- PASS: TestDefaultRetryPolicyStatusMethodMatrix/post_503_replayable (0.00s)
+    --- PASS: TestDefaultRetryPolicyStatusMethodMatrix/get_503_replayable (0.00s)
+    --- PASS: TestDefaultRetryPolicyStatusMethodMatrix/post_502_replayable (0.00s)
+    --- PASS: TestDefaultRetryPolicyStatusMethodMatrix/patch_503_replayable (0.00s)
+=== CONT  TestDefaultRetryPolicyGuards/context_deadline_exceeded
+=== CONT  TestDefaultRetryPolicyTransportMatrix/get_replayable_net_error
+=== CONT  TestDefaultRetryPolicyTransportMatrix/get_replayable_unknown
+=== CONT  TestDefaultRetryPolicyGuards/nil
+--- PASS: TestDefaultRetryPolicyTransportRules (0.00s)
+    --- PASS: TestDefaultRetryPolicyTransportRules/non-idempotent (0.00s)
+    --- PASS: TestDefaultRetryPolicyTransportRules/idempotent (0.00s)
+=== CONT  TestDefaultRetryPolicyTransportMatrix/post_replayable_io_eof
+=== CONT  TestRetryAfterHintNormalizedForms/zero
+=== CONT  TestRetryAfterHintNormalizedForms/past_HTTP_date
+=== CONT  TestDefaultRetryPolicyTransportMatrix/get_non_replayable_io_eof
+--- PASS: TestNewRouteHandlerWrapsNon2xxAsStatusError (0.00s)
+=== CONT  TestDefaultRetryPolicyTransportMatrix/get_replayable_io_eof
+=== CONT  TestRetryAfterHintNormalizedForms/absent
+=== CONT  TestRetryAfterHintNormalizedForms/largest_whole_seconds
+=== CONT  TestDefaultRetryPolicyTransportMatrix/get_replayable_url_wrapped_eof
+--- PASS: TestDefaultRetryPolicyGuards (0.00s)
+    --- PASS: TestDefaultRetryPolicyGuards/context_canceled (0.00s)
+    --- PASS: TestDefaultRetryPolicyGuards/context_deadline_exceeded (0.00s)
+    --- PASS: TestDefaultRetryPolicyGuards/unknown (0.00s)
+    --- PASS: TestDefaultRetryPolicyGuards/nil (0.00s)
+=== CONT  TestRetryAfterHintNormalizedForms/seconds_and_OWS
+=== CONT  TestRetryAfterHintNormalizedForms/HTTP_date
+--- PASS: TestRetryAfterHintNormalizedForms (0.00s)
+    --- PASS: TestRetryAfterHintNormalizedForms/zero (0.00s)
+    --- PASS: TestRetryAfterHintNormalizedForms/past_HTTP_date (0.00s)
+    --- PASS: TestRetryAfterHintNormalizedForms/absent (0.00s)
+    --- PASS: TestRetryAfterHintNormalizedForms/largest_whole_seconds (0.00s)
+    --- PASS: TestRetryAfterHintNormalizedForms/seconds_and_OWS (0.00s)
+    --- PASS: TestRetryAfterHintNormalizedForms/HTTP_date (0.00s)
+--- PASS: TestDefaultRetryPolicyTransportMatrix (0.00s)
+    --- PASS: TestDefaultRetryPolicyTransportMatrix/get_replayable_unexpected_eof (0.00s)
+    --- PASS: TestDefaultRetryPolicyTransportMatrix/get_replayable_unknown (0.00s)
+    --- PASS: TestDefaultRetryPolicyTransportMatrix/get_replayable_net_error (0.00s)
+    --- PASS: TestDefaultRetryPolicyTransportMatrix/post_replayable_io_eof (0.00s)
+    --- PASS: TestDefaultRetryPolicyTransportMatrix/get_non_replayable_io_eof (0.00s)
+    --- PASS: TestDefaultRetryPolicyTransportMatrix/get_replayable_io_eof (0.00s)
+    --- PASS: TestDefaultRetryPolicyTransportMatrix/get_replayable_url_wrapped_eof (0.00s)
+--- PASS: TestRetryIfWithDefaultRetryPolicyKeepsFinalBodyOpen (0.01s)
+--- PASS: TestTimeoutWithRetryIfPreparedPutBodyReplayed (0.01s)
+--- PASS: TestRetryIfWithDefaultRetryPolicyThree503Then200 (0.01s)
+--- PASS: TestNewRouteHandlerRespectsRequestContextTimeout (0.02s)
+--- PASS: TestTimeoutBodyReadableAfterReturn (0.05s)
+=== RUN   FuzzDefaultRetryPolicyNoPanics
+=== RUN   FuzzDefaultRetryPolicyNoPanics/seed#0
+=== RUN   FuzzDefaultRetryPolicyNoPanics/seed#1
+=== RUN   FuzzDefaultRetryPolicyNoPanics/seed#2
+--- PASS: FuzzDefaultRetryPolicyNoPanics (0.00s)
+    --- PASS: FuzzDefaultRetryPolicyNoPanics/seed#0 (0.00s)
+    --- PASS: FuzzDefaultRetryPolicyNoPanics/seed#1 (0.00s)
+    --- PASS: FuzzDefaultRetryPolicyNoPanics/seed#2 (0.00s)
+=== RUN   FuzzCloneForAttemptNoPanics
+=== RUN   FuzzCloneForAttemptNoPanics/seed#0
+=== RUN   FuzzCloneForAttemptNoPanics/seed#1
+=== RUN   FuzzCloneForAttemptNoPanics/seed#2
+--- PASS: FuzzCloneForAttemptNoPanics (0.00s)
+    --- PASS: FuzzCloneForAttemptNoPanics/seed#0 (0.00s)
+    --- PASS: FuzzCloneForAttemptNoPanics/seed#1 (0.00s)
+    --- PASS: FuzzCloneForAttemptNoPanics/seed#2 (0.00s)
+=== RUN   ExampleNewRouteHandler_withRetryIf
+--- PASS: ExampleNewRouteHandler_withRetryIf (0.00s)
+=== RUN   ExampleNewRouteHandler_retryExhausted
+--- PASS: ExampleNewRouteHandler_retryExhausted (0.00s)
+=== RUN   ExampleTimeout_withRetryIf
+--- PASS: ExampleTimeout_withRetryIf (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/ext/http	1.510s
+test - ./ext/kafka
+=== RUN   TestPublishPreservesIndexedBatchFacts
+=== PAUSE TestPublishPreservesIndexedBatchFacts
+=== RUN   TestMalformedBatchAndSingleErrors
+=== PAUSE TestMalformedBatchAndSingleErrors
+=== RUN   TestConcreteWriterRejectsEnqueueAndNoAck
+=== PAUSE TestConcreteWriterRejectsEnqueueAndNoAck
+=== RUN   TestMessageBuffersAreIndependentAfterCancelledWriter
+=== PAUSE TestMessageBuffersAreIndependentAfterCancelledWriter
+=== RUN   TestNewProducerRouteHandlerNil
+=== PAUSE TestNewProducerRouteHandlerNil
+=== RUN   TestNewProducerRouteHandlerEmptyMessages
+=== PAUSE TestNewProducerRouteHandlerEmptyMessages
+=== RUN   TestNewProducerRouteHandlerWrites
+=== PAUSE TestNewProducerRouteHandlerWrites
+=== RUN   TestNewProducerRouteHandlerPropagatesError
+=== PAUSE TestNewProducerRouteHandlerPropagatesError
+=== RUN   TestProducerRouteHandlerConcurrent
+=== PAUSE TestProducerRouteHandlerConcurrent
+=== RUN   TestLostResponseReplayEvidence
+=== PAUSE TestLostResponseReplayEvidence
+=== RUN   TestIsTransientError
+=== PAUSE TestIsTransientError
+=== CONT  TestConcreteWriterRejectsEnqueueAndNoAck
+=== CONT  TestProducerRouteHandlerConcurrent
+=== CONT  TestPublishPreservesIndexedBatchFacts
+--- PASS: TestConcreteWriterRejectsEnqueueAndNoAck (0.00s)
+=== CONT  TestNewProducerRouteHandlerPropagatesError
+--- PASS: TestNewProducerRouteHandlerPropagatesError (0.00s)
+=== CONT  TestNewProducerRouteHandlerWrites
+--- PASS: TestNewProducerRouteHandlerWrites (0.00s)
+=== CONT  TestMalformedBatchAndSingleErrors
+=== CONT  TestNewProducerRouteHandlerNil
+--- PASS: TestNewProducerRouteHandlerNil (0.00s)
+=== CONT  TestIsTransientError
+--- PASS: TestMalformedBatchAndSingleErrors (0.00s)
+=== RUN   TestIsTransientError/nil
+=== CONT  TestMessageBuffersAreIndependentAfterCancelledWriter
+=== CONT  TestNewProducerRouteHandlerEmptyMessages
+--- PASS: TestNewProducerRouteHandlerEmptyMessages (0.00s)
+--- PASS: TestMessageBuffersAreIndependentAfterCancelledWriter (0.00s)
+=== CONT  TestLostResponseReplayEvidence
+=== RUN   TestLostResponseReplayEvidence/unknown-denied
+=== PAUSE TestLostResponseReplayEvidence/unknown-denied
+=== RUN   TestPublishPreservesIndexedBatchFacts/false
+=== PAUSE TestIsTransientError/nil
+=== RUN   TestIsTransientError/canceled
+=== PAUSE TestIsTransientError/canceled
+=== RUN   TestIsTransientError/deadline
+=== PAUSE TestIsTransientError/deadline
+=== RUN   TestLostResponseReplayEvidence/verified-dedup
+=== PAUSE TestPublishPreservesIndexedBatchFacts/false
+=== RUN   TestIsTransientError/leader_na
+=== PAUSE TestIsTransientError/leader_na
+=== RUN   TestIsTransientError/not_enough
+=== PAUSE TestIsTransientError/not_enough
+=== PAUSE TestLostResponseReplayEvidence/verified-dedup
+=== RUN   TestPublishPreservesIndexedBatchFacts/true
+=== PAUSE TestPublishPreservesIndexedBatchFacts/true
+=== RUN   TestIsTransientError/request_timeout
+=== PAUSE TestIsTransientError/request_timeout
+=== CONT  TestLostResponseReplayEvidence/unknown-denied
+=== CONT  TestPublishPreservesIndexedBatchFacts/false
+=== RUN   TestIsTransientError/unknown_topic
+=== CONT  TestLostResponseReplayEvidence/verified-dedup
+--- PASS: TestLostResponseReplayEvidence (0.00s)
+    --- PASS: TestLostResponseReplayEvidence/unknown-denied (0.00s)
+    --- PASS: TestLostResponseReplayEvidence/verified-dedup (0.00s)
+=== CONT  TestPublishPreservesIndexedBatchFacts/true
+=== PAUSE TestIsTransientError/unknown_topic
+=== RUN   TestIsTransientError/msg_too_large
+=== PAUSE TestIsTransientError/msg_too_large
+=== RUN   TestIsTransientError/invalid_msg
+--- PASS: TestProducerRouteHandlerConcurrent (0.00s)
+=== PAUSE TestIsTransientError/invalid_msg
+--- PASS: TestPublishPreservesIndexedBatchFacts (0.00s)
+    --- PASS: TestPublishPreservesIndexedBatchFacts/false (0.00s)
+    --- PASS: TestPublishPreservesIndexedBatchFacts/true (0.00s)
+=== RUN   TestIsTransientError/topic_auth
+=== PAUSE TestIsTransientError/topic_auth
+=== RUN   TestIsTransientError/eof
+=== PAUSE TestIsTransientError/eof
+=== RUN   TestIsTransientError/timeout_net
+=== PAUSE TestIsTransientError/timeout_net
+=== RUN   TestIsTransientError/plain
+=== PAUSE TestIsTransientError/plain
+=== CONT  TestIsTransientError/deadline
+=== CONT  TestIsTransientError/invalid_msg
+=== CONT  TestIsTransientError/leader_na
+=== CONT  TestIsTransientError/plain
+=== CONT  TestIsTransientError/topic_auth
+=== CONT  TestIsTransientError/request_timeout
+=== CONT  TestIsTransientError/not_enough
+=== CONT  TestIsTransientError/msg_too_large
+=== CONT  TestIsTransientError/unknown_topic
+=== CONT  TestIsTransientError/timeout_net
+=== CONT  TestIsTransientError/canceled
+=== CONT  TestIsTransientError/nil
+=== CONT  TestIsTransientError/eof
+--- PASS: TestIsTransientError (0.00s)
+    --- PASS: TestIsTransientError/invalid_msg (0.00s)
+    --- PASS: TestIsTransientError/deadline (0.00s)
+    --- PASS: TestIsTransientError/plain (0.00s)
+    --- PASS: TestIsTransientError/topic_auth (0.00s)
+    --- PASS: TestIsTransientError/not_enough (0.00s)
+    --- PASS: TestIsTransientError/unknown_topic (0.00s)
+    --- PASS: TestIsTransientError/request_timeout (0.00s)
+    --- PASS: TestIsTransientError/canceled (0.00s)
+    --- PASS: TestIsTransientError/nil (0.00s)
+    --- PASS: TestIsTransientError/eof (0.00s)
+    --- PASS: TestIsTransientError/leader_na (0.00s)
+    --- PASS: TestIsTransientError/timeout_net (0.00s)
+    --- PASS: TestIsTransientError/msg_too_large (0.00s)
+=== RUN   FuzzIsTransientErrorNoPanics
+=== RUN   FuzzIsTransientErrorNoPanics/seed#0
+--- PASS: FuzzIsTransientErrorNoPanics (0.00s)
+    --- PASS: FuzzIsTransientErrorNoPanics/seed#0 (0.00s)
+=== RUN   ExampleNewProducerRouteHandler_withRetryIf
+--- PASS: ExampleNewProducerRouteHandler_withRetryIf (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/ext/kafka	1.457s
+test - ./ext/mongo
+=== RUN   TestCursorResultHasExplicitOwnership
+=== PAUSE TestCursorResultHasExplicitOwnership
+=== RUN   TestNewFindRouteHandlerNil
+=== PAUSE TestNewFindRouteHandlerNil
+=== RUN   TestNewFindRouteHandlerDelegates
+=== PAUSE TestNewFindRouteHandlerDelegates
+=== RUN   TestNewInsertOneRouteHandlerDelegates
+=== PAUSE TestNewInsertOneRouteHandlerDelegates
+=== RUN   TestNewUpdateOneRouteHandlerDelegates
+=== PAUSE TestNewUpdateOneRouteHandlerDelegates
+=== RUN   TestNewDeleteOneRouteHandlerDelegates
+=== PAUSE TestNewDeleteOneRouteHandlerDelegates
+=== RUN   TestNewInsertOneRouteHandlerNil
+=== PAUSE TestNewInsertOneRouteHandlerNil
+=== RUN   TestNewUpdateOneRouteHandlerNil
+=== PAUSE TestNewUpdateOneRouteHandlerNil
+=== RUN   TestNewDeleteOneRouteHandlerNil
+=== PAUSE TestNewDeleteOneRouteHandlerNil
+=== RUN   TestFindRouteHandlerConcurrent
+=== PAUSE TestFindRouteHandlerConcurrent
+=== RUN   TestWritesRetainPartialResultsOnError
+--- PASS: TestWritesRetainPartialResultsOnError (0.00s)
+=== RUN   TestLostResponseReplayEvidence
+=== PAUSE TestLostResponseReplayEvidence
+=== RUN   TestTransactionEvidenceCannotAuthorizeRepeat
+=== PAUSE TestTransactionEvidenceCannotAuthorizeRepeat
+=== RUN   TestPartialCursorRetainsLifetimeOnError
+=== PAUSE TestPartialCursorRetainsLifetimeOnError
+=== RUN   TestIsTransientError
+=== PAUSE TestIsTransientError
+=== CONT  TestCursorResultHasExplicitOwnership
+=== CONT  TestPartialCursorRetainsLifetimeOnError
+--- PASS: TestPartialCursorRetainsLifetimeOnError (0.00s)
+=== CONT  TestTransactionEvidenceCannotAuthorizeRepeat
+--- PASS: TestTransactionEvidenceCannotAuthorizeRepeat (0.00s)
+=== CONT  TestLostResponseReplayEvidence
+=== RUN   TestLostResponseReplayEvidence/unknown-denied
+=== CONT  TestIsTransientError
+=== RUN   TestIsTransientError/nil
+=== PAUSE TestIsTransientError/nil
+=== CONT  TestFindRouteHandlerConcurrent
+=== CONT  TestNewUpdateOneRouteHandlerNil
+--- PASS: TestNewUpdateOneRouteHandlerNil (0.00s)
+=== CONT  TestNewInsertOneRouteHandlerNil
+--- PASS: TestNewInsertOneRouteHandlerNil (0.00s)
+=== CONT  TestNewDeleteOneRouteHandlerDelegates
+--- PASS: TestNewDeleteOneRouteHandlerDelegates (0.00s)
+=== CONT  TestNewDeleteOneRouteHandlerNil
+--- PASS: TestNewDeleteOneRouteHandlerNil (0.00s)
+=== CONT  TestNewUpdateOneRouteHandlerDelegates
+--- PASS: TestNewUpdateOneRouteHandlerDelegates (0.00s)
+=== CONT  TestNewInsertOneRouteHandlerDelegates
+--- PASS: TestNewInsertOneRouteHandlerDelegates (0.00s)
+=== CONT  TestNewFindRouteHandlerNil
+--- PASS: TestNewFindRouteHandlerNil (0.00s)
+=== CONT  TestNewFindRouteHandlerDelegates
+--- PASS: TestNewFindRouteHandlerDelegates (0.00s)
+=== PAUSE TestLostResponseReplayEvidence/unknown-denied
+=== RUN   TestIsTransientError/canceled
+=== PAUSE TestIsTransientError/canceled
+--- PASS: TestCursorResultHasExplicitOwnership (0.00s)
+=== RUN   TestLostResponseReplayEvidence/verified-dedup
+=== PAUSE TestLostResponseReplayEvidence/verified-dedup
+=== CONT  TestLostResponseReplayEvidence/unknown-denied
+=== RUN   TestIsTransientError/deadline
+=== CONT  TestLostResponseReplayEvidence/verified-dedup
+=== PAUSE TestIsTransientError/deadline
+=== RUN   TestIsTransientError/no_docs
+=== PAUSE TestIsTransientError/no_docs
+=== RUN   TestIsTransientError/dup
+=== PAUSE TestIsTransientError/dup
+=== RUN   TestIsTransientError/disconnected
+--- PASS: TestLostResponseReplayEvidence (0.00s)
+    --- PASS: TestLostResponseReplayEvidence/unknown-denied (0.00s)
+    --- PASS: TestLostResponseReplayEvidence/verified-dedup (0.00s)
+=== PAUSE TestIsTransientError/disconnected
+=== RUN   TestIsTransientError/network_label
+=== PAUSE TestIsTransientError/network_label
+--- PASS: TestFindRouteHandlerConcurrent (0.00s)
+=== RUN   TestIsTransientError/timeout_label
+=== PAUSE TestIsTransientError/timeout_label
+=== RUN   TestIsTransientError/write_auth
+=== PAUSE TestIsTransientError/write_auth
+=== RUN   TestIsTransientError/write_concern_auth
+=== PAUSE TestIsTransientError/write_concern_auth
+=== RUN   TestIsTransientError/write_concern_ok_retry
+=== PAUSE TestIsTransientError/write_concern_ok_retry
+=== RUN   TestIsTransientError/generic
+=== PAUSE TestIsTransientError/generic
+=== CONT  TestIsTransientError/nil
+=== CONT  TestIsTransientError/network_label
+=== CONT  TestIsTransientError/disconnected
+=== CONT  TestIsTransientError/dup
+=== CONT  TestIsTransientError/deadline
+=== CONT  TestIsTransientError/canceled
+=== CONT  TestIsTransientError/no_docs
+=== CONT  TestIsTransientError/write_concern_auth
+=== CONT  TestIsTransientError/write_concern_ok_retry
+=== CONT  TestIsTransientError/generic
+=== CONT  TestIsTransientError/timeout_label
+=== CONT  TestIsTransientError/write_auth
+--- PASS: TestIsTransientError (0.00s)
+    --- PASS: TestIsTransientError/nil (0.00s)
+    --- PASS: TestIsTransientError/network_label (0.00s)
+    --- PASS: TestIsTransientError/disconnected (0.00s)
+    --- PASS: TestIsTransientError/dup (0.00s)
+    --- PASS: TestIsTransientError/deadline (0.00s)
+    --- PASS: TestIsTransientError/no_docs (0.00s)
+    --- PASS: TestIsTransientError/canceled (0.00s)
+    --- PASS: TestIsTransientError/write_concern_auth (0.00s)
+    --- PASS: TestIsTransientError/write_concern_ok_retry (0.00s)
+    --- PASS: TestIsTransientError/generic (0.00s)
+    --- PASS: TestIsTransientError/timeout_label (0.00s)
+    --- PASS: TestIsTransientError/write_auth (0.00s)
+=== RUN   FuzzIsTransientErrorNoPanics
+=== RUN   FuzzIsTransientErrorNoPanics/seed#0
+--- PASS: FuzzIsTransientErrorNoPanics (0.00s)
+    --- PASS: FuzzIsTransientErrorNoPanics/seed#0 (0.00s)
+=== RUN   ExampleNewFindRouteHandler_withRetryIf
+--- PASS: ExampleNewFindRouteHandler_withRetryIf (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/ext/mongo	1.464s
+test - ./ext/sql
+=== RUN   TestNewDBQueryRouteHandlerInvalidConfig
+=== PAUSE TestNewDBQueryRouteHandlerInvalidConfig
+=== RUN   TestNewDBExecRouteHandlerInvalidConfig
+=== PAUSE TestNewDBExecRouteHandlerInvalidConfig
+=== RUN   TestNewTxQueryRouteHandlerInvalidConfig
+=== PAUSE TestNewTxQueryRouteHandlerInvalidConfig
+=== RUN   TestNewTxExecRouteHandlerInvalidConfig
+=== PAUSE TestNewTxExecRouteHandlerInvalidConfig
+=== RUN   TestNewDBQueryRouteHandlerExecutesQuery
+=== PAUSE TestNewDBQueryRouteHandlerExecutesQuery
+=== RUN   TestNewDBExecRouteHandlerExecutesStatement
+=== PAUSE TestNewDBExecRouteHandlerExecutesStatement
+=== RUN   TestNewTxQueryRouteHandlerExecutesQuery
+=== PAUSE TestNewTxQueryRouteHandlerExecutesQuery
+=== RUN   TestNewTxExecRouteHandlerExecutesStatement
+=== PAUSE TestNewTxExecRouteHandlerExecutesStatement
+=== RUN   TestExtractorErrorIsReturnedWithoutWrapping
+=== PAUSE TestExtractorErrorIsReturnedWithoutWrapping
+=== RUN   TestExecutionErrorWrapsQueryFailure
+=== PAUSE TestExecutionErrorWrapsQueryFailure
+=== RUN   TestExecutionErrorWrapsTxFailure
+=== PAUSE TestExecutionErrorWrapsTxFailure
+=== RUN   TestRowsMustBeClosedByCaller
+=== PAUSE TestRowsMustBeClosedByCaller
+=== RUN   TestQueryRaceWinnerRetainsRows
+=== PAUSE TestQueryRaceWinnerRetainsRows
+=== RUN   TestContextCancellationIsNotRetriedByDefaultPolicy
+=== PAUSE TestContextCancellationIsNotRetriedByDefaultPolicy
+=== RUN   TestTxLifecycleCounters
+=== PAUSE TestTxLifecycleCounters
+=== RUN   TestExecutionErrorString
+=== PAUSE TestExecutionErrorString
+=== RUN   TestDefaultRetryPolicy
+=== PAUSE TestDefaultRetryPolicy
+=== CONT  TestNewTxQueryRouteHandlerInvalidConfig
+=== CONT  TestExecutionErrorWrapsTxFailure
+--- PASS: TestNewTxQueryRouteHandlerInvalidConfig (0.00s)
+=== CONT  TestNewDBQueryRouteHandlerExecutesQuery
+=== CONT  TestQueryRaceWinnerRetainsRows
+=== CONT  TestDefaultRetryPolicy
+=== CONT  TestTxLifecycleCounters
+=== RUN   TestDefaultRetryPolicy/nil
+=== CONT  TestNewTxExecRouteHandlerExecutesStatement
+=== PAUSE TestDefaultRetryPolicy/nil
+=== RUN   TestDefaultRetryPolicy/canceled
+=== PAUSE TestDefaultRetryPolicy/canceled
+=== RUN   TestDefaultRetryPolicy/deadline
+=== PAUSE TestDefaultRetryPolicy/deadline
+=== RUN   TestDefaultRetryPolicy/unknown
+--- PASS: TestNewTxExecRouteHandlerExecutesStatement (0.00s)
+=== PAUSE TestDefaultRetryPolicy/unknown
+=== RUN   TestDefaultRetryPolicy/bad_conn_db
+=== PAUSE TestDefaultRetryPolicy/bad_conn_db
+=== RUN   TestDefaultRetryPolicy/bad_conn_tx
+=== CONT  TestNewDBExecRouteHandlerInvalidConfig
+--- PASS: TestNewDBExecRouteHandlerInvalidConfig (0.00s)
+=== CONT  TestRowsMustBeClosedByCaller
+=== PAUSE TestDefaultRetryPolicy/bad_conn_tx
+--- PASS: TestRowsMustBeClosedByCaller (0.00s)
+=== CONT  TestExecutionErrorString
+=== RUN   TestExecutionErrorString/nil_receiver
+=== PAUSE TestExecutionErrorString/nil_receiver
+=== CONT  TestNewTxExecRouteHandlerInvalidConfig
+--- PASS: TestNewDBQueryRouteHandlerExecutesQuery (0.00s)
+=== CONT  TestNewDBExecRouteHandlerExecutesStatement
+=== CONT  TestContextCancellationIsNotRetriedByDefaultPolicy
+--- PASS: TestNewDBExecRouteHandlerExecutesStatement (0.00s)
+=== CONT  TestExtractorErrorIsReturnedWithoutWrapping
+--- PASS: TestExtractorErrorIsReturnedWithoutWrapping (0.00s)
+=== CONT  TestExecutionErrorWrapsQueryFailure
+=== RUN   TestExecutionErrorString/without_inner_error
+--- PASS: TestExecutionErrorWrapsQueryFailure (0.00s)
+=== CONT  TestDefaultRetryPolicy/bad_conn_db
+=== PAUSE TestExecutionErrorString/without_inner_error
+=== RUN   TestExecutionErrorString/with_inner_error
+=== CONT  TestNewDBQueryRouteHandlerInvalidConfig
+=== PAUSE TestExecutionErrorString/with_inner_error
+=== CONT  TestExecutionErrorString/with_inner_error
+=== CONT  TestExecutionErrorString/without_inner_error
+--- PASS: TestTxLifecycleCounters (0.00s)
+=== CONT  TestExecutionErrorString/nil_receiver
+--- PASS: TestQueryRaceWinnerRetainsRows (0.00s)
+--- PASS: TestNewTxExecRouteHandlerInvalidConfig (0.00s)
+--- PASS: TestExecutionErrorWrapsTxFailure (0.00s)
+--- PASS: TestContextCancellationIsNotRetriedByDefaultPolicy (0.00s)
+--- PASS: TestNewDBQueryRouteHandlerInvalidConfig (0.00s)
+=== CONT  TestNewTxQueryRouteHandlerExecutesQuery
+--- PASS: TestExecutionErrorString (0.00s)
+    --- PASS: TestExecutionErrorString/with_inner_error (0.00s)
+    --- PASS: TestExecutionErrorString/without_inner_error (0.00s)
+    --- PASS: TestExecutionErrorString/nil_receiver (0.00s)
+=== CONT  TestDefaultRetryPolicy/unknown
+=== CONT  TestDefaultRetryPolicy/bad_conn_tx
+=== CONT  TestDefaultRetryPolicy/nil
+=== CONT  TestDefaultRetryPolicy/canceled
+=== CONT  TestDefaultRetryPolicy/deadline
+--- PASS: TestNewTxQueryRouteHandlerExecutesQuery (0.00s)
+--- PASS: TestDefaultRetryPolicy (0.00s)
+    --- PASS: TestDefaultRetryPolicy/bad_conn_db (0.00s)
+    --- PASS: TestDefaultRetryPolicy/unknown (0.00s)
+    --- PASS: TestDefaultRetryPolicy/bad_conn_tx (0.00s)
+    --- PASS: TestDefaultRetryPolicy/nil (0.00s)
+    --- PASS: TestDefaultRetryPolicy/canceled (0.00s)
+    --- PASS: TestDefaultRetryPolicy/deadline (0.00s)
+=== RUN   FuzzDefaultRetryPolicyNoPanics
+=== RUN   FuzzDefaultRetryPolicyNoPanics/seed#0
+=== RUN   FuzzDefaultRetryPolicyNoPanics/seed#1
+=== RUN   FuzzDefaultRetryPolicyNoPanics/seed#2
+--- PASS: FuzzDefaultRetryPolicyNoPanics (0.00s)
+    --- PASS: FuzzDefaultRetryPolicyNoPanics/seed#0 (0.00s)
+    --- PASS: FuzzDefaultRetryPolicyNoPanics/seed#1 (0.00s)
+    --- PASS: FuzzDefaultRetryPolicyNoPanics/seed#2 (0.00s)
+=== RUN   FuzzExecutionErrorNoPanics
+=== RUN   FuzzExecutionErrorNoPanics/seed#0
+=== RUN   FuzzExecutionErrorNoPanics/seed#1
+--- PASS: FuzzExecutionErrorNoPanics (0.00s)
+    --- PASS: FuzzExecutionErrorNoPanics/seed#0 (0.00s)
+    --- PASS: FuzzExecutionErrorNoPanics/seed#1 (0.00s)
+=== RUN   ExampleNewDBQueryRouteHandler
+--- PASS: ExampleNewDBQueryRouteHandler (0.00s)
+=== RUN   ExampleWeightBasedRouter_masterReplica
+--- PASS: ExampleWeightBasedRouter_masterReplica (0.00s)
+PASS
+ok  	github.com/skosovsky/routery/ext/sql	1.398s

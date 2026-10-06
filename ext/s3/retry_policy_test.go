@@ -54,8 +54,12 @@ func TestIsTransientError(t *testing.T) {
 			false,
 		},
 		{"timeout", &net.OpError{Err: s3TimeoutError{}}, true},
-		{"slow_msg", errors.New("Please reduce your request rate (SlowDown)"), true},
+		{"slow_msg", errors.New("Please reduce your request rate (SlowDown)"), false},
 		{"plain", errors.New("x"), false},
+		{"local-throttle", errors.New("local throttling bug"), false},
+		{"similar-api-code", &smithySlowDownError{code: "NotSlowDown"}, false},
+		{"numeric-api-code", &smithySlowDownError{code: "custom503"}, false},
+		{"exact-throttle", &smithySlowDownError{code: "ThrottlingException"}, true},
 		{"api_slow", &smithySlowDownError{code: "SlowDown"}, true},
 	}
 

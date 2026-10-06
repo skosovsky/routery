@@ -2,6 +2,64 @@
 
 `routery` is a zero-dependency, generic routing and resiliency library for Go.
 
+Requires **Go 1.27.1 or newer**. Install the root module:
+
+```sh
+go get github.com/skosovsky/routery@v0.5.0
+```
+
+The published v0.5.0 precedes the task13 changes in this checkout. Select matching
+released versions for each separately versioned module; workspace `v0.0.0` plus
+local `replace` directives are development configuration, not consumer releases.
+
+| Module | Purpose |
+| --- | --- |
+| `github.com/skosovsky/routery` | Core, observability projection and optional policy packages; no runtime dependencies |
+| `github.com/skosovsky/routery/ext/http` | HTTP request/response ownership and replay |
+| `github.com/skosovsky/routery/ext/grpc` | gRPC invocation and initial stream retries |
+| `github.com/skosovsky/routery/ext/sql` | SQL rows/results |
+| `github.com/skosovsky/routery/ext/mongo` | Mongo cursors and write results |
+| `github.com/skosovsky/routery/ext/redis` | Caller-owned Redis command invocation |
+| `github.com/skosovsky/routery/ext/kafka` | Kafka delivery mapping |
+| `github.com/skosovsky/routery/ext/s3` | AWS S3 SDK mapping |
+| `github.com/skosovsky/routery/ext/otel` | Optional OpenTelemetry integration |
+
+Install an adapter explicitly, e.g. `go get github.com/skosovsky/routery/ext/http@v0.5.0`.
+Start with this complete core program:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "github.com/skosovsky/routery"
+)
+
+func main() {
+    type Request struct { Destination string }
+    type Kind string
+    type Reason string
+    table := routery.NewRouteTable[Request, Kind, Reason, string]()
+    table.Route("local", 0,
+        func(req Request) bool { return req.Destination == "local" },
+        func(routery.RouteCall[Request]) (routery.RouteResult[Kind, Reason, string], error) {
+            return routery.Handled(Kind("answer"), Reason("local"), "hello"), nil
+        })
+    table.Fallback(func(routery.RouteCall[Request]) (routery.RouteResult[Kind, Reason, string], error) {
+        return routery.Handled(Kind("answer"), Reason("fallback"), "remote"), nil
+    })
+    router, err := table.Build()
+    if err != nil { panic(err) }
+    result, err := router.Dispatch(context.Background(), Request{Destination: "local"})
+    if err != nil { panic(err) }
+    fmt.Println(result.Kind, result.Reason, result.Payload)
+}
+```
+
+[Executable root examples](example_test.go) show both string and numeric caller types.
+Use the [documentation index](docs/README.md) for routing, ownership, replay and migration.
+
 Optional execution policies are specified in [the public contract](docs/execution-contracts.md).
 Start with a `Router` for declarative dispatch; add `RetryIf` only with explicit replay
 permission for the operation. The `policy` packages
@@ -69,9 +127,9 @@ Core resiliency and routing primitives:
 - `RoundRobin`
 - `Timeout`
 - `CircuitBreaker` (closed / open / half-open; `ErrCircuitOpen`)
-- `Bulkhead` (non-blocking concurrency limit; `ErrTooManyRequests`)
+- `Bulkhead` (non-blocking concurrency limit; `ErrBulkheadFull`)
 - `PredicateFallback`
-- `FirstCompleted` (returns `ErrNoSuccessfulOutcome` when no handler returns a terminal payload)
+- `FirstSuccessfulPayload` (returns `ErrNoSuccessfulOutcome` when no handler returns a terminal payload)
 - `WeightBasedRouter`
 - `Chain` for typed fallthrough without `handled bool`
 
@@ -197,15 +255,14 @@ if cleanupErr := outcome.Lifetime.Close(); cleanupErr != nil {
 | Result helper        | RouteResult.Action | HasPayload | RouteTable behavior                    |
 | -------------------- | ------------------ | ---------- | -------------------------------------- |
 | `Handled(...)`       | `ActionStop`       | true       | Stop dispatch                          |
-| `Async(...)`         | `ActionStop`       | true       | Stop dispatch                          |
 | `Ignored(...)`       | `ActionStop`       | false      | Stop dispatch; fallback **not** called |
 | `Next(...)`          | `ActionNext`       | false      | Continue to next route or fallback     |
 | Handler `return err` | `ActionAbort`      | preserved if supplied | Abort dispatch; caller retains partial owner |
 
-Use `Next` (not `Ignore`) when a matched route should defer to the next route or table fallback.
+Use `Next` (not `Ignored`) when a matched route should defer to the next route or table fallback.
 `ActionAbort` without a non-nil error is an invalid handler result.
 
-`FirstCompleted` selects the first parallel handler that returns a terminal payload; completion order may differ from registration order.
+`FirstSuccessfulPayload` selects the first parallel handler that returns a terminal payload; completion order may differ from registration order.
 
 Route table fingerprints include nested topology, routing options and classifier memoization groups; matcher/handler function identity and opaque caller implementations are excluded.
 

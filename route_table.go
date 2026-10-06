@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -47,6 +48,7 @@ type routeMatcher[Req any] struct {
 	match        func(RouteCall[Req]) (routeMatchData, bool, error)
 	staticKey    string
 	prefixLength int
+	configErr    error
 }
 
 type routeMatchData struct {
@@ -127,9 +129,21 @@ func (table *RouteTable[Req, Kind, Reason, Payload]) Fallback(
 
 // Build returns an immutable router from the configured table.
 func (table *RouteTable[Req, Kind, Reason, Payload]) Build() (Router[Req, Kind, Reason, Payload], error) {
+	return table.build(make(map[*RouteTable[Req, Kind, Reason, Payload]]bool), nil)
+}
+
+func (table *RouteTable[Req, Kind, Reason, Payload]) build(
+	ancestors map[*RouteTable[Req, Kind, Reason, Payload]]bool, path []RouteID,
+) (Router[Req, Kind, Reason, Payload], error) {
 	if table == nil {
 		return nil, configError("route table is nil")
 	}
+
+	if ancestors[table] {
+		return nil, configError(fmt.Sprintf("mount cycle at %v", path))
+	}
+	ancestors[table] = true
+	defer delete(ancestors, table)
 
 	built := &builtTable[Req, Kind, Reason, Payload]{
 		longestPrefixWins: table.longestPrefixWins,
@@ -138,19 +152,13 @@ func (table *RouteTable[Req, Kind, Reason, Payload]) Build() (Router[Req, Kind, 
 	}
 
 	for _, entry := range table.routes {
-		if entry.handler == nil && entry.sub == nil {
-			return nil, configError("route " + string(entry.id) + " has no handler or nested table")
-		}
-		if entry.handler != nil && entry.sub != nil {
-			return nil, configError("route " + string(entry.id) + " has both handler and nested table")
-		}
-		if entry.matcher.match == nil {
-			return nil, configError("route " + string(entry.id) + " has invalid matcher")
+		if err := entry.validateConfiguration(); err != nil {
+			return nil, err
 		}
 
 		copied := entry
 		if copied.sub != nil {
-			nestedRouter, err := copied.sub.Build()
+			nestedRouter, err := copied.sub.build(ancestors, appendRouteID(path, copied.id))
 			if err != nil {
 				return nil, err
 			}
@@ -309,6 +317,7 @@ func predicateMatcher[Req any](match Matcher[Req]) routeMatcher[Req] {
 		kind:         MatchKindPredicate,
 		staticKey:    "",
 		prefixLength: 0,
+		configErr:    nil,
 		match: func(call RouteCall[Req]) (routeMatchData, bool, error) {
 			if match == nil {
 				return routeMatchData{}, true, nil
@@ -445,6 +454,7 @@ func exactMatcher[Req any, Key comparable](extractor KeyExtractor[Req, Key], exp
 		kind:         MatchKindExact,
 		staticKey:    topologyKey(expected),
 		prefixLength: 0,
+		configErr:    nil,
 		match: func(call RouteCall[Req]) (routeMatchData, bool, error) {
 			if extractor == nil {
 				return routeMatchData{}, false, configError("exact route key extractor is nil")
@@ -473,6 +483,7 @@ func prefixMatcher[Req any, Key ~string](extractor KeyExtractor[Req, Key], prefi
 		kind:         MatchKindPrefix,
 		staticKey:    prefixText,
 		prefixLength: len(prefixText),
+		configErr:    nil,
 		match: func(call RouteCall[Req]) (routeMatchData, bool, error) {
 			if extractor == nil {
 				return routeMatchData{}, false, configError("prefix route key extractor is nil")
@@ -560,6 +571,16 @@ func decisionMatcher[Req any, Key comparable, Reason comparable](
 	expected Key,
 	minConfidence float64,
 ) routeMatcher[Req] {
+	if !validConfidence(minConfidence) {
+		return routeMatcher[Req]{
+			group:        nil,
+			kind:         MatchKindDecision,
+			match:        nil,
+			staticKey:    "",
+			prefixLength: 0,
+			configErr:    configError("decision confidence threshold must be finite and in [0,1]"),
+		}
+	}
 	return routeMatcher[Req]{
 		group: group,
 		kind:  MatchKindDecision,
@@ -568,6 +589,7 @@ func decisionMatcher[Req any, Key comparable, Reason comparable](
 			[]byte(strconv.FormatFloat(minConfidence, 'g', -1, 64)),
 		),
 		prefixLength: 0,
+		configErr:    nil,
 		match: func(call RouteCall[Req]) (routeMatchData, bool, error) {
 			if group == nil || group.decision == nil {
 				return routeMatchData{}, false, configError("decision route classifier is nil")
@@ -576,6 +598,9 @@ func decisionMatcher[Req any, Key comparable, Reason comparable](
 			result, err := decisionForCall(call, group)
 			if err != nil {
 				return routeMatchData{}, false, err
+			}
+			if !validConfidence(result.Confidence) {
+				return routeMatchData{}, false, &InvalidConfidenceError{Confidence: result.Confidence}
 			}
 			if !result.Matched || result.Key != expected || result.Confidence < minConfidence {
 				return routeMatchData{}, false, nil
@@ -627,4 +652,32 @@ func routeGroup(kind MatchKind) int {
 		return 0
 	}
 	return 1
+}
+
+func validConfidence(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0) && value >= 0 && value <= 1
+}
+
+// InvalidConfidenceError reports a malformed classifier signal.
+type InvalidConfidenceError struct{ Confidence float64 }
+
+func (*InvalidConfidenceError) Error() string {
+	return "routery: classifier confidence must be finite and in [0,1]"
+}
+
+func (entry routeEntry[Req, Kind, Reason, Payload]) validateConfiguration() error {
+	if entry.matcher.configErr != nil {
+		return entry.matcher.configErr
+	}
+	if entry.handler == nil && entry.sub == nil {
+		return configError("route " + string(entry.id) + " has no handler or nested table")
+	}
+	if entry.handler != nil && entry.sub != nil {
+		return configError("route " + string(entry.id) + " has both handler and nested table")
+	}
+	if entry.matcher.match == nil {
+		return configError("route " + string(entry.id) + " has invalid matcher")
+	}
+
+	return nil
 }

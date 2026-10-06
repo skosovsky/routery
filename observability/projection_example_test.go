@@ -115,7 +115,7 @@ func TestSafeObserversDoNotOwnPartialCleanupOrPermit(t *testing.T) {
 	closeErr := result.Lifetime.Close()
 	duplicateErr := result.Lifetime.Close()
 	// Assert.
-	if !errors.Is(err, rawErr) || !errors.Is(blocked, routery.ErrTooManyRequests) || beforeClose != 0 || closes != 1 ||
+	if !errors.Is(err, rawErr) || !errors.Is(blocked, routery.ErrBulkheadFull) || beforeClose != 0 || closes != 1 ||
 		closeErr != nil ||
 		duplicateErr != nil ||
 		encodeErr != nil {

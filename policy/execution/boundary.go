@@ -16,6 +16,10 @@ var ErrInvalidBoundary = errors.New("routery/execution: invalid boundary")
 
 // Admission is the host's typed admission decision and idempotent settlement callback.
 // Finish receives explicit outcome facts, not inferred usage. It must not reenter Receipt.
+// A nonnil Finish transfers to Receipt even when Admit returns an error. Run then
+// records NotExecuted and invokes Finish; failed settlement remains reconcilable.
+// Unknown reserve acknowledgement must remain pending in the host, not be refunded
+// solely because local dispatch did not start.
 type Admission struct {
 	Status  quota.Admission
 	RetryAt time.Time
@@ -196,10 +200,10 @@ func (boundary Boundary[Req, Kind, Reason, Payload]) run(
 	result.Receipt = receipt
 	admission, err := boundary.prepare(call, identity)
 	result.Admission, result.RetryAt = admission.Status, admission.RetryAt
+	receipt.finish = admission.Finish
 	if err != nil {
 		return result, errors.Join(err, receipt.close(true))
 	}
-	receipt.finish = admission.Finish
 	if admission.Status == quota.Denied || admission.Status == quota.Deferred {
 		return result, receipt.close(true)
 	}

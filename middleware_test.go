@@ -97,8 +97,8 @@ func TestBulkheadRejectsWhenFull(t *testing.T) {
 	group.Wait()
 
 	// Assert.
-	if !errors.Is(err, ErrTooManyRequests) {
-		t.Fatalf("err = %v, want ErrTooManyRequests", err)
+	if !errors.Is(err, ErrBulkheadFull) {
+		t.Fatalf("err = %v, want ErrBulkheadFull", err)
 	}
 }
 
@@ -124,7 +124,7 @@ func TestCircuitBreakerOpensAfterFailures(t *testing.T) {
 	}
 }
 
-func TestFirstCompletedReturnsFirstPayloadResult(t *testing.T) {
+func TestFirstSuccessfulPayloadReturnsFirstPayloadResult(t *testing.T) {
 	// Arrange.
 	slow := func(call RouteCall[int]) (RouteResult[testKind, testReason, string], error) {
 		select {
@@ -137,7 +137,7 @@ func TestFirstCompletedReturnsFirstPayloadResult(t *testing.T) {
 	fast := func(RouteCall[int]) (RouteResult[testKind, testReason, string], error) {
 		return Handled(testKindHandled, testReasonHandled, "fast"), nil
 	}
-	handler := FirstCompleted(slow, fast)
+	handler := FirstSuccessfulPayload(slow, fast)
 
 	// Act.
 	result, err := InvokeRouteHandler(t.Context(), 0, handler)
@@ -151,7 +151,7 @@ func TestFirstCompletedReturnsFirstPayloadResult(t *testing.T) {
 	}
 }
 
-func TestFirstCompletedIgnoresActionNextWithPayload(t *testing.T) {
+func TestFirstSuccessfulPayloadIgnoresActionNextWithPayload(t *testing.T) {
 	// Arrange.
 	nextWithPayload := func(RouteCall[int]) (RouteResult[testKind, testReason, string], error) {
 		return RouteResult[testKind, testReason, string]{
@@ -171,7 +171,7 @@ func TestFirstCompletedIgnoresActionNextWithPayload(t *testing.T) {
 			return AbortResult[testKind, testReason, string](), call.Context.Err()
 		}
 	}
-	handler := FirstCompleted(nextWithPayload, terminal)
+	handler := FirstSuccessfulPayload(nextWithPayload, terminal)
 
 	// Act.
 	result, err := InvokeRouteHandler(t.Context(), 0, handler)

@@ -7,7 +7,10 @@ type RouteEvent[Kind comparable, Reason comparable, Payload any] struct {
 	Err    error
 }
 
-// OutcomeSink receives route events emitted by DispatchWithSink.
+// OutcomeSink receives synchronous route events emitted by DispatchWithSink.
+// Match paths are detached. Payload, decision reasons, errors and Lifetime are borrowed
+// read-only references: Observe must not mutate them or close the canonical owner.
+// Hosts must project and redact raw events before exporting telemetry.
 type OutcomeSink[Kind comparable, Reason comparable, Payload any] interface {
 	Observe(RouteEvent[Kind, Reason, Payload])
 }
@@ -32,8 +35,9 @@ func emitRouteEvent[Kind comparable, Reason comparable, Payload any](
 		return
 	}
 
+	result.Match = cloneRouteMatch(result.Match)
 	sink.Observe(RouteEvent[Kind, Reason, Payload]{
-		Match:  match,
+		Match:  cloneRouteMatch(match),
 		Result: result,
 		Err:    err,
 	})

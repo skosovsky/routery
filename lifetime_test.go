@@ -32,7 +32,7 @@ func TestLifetimeConcurrentCloseAndLateHooks(t *testing.T) {
 	}
 }
 
-func TestFirstCompletedClosesAllFailedOwnedResults(t *testing.T) {
+func TestFirstSuccessfulPayloadClosesAllFailedOwnedResults(t *testing.T) {
 	// Arrange: each failed branch still owns a resource that must be released.
 	failure := errors.New("provider failed with resource")
 	var closes atomic.Int32
@@ -44,7 +44,7 @@ func TestFirstCompletedClosesAllFailedOwnedResults(t *testing.T) {
 		return result, failure
 	}
 	// Act.
-	result, err := InvokeRouteHandler(t.Context(), 0, FirstCompleted(branch, branch))
+	result, err := InvokeRouteHandler(t.Context(), 0, FirstSuccessfulPayload(branch, branch))
 	// Assert: no winner leaks a failed handle or leaves its branch context alive.
 	if !errors.Is(err, failure) || result.HasPayload || closes.Load() != 2 {
 		t.Fatalf("err=%v payload=%v closes=%d", err, result.HasPayload, closes.Load())
@@ -56,7 +56,7 @@ func TestFirstCompletedClosesAllFailedOwnedResults(t *testing.T) {
 	}
 }
 
-func TestFirstCompletedLiveWinnerStillObservesParentCancellation(t *testing.T) {
+func TestFirstSuccessfulPayloadLiveWinnerStillObservesParentCancellation(t *testing.T) {
 	// Arrange: returning an owned winner must not cancel it, but parent cancellation must.
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -68,7 +68,7 @@ func TestFirstCompletedLiveWinnerStillObservesParentCancellation(t *testing.T) {
 		result.Lifetime = NewLifetime(func() error { closes.Add(1); return nil })
 		return result, nil
 	}
-	result, err := InvokeRouteHandler(ctx, 0, FirstCompleted(branch))
+	result, err := InvokeRouteHandler(ctx, 0, FirstSuccessfulPayload(branch))
 	if err != nil {
 		t.Fatal(err)
 	}

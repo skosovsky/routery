@@ -259,7 +259,7 @@ func ExampleSequence_externalResourceLifecycle() {
 		"reconcile",
 		result.Decision.Action == attempt.Reconcile,
 		"permit-held",
-		errors.Is(blockedErr, routery.ErrTooManyRequests),
+		errors.Is(blockedErr, routery.ErrBulkheadFull),
 	)
 	fmt.Println(
 		"close-error", closeErr,

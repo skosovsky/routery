@@ -1,7 +1,7 @@
 // Package routeryredis adapts [github.com/redis/go-redis/v9] clients to [github.com/skosovsky/routery.RouteHandler].
 //
-// Use [NewRouteHandler] with a [CommandExtractor] that returns a [redis.Cmder] bound to the same
-// [redis.Client] (for example the result of [redis.Client.Get]). The handler evaluates the
+// Use [NewRouteHandler] with a [CommandInvoker] that executes a command on a caller-owned Client, ClusterClient or Ring
+// and returns a [redis.Cmder] (for example the result of [redis.Client.Get]). The handler evaluates the
 // command via [redis.Cmder.Err] and then maps the result with [ScanResult].
 //
 // Cache misses: [redis.Nil] is returned as-is and [IsTransientError] never classifies it as transient so a

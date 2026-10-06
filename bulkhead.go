@@ -2,7 +2,7 @@ package routery
 
 // Bulkhead limits concurrent executions of the wrapped route handler using a semaphore.
 //
-// If the semaphore is full, the handler returns [ErrTooManyRequests] without blocking.
+// If the semaphore is full, the handler returns [ErrBulkheadFull] without blocking.
 // An owned result retains its permit until Lifetime.Close, including partial error results.
 func Bulkhead[Req any, Kind comparable, Reason comparable, Payload any](
 	limit int,
@@ -31,7 +31,7 @@ func Bulkhead[Req any, Kind comparable, Reason comparable, Payload any](
 			case <-call.Context.Done():
 				return AbortResult[Kind, Reason, Payload](), call.Context.Err()
 			default:
-				return AbortResult[Kind, Reason, Payload](), ErrTooManyRequests
+				return AbortResult[Kind, Reason, Payload](), ErrBulkheadFull
 			}
 		}
 	}

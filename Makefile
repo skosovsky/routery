@@ -29,16 +29,13 @@ bench:
 		(cd "$$dir" && $(GO) test -bench=. -run=^$$ ./...) || exit 1; \
 	done
 
+FUZZTIME ?= 30s
+FUZZ_MODULES ?= $(MODULES)
+
 fuzz:
-	@for dir in $(MODULES); do \
+	@for dir in $(FUZZ_MODULES); do \
 		echo "fuzz - $$dir"; \
-		(cd "$$dir" && \
-			for pkg in $$($(GO) list -tags=fuzz ./...); do \
-				if $(GO) test -tags=fuzz -list . "$$pkg" 2>/dev/null | grep -q '^Fuzz'; then \
-					$(GO) test -tags=fuzz -fuzz=. -fuzztime=30s "$$pkg" || exit 1; \
-				fi; \
-			done \
-		) || exit 1; \
+		(cd "$$dir" && GO="$(GO)" FUZZTIME="$(FUZZTIME)" sh "$(CURDIR)/scripts/fuzz.sh") || exit 1; \
 	done
 
 cover:

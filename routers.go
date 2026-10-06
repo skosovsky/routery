@@ -30,22 +30,38 @@ func Fallback[Req any, Kind comparable, Reason comparable, Payload any](
 		}
 
 		if cancelErr := call.Context.Err(); cancelErr != nil {
-			_ = result.Lifetime.Close()
-			return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), cancelErr
+			result.Action = ActionAbort
+			return result, errors.Join(err, cancelErr)
 		}
-		_ = result.Lifetime.Close()
+		if closed, closeErr := discardResult(result, err); closeErr != nil {
+			return closed, closeErr
+		}
+		if cancelErr := call.Context.Err(); cancelErr != nil {
+			result.Action = ActionAbort
+			return result, errors.Join(err, cancelErr)
+		}
 		return secondary(call)
 	}
 }
 
 // RetryIf retries execution when predicate returns true for a system error.
+// attempts counts total handler calls; zero defaults to one. Negative attempts/backoff
+// return an ErrInvalidConfig handler. The predicate is not called after the last attempt.
+// Predicates must not mutate resource lifetime. Cleanup failure stops repetition.
 func RetryIf[Req any, Kind comparable, Reason comparable, Payload any](
 	attempts int,
 	backoff time.Duration,
 	predicate RetryPredicate[Req],
 ) RouteMiddleware[Req, Kind, Reason, Payload] {
+	if attempts < 0 || backoff < 0 {
+		return func(RouteHandler[Req, Kind, Reason, Payload]) RouteHandler[Req, Kind, Reason, Payload] {
+			return invalidRouteHandler[Req, Kind, Reason, Payload](
+				configError("retry attempts and backoff must be non-negative"),
+			)
+		}
+	}
 	normalizedAttempts := max(attempts, 1)
-	normalizedBackoff := max(backoff, time.Duration(0))
+	normalizedBackoff := backoff
 	if predicate == nil {
 		return func(RouteHandler[Req, Kind, Reason, Payload]) RouteHandler[Req, Kind, Reason, Payload] {
 			return invalidRouteHandler[Req, Kind, Reason, Payload](configError("retry predicate is nil"))
@@ -91,10 +107,16 @@ func (handler *roundRobinHandler[Req, Kind, Reason, Payload]) route(
 }
 
 // Timeout limits execution time for the wrapped route handler.
+// Zero disables the timeout; negative values return an ErrInvalidConfig handler.
 func Timeout[Req any, Kind comparable, Reason comparable, Payload any](
 	timeout time.Duration,
 ) RouteMiddleware[Req, Kind, Reason, Payload] {
-	if timeout <= 0 {
+	if timeout < 0 {
+		return func(RouteHandler[Req, Kind, Reason, Payload]) RouteHandler[Req, Kind, Reason, Payload] {
+			return invalidRouteHandler[Req, Kind, Reason, Payload](configError("timeout must be non-negative"))
+		}
+	}
+	if timeout == 0 {
 		return func(next RouteHandler[Req, Kind, Reason, Payload]) RouteHandler[Req, Kind, Reason, Payload] {
 			if next == nil {
 				return invalidRouteHandler[Req, Kind, Reason, Payload](
@@ -168,16 +190,18 @@ func executeWithRetry[Req any, Kind comparable, Reason comparable, Payload any](
 			return result, lastErr
 		}
 
-		_ = result.Lifetime.Close()
+		if closed, closeErr := discardResult(result, lastErr); closeErr != nil {
+			return closed, closeErr
+		}
 		if err := call.Context.Err(); err != nil {
-			return AbortResult[Kind, Reason, Payload]().WithMatch(result.Match), err
+			result.Action = ActionAbort
+			return result, errors.Join(lastErr, err)
 		}
-		if wait > 0 {
-			if err := sleepWithContext(call.Context, wait); err != nil {
-				return AbortResult[Kind, Reason, Payload](), err
-			}
-			wait = growBackoff(wait)
+		if err := sleepWithContext(call.Context, wait); err != nil {
+			result.Action = ActionAbort
+			return result, errors.Join(lastErr, err)
 		}
+		wait = growBackoff(wait)
 	}
 
 	return AbortResult[Kind, Reason, Payload](), lastErr

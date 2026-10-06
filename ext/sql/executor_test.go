@@ -345,7 +345,7 @@ func TestQueryRaceWinnerRetainsRows(t *testing.T) {
 	t.Parallel()
 	// Arrange.
 	db, state := openTestDB(t, testDriverConfig{})
-	handler := routery.FirstCompleted(NewDBQueryRouteHandler[statementRequest](db, statementExtractor))
+	handler := routery.FirstSuccessfulPayload(NewDBQueryRouteHandler[statementRequest](db, statementExtractor))
 	// Act.
 	result, err := routery.InvokeRouteHandler(context.Background(), statementRequest{
 		Query: "SELECT value FROM widgets",

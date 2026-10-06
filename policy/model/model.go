@@ -11,13 +11,13 @@ import (
 )
 
 // ErrInvalidConstraints indicates malformed caller requirements or policy identity.
-var ErrInvalidConstraints = errors.New("routery/model: invalid constraints")
+var ErrInvalidConstraints = errors.New("routery/policy/model: invalid constraints")
 
 // ErrEstimateUnavailable indicates missing required measurement or default facts.
-var ErrEstimateUnavailable = errors.New("routery/model: estimate unavailable")
+var ErrEstimateUnavailable = errors.New("routery/policy/model: estimate unavailable")
 
 // ErrStaleDescriptor indicates missing or expired mandatory capability facts.
-var ErrStaleDescriptor = errors.New("routery/model: stale descriptor")
+var ErrStaleDescriptor = errors.New("routery/policy/model: stale descriptor")
 
 // Reason is bounded eligibility metadata, never a description of request content.
 type Reason uint8

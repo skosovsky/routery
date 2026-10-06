@@ -30,7 +30,9 @@ func Chain[Req any, Kind comparable, Reason comparable, Payload any](
 			if result.Action != ActionNext {
 				return result, nil
 			}
-			_ = result.Lifetime.Close()
+			if closed, closeErr := discardResult(result, nil); closeErr != nil {
+				return closed, closeErr
+			}
 		}
 
 		if last.Action == ActionNext {

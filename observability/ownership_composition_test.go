@@ -68,29 +68,29 @@ func checkObserverComposition(t *testing.T, name string) {
 	}
 	_, blocked := handler(call)
 	// Assert.
-	if !errors.Is(blocked, routery.ErrTooManyRequests) || calls.Load() != 1 || closes.Load() != 0 ||
+	if !errors.Is(blocked, routery.ErrBulkheadFull) || calls.Load() != 1 || closes.Load() != 0 ||
 		settlements.Load() != 0 {
 		t.Fatal("observer prematurely released stream permit or settled its receipt")
 	}
 	_ = result.Route.Lifetime.Close()
 	_ = result.Route.Lifetime.Close()
 	assertObservedSettlement(t, result.Receipt, closes.Load(), settlements.Load(), 1)
-	// Act: a failed FirstCompleted branch discards/closes the next owned partial.
+	// Act: a failed FirstSuccessfulPayload branch discards/closes the next owned partial.
 	returned := make(chan *execution.Receipt, 1)
 	branch := func(call routery.RouteCall[int]) (routery.BasicRouteResult[string], error) {
 		result, runErr := boundary.Run(call, coordinator, attempt.Identity{Operation: "operation", Attempt: "race"})
 		returned <- result.Receipt
 		return result.Route, runErr
 	}
-	_, err = routery.FirstCompleted(branch)(call)
+	_, err = routery.FirstSuccessfulPayload(branch)(call)
 	// Assert: resource, Bulkhead permit and independent reservation all close exactly once.
 	if !errors.Is(err, failure) {
-		t.Fatal("FirstCompleted lost provider error")
+		t.Fatal("FirstSuccessfulPayload lost provider error")
 	}
 	assertObservedSettlement(t, <-returned, closes.Load(), settlements.Load(), 2)
 	probe, err := handler(call)
 	if !errors.Is(err, failure) || probe.Lifetime == nil || calls.Load() != 3 {
-		t.Fatal("discarded FirstCompleted resource retained its permit")
+		t.Fatal("discarded FirstSuccessfulPayload resource retained its permit")
 	}
 	_ = probe.Lifetime.Close()
 	if closes.Load() != 3 || settlements.Load() != 2 || len(events) != 3 {

@@ -38,7 +38,7 @@ func TestCursorResultHasExplicitOwnership(t *testing.T) {
 	var closed atomic.Int32
 	// Act.
 	result, err := routery.InvokeRouteHandler(context.Background(), FindRequest{},
-		routery.FirstCompleted(NewFindRouteHandler(api)))
+		routery.FirstSuccessfulPayload(NewFindRouteHandler(api)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,5 +260,50 @@ func TestFindRouteHandlerConcurrent(t *testing.T) {
 	wg.Wait()
 	if got := int(ff.calls.Load()); got != workers {
 		t.Fatalf("want %d calls, got %d", workers, got)
+	}
+}
+
+func TestWritesRetainPartialResultsOnError(t *testing.T) {
+	for _, partial := range []bool{false, true} {
+		// Arrange.
+		writeErr := mongo.WriteException{
+			WriteConcernError: &mongo.WriteConcernError{Code: 64, Message: "replication timeout"},
+		}
+		var insert *mongo.InsertOneResult
+		var update *mongo.UpdateResult
+		var deleted *mongo.DeleteResult
+		if partial {
+			insert = &mongo.InsertOneResult{InsertedID: "id"}
+			update = &mongo.UpdateResult{ModifiedCount: 1}
+			deleted = &mongo.DeleteResult{DeletedCount: 1}
+		}
+		// Act.
+		ir, ie := NewInsertOneRouteHandler(
+			&fakeInsert{res: insert, err: writeErr},
+		)(
+			routery.NewRouteCall(t.Context(), InsertOneRequest{}),
+		)
+		ur, ue := NewUpdateOneRouteHandler(
+			&fakeUpdate{res: update, err: writeErr},
+		)(
+			routery.NewRouteCall(t.Context(), UpdateOneRequest{}),
+		)
+		dr, de := NewDeleteOneRouteHandler(
+			&fakeDelete{res: deleted, err: writeErr},
+		)(
+			routery.NewRouteCall(t.Context(), DeleteOneRequest{}),
+		)
+		// Assert.
+		if ir.HasPayload != partial || ur.HasPayload != partial || dr.HasPayload != partial || ir.Payload != insert ||
+			ur.Payload != update ||
+			dr.Payload != deleted {
+			t.Fatalf("partial=%v results=%+v %+v %+v", partial, ir, ur, dr)
+		}
+		for _, err := range []error{ie, ue, de} {
+			var got mongo.WriteException
+			if !errors.As(err, &got) || got.WriteConcernError != writeErr.WriteConcernError {
+				t.Fatalf("lost original error: %v", err)
+			}
+		}
 	}
 }

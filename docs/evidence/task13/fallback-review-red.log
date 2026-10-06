@@ -1,0 +1,5 @@
+--- FAIL: TestFallbackCleanupCancellationStopsSecondary (0.00s)
+    remediation_test.go:325: calls=1 result={Action:stop Kind:handled Reason: Payload:forbidden HasPayload:true Match:{RouteID: Path:[] Priority:0 Depth:0 Kind: Key: Prefix: Remainder: DecisionReason:<nil> HasDecisionReason:false} Lifetime:<nil>} err=<nil>
+FAIL
+FAIL	github.com/skosovsky/routery	0.415s
+FAIL

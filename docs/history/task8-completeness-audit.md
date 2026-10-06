@@ -1,7 +1,7 @@
 # Task 8: независимый аудит полноты — первый проход и повторные проверки
 
 Источник требований: `.cursor/docs/task8.md` полностью, активный goal пользователя,
-`docs/task8-checklist.md`. Проверены публичные контракты, migration/closeout,
+`docs/history/task8-checklist.md`. Проверены публичные контракты, migration/closeout,
 текущие core/policy/HTTP реализации и acceptance fixtures. Отчёт другого аудитора
 не использовался. Production code и исходный checklist этим аудитором не менялись.
 
@@ -319,7 +319,7 @@ user handoff. Их нельзя исключить из121 или засчита
 
 ### Pre-delivery integration review
 
-Полностью прочитаны `docs/task8-handoff.md`, обновлённые additional deliverables
+Полностью прочитаны `docs/history/task8-handoff.md`, обновлённые additional deliverables
 checklist и финальный closeout evidence block. Содержимое handoff соответствует
 objective: numerator/denominator (включая C01), terminal all-module gates, отдельные
 выводы обоих аудиторов, migration и host-owned limitations, запрет неподтверждённых
@@ -482,7 +482,7 @@ acceptance scenarios.
 | T8-A15 | выполнено | Boundary before/after Fresh+cancel+admit, no-dispatch proof release, intermediate Lifetime close before Wait, stream permits owned. |
 | T8-A16 | выполнено | Migration каждого RTR и теперь public-API quota/affinity runnable examples с checked Output и migration references;10×race pass. |
 | T8-A17 | выполнено | Все4карточки active с public contracts/compositions/AAA/examples/migration; Boundary/Race control findings проверены corrected fixtures100×race; silent deferral отсутствует. |
-| T8-C01 | не выполнено | Содержимое docs/task8-handoff.md проверено и готово; фактический final response пользователю ещё не отправлен, заранее не засчитывается. |
+| T8-C01 | не выполнено | Содержимое docs/history/task8-handoff.md проверено и готово; фактический final response пользователю ещё не отправлен, заранее не засчитывается. |
 
 ## Ограничения и итог первого прохода
 

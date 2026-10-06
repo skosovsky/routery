@@ -13,6 +13,9 @@ import (
 // ErrInvalidSelection indicates invalid input, snapshot references or ranking.
 var ErrInvalidSelection = errors.New("routery/policy: invalid selection")
 
+// ErrNoSelection indicates dispatch was requested without a selected candidate.
+var ErrNoSelection = errors.New("routery/policy: no selected candidate")
+
 // References identifies the frozen inputs used for selection and dispatch freshness.
 // Values are caller-supplied opaque fingerprints, not topology-only hashes.
 type References struct {
@@ -42,6 +45,7 @@ type Candidate[Key comparable, Scope comparable, Descriptor any] struct {
 }
 
 // Evaluation is fixed input to selection; randomness is caller-owned and seedable.
+// Select and ValidatePinned normalize Deadline to the earliest nonzero explicit/context deadline.
 type Evaluation[Input any] struct {
 	Input       Input
 	Now         time.Time
@@ -58,12 +62,24 @@ type Eligibility[Reason comparable] struct {
 }
 
 // Explanation describes a decision without exposing candidate descriptors or request data.
+// Reason describes domain eligibility; Rejection separately identifies affinity exclusion.
 type Explanation[Key comparable, Reason comparable] struct {
-	Key         Key
-	Fingerprint string
-	Eligible    bool
-	Reason      Reason
+	Key            Key
+	Fingerprint    string
+	Eligible       bool
+	DomainEligible bool
+	Rejection      RejectionStage
+	Reason         Reason
 }
+
+// RejectionStage identifies the policy gate that excluded a candidate.
+type RejectionStage uint8
+
+const (
+	NotRejected RejectionStage = iota
+	DomainRejected
+	AffinityRejected
+)
 
 // SelectionStatus distinguishes expected absence from an invalid policy.
 type SelectionStatus uint8
@@ -104,6 +120,7 @@ func (selector Selector[Input, Key, Scope, Descriptor, Reason]) Select(
 	candidates []Candidate[Key, Scope, Descriptor],
 	affinity Affinity[Key, Scope, Descriptor],
 ) (Selection[Key, Scope, Descriptor, Reason], error) {
+	evaluation = effectiveEvaluation(ctx, evaluation)
 	var binding routery.RouteBinding[Key, Candidate[Key, Scope, Descriptor]]
 	result := Selection[Key, Scope, Descriptor, Reason]{
 		Status: NoEligible, Binding: binding,
@@ -130,8 +147,19 @@ func (selector Selector[Input, Key, Scope, Descriptor, Reason]) Select(
 			return result, eligibilityErr
 		}
 		allowed := eligible.Allowed && affinity.allows(candidate)
+		stage := NotRejected
+		if !eligible.Allowed {
+			stage = DomainRejected
+		} else if !allowed {
+			stage = AffinityRejected
+		}
 		result.Explanation = append(result.Explanation, Explanation[Key, Reason]{
-			Key: candidate.Key, Fingerprint: candidate.Fingerprint, Eligible: allowed, Reason: eligible.Reason,
+			Key:            candidate.Key,
+			Fingerprint:    candidate.Fingerprint,
+			Eligible:       allowed,
+			DomainEligible: eligible.Allowed,
+			Rejection:      stage,
+			Reason:         eligible.Reason,
 		})
 		if !allowed {
 			continue
@@ -204,7 +232,8 @@ func (selection Selection[Key, Scope, Descriptor, Reason]) ValidateFreshness(cur
 }
 
 // Dispatch validates selection freshness and cancellation before invoking the caller's route.
-// A no-eligible or affinity-unavailable selection never invokes dispatch.
+// A no-eligible or affinity-unavailable selection returns ErrNoSelection without dispatch.
+// Callers should handle selection.Status explicitly before requesting execution.
 func Dispatch[Input any, Key comparable, Scope comparable, Descriptor any, Reason comparable, Result any](
 	ctx context.Context,
 	input Input,
@@ -219,7 +248,7 @@ func Dispatch[Input any, Key comparable, Scope comparable, Descriptor any, Reaso
 	}
 	switch selection.Status {
 	case NoEligible, AffinityUnavailable:
-		return result, nil
+		return result, ErrNoSelection
 	case Selected:
 	default:
 		return result, ErrInvalidSelection
@@ -257,6 +286,7 @@ func (selector Selector[Input, Key, Scope, Descriptor, Reason]) ValidatePinned(
 	selection Selection[Key, Scope, Descriptor, Reason],
 	current Candidate[Key, Scope, Descriptor], affinity Affinity[Key, Scope, Descriptor],
 ) error {
+	evaluation = effectiveEvaluation(ctx, evaluation)
 	if err := selection.ValidateFreshness(evaluation.References); err != nil {
 		return err
 	}
@@ -330,4 +360,11 @@ func (selector Selector[Input, Key, Scope, Descriptor, Reason]) freezeCandidates
 		frozen[index].Descriptor = selector.Freeze(candidate.Descriptor)
 	}
 	return frozen, nil
+}
+
+func effectiveEvaluation[Input any](ctx context.Context, evaluation Evaluation[Input]) Evaluation[Input] {
+	if deadline, ok := ctx.Deadline(); ok && (evaluation.Deadline.IsZero() || deadline.Before(evaluation.Deadline)) {
+		evaluation.Deadline = deadline
+	}
+	return evaluation
 }

@@ -299,7 +299,7 @@ func TestNewRouteHandlerRespectsRequestContextTimeout(t *testing.T) {
 	}
 }
 
-func TestDefaultRetryPolicyRetryableStatusClosesBody(t *testing.T) {
+func TestDefaultRetryPolicyRetryableStatusPreservesBody(t *testing.T) {
 	t.Parallel()
 
 	closeCounter := &trackingReadCloser{}
@@ -317,8 +317,8 @@ func TestDefaultRetryPolicyRetryableStatusClosesBody(t *testing.T) {
 	if !retry {
 		t.Fatal("expected retry for retryable status")
 	}
-	if closeCounter.closes.Load() != 1 {
-		t.Fatalf("expected body to be closed once, got %d", closeCounter.closes.Load())
+	if closeCounter.closes.Load() != 0 {
+		t.Fatalf("predicate closed body, got %d", closeCounter.closes.Load())
 	}
 }
 
@@ -460,7 +460,9 @@ func TestRetryIfClosesIntermediateStatusBodies(t *testing.T) {
 				StatusCode: stdhttp.StatusServiceUnavailable,
 				Body:       closeCounter,
 			}
-			return routery.AbortResult[routery.BasicKind, routery.BasicReason, *stdhttp.Response](), &StatusError{
+			partial := routery.BasicHandled(response)
+			partial.Lifetime = routery.NewLifetime(response.Body.Close)
+			return partial, &StatusError{
 				Request:  request,
 				Response: response,
 				Code:     stdhttp.StatusServiceUnavailable,

@@ -54,3 +54,7 @@ jobs:
       - name: Run tests
         working-directory: ${{ matrix.module }}
         run: go test -v -race ./...
+      - name: Fuzz discovery checks
+        run: python3 scripts/test-fuzz.py
+      - name: Fuzz smoke
+        run: make fuzz FUZZTIME=1s FUZZ_MODULES="${{ matrix.module }}"

@@ -39,7 +39,7 @@ func checkOwnedPermit(t *testing.T, partialError bool) {
 	if (partialError && !errors.Is(firstErr, failure)) || (!partialError && firstErr != nil) {
 		t.Fatalf("first error: %v", firstErr)
 	}
-	if !errors.Is(blockedErr, ErrTooManyRequests) || calls.Load() != 1 || closes.Load() != 0 {
+	if !errors.Is(blockedErr, ErrBulkheadFull) || calls.Load() != 1 || closes.Load() != 0 {
 		t.Fatalf("early permit release: error=%v calls=%d closes=%d", blockedErr, calls.Load(), closes.Load())
 	}
 	if err := first.Lifetime.Close(); err != nil {
@@ -47,7 +47,7 @@ func checkOwnedPermit(t *testing.T, partialError bool) {
 	}
 	second, secondErr := InvokeRouteHandler(context.Background(), 0, handler)
 	t.Cleanup(func() { _ = second.Lifetime.Close() })
-	if calls.Load() != 2 || errors.Is(secondErr, ErrTooManyRequests) {
+	if calls.Load() != 2 || errors.Is(secondErr, ErrBulkheadFull) {
 		t.Fatalf("permit not released: error=%v calls=%d", secondErr, calls.Load())
 	}
 }

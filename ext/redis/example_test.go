@@ -23,7 +23,7 @@ func ExampleNewStringRouteHandler_withRetryIf() {
 
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr(), MaxRetries: -1})
 	defer client.Close()
-	base := routeryredis.NewStringRouteHandler(client, func(ctx context.Context, id int) (redis.Cmder, error) {
+	base := routeryredis.NewStringRouteHandler(func(ctx context.Context, id int) (redis.Cmder, error) {
 		return client.Get(ctx, fmt.Sprintf("user:%d", id)), nil
 	})
 

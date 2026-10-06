@@ -1,0 +1,9 @@
+--- FAIL: TestRetryPolicyVetoRetainsFinalBody (0.00s)
+    retry_policy_test.go:580: closed=1 calls=1 result={Action:stop Kind:handled Reason: Payload:0x350bc7b66240 HasPayload:true Match:{RouteID: Path:[] Priority:0 Depth:0 Kind: Key: Prefix: Remainder: DecisionReason:<nil> HasDecisionReason:false} Lifetime:0x350bc7c20690} err=routery/ext/http: unexpected status 503
+FAIL
+FAIL	github.com/skosovsky/routery/ext/http	0.428s
+--- FAIL: TestWritesRetainPartialResultsOnError (0.00s)
+    executor_test.go:277: partial=true results={Action:abort Kind: Reason: Payload:<nil> HasPayload:false Match:{RouteID: Path:[] Priority:0 Depth:0 Kind: Key: Prefix: Remainder: DecisionReason:<nil> HasDecisionReason:false} Lifetime:<nil>} {Action:abort Kind: Reason: Payload:<nil> HasPayload:false Match:{RouteID: Path:[] Priority:0 Depth:0 Kind: Key: Prefix: Remainder: DecisionReason:<nil> HasDecisionReason:false} Lifetime:<nil>} {Action:abort Kind: Reason: Payload:<nil> HasPayload:false Match:{RouteID: Path:[] Priority:0 Depth:0 Kind: Key: Prefix: Remainder: DecisionReason:<nil> HasDecisionReason:false} Lifetime:<nil>}
+FAIL
+FAIL	github.com/skosovsky/routery/ext/mongo	0.429s
+FAIL

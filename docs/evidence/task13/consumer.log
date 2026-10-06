@@ -1,0 +1,927 @@
+Consumer workspace: /tmp/routery-consumer-zdo2sqgc
+go: downloading github.com/skosovsky/routery/ext/sql v0.6.0-task13
+go: downloading github.com/skosovsky/routery v0.6.0-task13
+go: downloading github.com/skosovsky/routery/ext/http v0.6.0-task13
+go: downloading github.com/skosovsky/routery/ext/grpc v0.6.0-task13
+go: downloading github.com/skosovsky/routery/ext/mongo v0.6.0-task13
+go: downloading github.com/skosovsky/routery/ext/kafka v0.6.0-task13
+go: downloading github.com/skosovsky/routery/ext/otel v0.6.0-task13
+go: downloading github.com/skosovsky/routery/ext/redis v0.6.0-task13
+go: downloading github.com/skosovsky/routery/ext/s3 v0.6.0-task13
+go: downloading github.com/aws/aws-sdk-go-v2/service/s3 v1.114.0
+go: downloading github.com/aws/smithy-go v1.28.2
+go: downloading go.mongodb.org/mongo-driver v1.17.10
+go: downloading google.golang.org/grpc v1.84.0
+go: downloading github.com/aws/aws-sdk-go-v2 v1.47.1
+go: downloading github.com/redis/go-redis/v9 v9.22.0
+go: downloading github.com/alicebob/miniredis/v2 v2.39.0
+go: downloading go.opentelemetry.io/otel v1.47.0
+go: downloading go.opentelemetry.io/otel/trace v1.47.0
+go: downloading go.opentelemetry.io/otel/sdk v1.47.0
+go: downloading github.com/segmentio/kafka-go v0.4.51
+go: downloading github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.20
+go: downloading github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.4
+go: downloading github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.4
+go: downloading github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.19
+go: downloading github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.11.5
+go: downloading github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.4
+go: downloading github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.4
+go: downloading github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78
+go: downloading github.com/google/go-cmp v0.7.0
+go: downloading github.com/yuin/gopher-lua v1.1.2
+go: downloading google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc
+go: downloading google.golang.org/protobuf v1.36.12
+go: downloading golang.org/x/net v0.59.0
+go: downloading golang.org/x/sys v0.48.0
+go: downloading go.uber.org/atomic v1.12.0
+go: downloading github.com/stretchr/testify v1.12.1
+go: downloading github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.4
+go: downloading github.com/golang/snappy v1.0.0
+go: downloading github.com/klauspost/compress v1.20.1
+go: downloading github.com/xdg-go/scram v1.2.0
+go: downloading github.com/xdg-go/stringprep v1.0.4
+go: downloading github.com/montanaflynn/stats v0.12.7
+go: downloading golang.org/x/crypto v0.57.0
+go: downloading github.com/cespare/xxhash/v2 v2.3.0
+go: downloading github.com/pierrec/lz4/v4 v4.1.33
+go: downloading golang.org/x/sync v0.23.0
+go: downloading github.com/xdg-go/pbkdf2 v1.0.0
+go: downloading github.com/go-logr/logr v1.4.4
+go: downloading go.opentelemetry.io/otel/log v1.47.0
+go: downloading go.opentelemetry.io/otel/metric v1.47.0
+go: downloading github.com/go-logr/stdr v1.2.2
+go: downloading go.opentelemetry.io/auto/sdk v1.2.1
+go: downloading github.com/google/uuid v1.6.0
+go: downloading golang.org/x/text v0.42.0
+go: downloading github.com/bsm/ginkgo/v2 v2.12.0
+go: downloading github.com/bsm/gomega v1.27.10
+go: downloading github.com/davecgh/go-spew v1.1.1
+go: downloading github.com/zeebo/xxh3 v1.1.0
+go: downloading github.com/golang/protobuf v1.5.4
+go: downloading go.yaml.in/yaml/v3 v3.0.5
+go: downloading gonum.org/v1/gonum v0.17.0
+go: downloading github.com/klauspost/cpuid/v2 v2.2.10
+{
+	"Path": "consumer.example/task13",
+	"Main": true,
+	"Dir": "/private/tmp/routery-consumer-zdo2sqgc/consumer",
+	"GoMod": "/private/tmp/routery-consumer-zdo2sqgc/consumer/go.mod",
+	"GoVersion": "1.27.1"
+}
+{
+	"Path": "cel.dev/expr",
+	"Version": "v0.25.2",
+	"Time": "2026-03-12T16:46:44Z",
+	"Indirect": true
+}
+{
+	"Path": "cloud.google.com/go/auth",
+	"Version": "v0.20.0",
+	"Time": "2026-04-06T22:09:02Z",
+	"Indirect": true
+}
+{
+	"Path": "cloud.google.com/go/compute/metadata",
+	"Version": "v0.9.0",
+	"Time": "2025-09-24T19:41:55Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp",
+	"Version": "v1.34.0",
+	"Time": "2026-07-10T15:34:08Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/alicebob/miniredis/v2",
+	"Version": "v2.39.0",
+	"Time": "2026-09-02T11:51:18Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/alicebob/miniredis/v2@v2.39.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/alicebob/miniredis/v2/@v/v2.39.0.mod",
+	"GoVersion": "1.17",
+	"Sum": "h1:M7WbmV5BmV56L8KTG0rw6vEQ+woTOghpDgin2xv4A0g=",
+	"GoModSum": "h1:TcL7YfarKPGDAthEtl5NBeHZfeUQj6OXMm/+iu5cLMM="
+}
+{
+	"Path": "github.com/aws/aws-sdk-go-v2",
+	"Version": "v1.47.1",
+	"Time": "2026-09-24T18:17:37Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/aws/aws-sdk-go-v2@v1.47.1",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/aws/aws-sdk-go-v2/@v/v1.47.1.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:uOIZnp4PK3ZhKI0dNrJrhTEsLxbpXHTAJlwoS1pvAtw=",
+	"GoModSum": "h1:bttEH6JqnUL8LepvDVfdrds/fZ5bCIxzpe3abyUrhDU="
+}
+{
+	"Path": "github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream",
+	"Version": "v1.7.20",
+	"Time": "2026-08-26T18:43:21Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream@v1.7.20",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream/@v/v1.7.20.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:GPRlPwz40I2B2VrBEASOA3Bi77NyeqejNLkifosX0rs=",
+	"GoModSum": "h1:g7PNzKcsOKWb4fkSRBA7BZVAS6Y8IcxzN+nRohhQ1Q8="
+}
+{
+	"Path": "github.com/aws/aws-sdk-go-v2/internal/configsources",
+	"Version": "v1.5.4",
+	"Time": "2026-09-24T18:17:37Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/aws/aws-sdk-go-v2/internal/configsources@v1.5.4",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/aws/aws-sdk-go-v2/internal/configsources/@v/v1.5.4.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:CLq4+8UHCI+ZZYl/EuJxXovaIVN2xeeT8JV+dsApQ5E=",
+	"GoModSum": "h1:Wv4q5sAM04xAMkoOedxLx2inVf6K5FdxYp+A61L+q/0="
+}
+{
+	"Path": "github.com/aws/aws-sdk-go-v2/internal/endpoints/v2",
+	"Version": "v2.8.4",
+	"Time": "2026-09-24T18:17:37Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/aws/aws-sdk-go-v2/internal/endpoints/v2@v2.8.4",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/aws/aws-sdk-go-v2/internal/endpoints/v2/@v/v2.8.4.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:dD4MR81I7YkpEBRk6UP9rocC2QnT3qVuXwzlYTtfGEs=",
+	"GoModSum": "h1:EcXV1kAFd5XwSkDHlj94gnF3q5CkJyYiIJfH8N0VmrE="
+}
+{
+	"Path": "github.com/aws/aws-sdk-go-v2/internal/v4a",
+	"Version": "v1.5.4",
+	"Time": "2026-09-24T18:17:37Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/aws/aws-sdk-go-v2/internal/v4a@v1.5.4",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/aws/aws-sdk-go-v2/internal/v4a/@v/v1.5.4.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:7Wo47d/xn/7KttCSBd8EGYeZ7ULRFRkUHr6vkZPBzVQ=",
+	"GoModSum": "h1:tDB2IVC1xC3vX8o+6uRlzhTxP3g1b77CZXFX/oD2FnQ="
+}
+{
+	"Path": "github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding",
+	"Version": "v1.13.19",
+	"Time": "2026-08-26T18:43:21Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding@v1.13.19",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding/@v/v1.13.19.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:bAdDl/HkGCcGPoe25ToSHEw23VIxt6CT5fLcg111BKg=",
+	"GoModSum": "h1:KaUzbLxv4CeSxh6ZCl9B4m7CuFenS8kUEaDs+f/DQr4="
+}
+{
+	"Path": "github.com/aws/aws-sdk-go-v2/service/internal/checksum",
+	"Version": "v1.11.5",
+	"Time": "2026-09-24T18:17:37Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/aws/aws-sdk-go-v2/service/internal/checksum@v1.11.5",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/aws/aws-sdk-go-v2/service/internal/checksum/@v/v1.11.5.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:/TYsZXdA8UTa+WCtCYSAJIr1vwl0+eho6TUgJGwFFO8=",
+	"GoModSum": "h1:qPqp1Uwd/BqdhPufv6oem9j5J7HNsgc2V22dUiDPn+s="
+}
+{
+	"Path": "github.com/aws/aws-sdk-go-v2/service/internal/presigned-url",
+	"Version": "v1.14.4",
+	"Time": "2026-09-24T18:17:37Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/aws/aws-sdk-go-v2/service/internal/presigned-url@v1.14.4",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/aws/aws-sdk-go-v2/service/internal/presigned-url/@v/v1.14.4.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:29SvnfGhXjTl8ONxFwbj2rs6lbhiFXD2CgFQmbT/bXY=",
+	"GoModSum": "h1:wm04I5DMuNVvZHFe/dHnUxincvNbbK7AiNBbYsQivek="
+}
+{
+	"Path": "github.com/aws/aws-sdk-go-v2/service/internal/s3shared",
+	"Version": "v1.20.4",
+	"Time": "2026-09-24T18:17:37Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/aws/aws-sdk-go-v2/service/internal/s3shared@v1.20.4",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/aws/aws-sdk-go-v2/service/internal/s3shared/@v/v1.20.4.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:pPiWfgeNxqluKEph7hvU88kuGKBPOWzO+Dk9t2zqqNs=",
+	"GoModSum": "h1:YlwGoIUDG/3kBQbdNOVs/xKZ9J01G8e/6D1mRBj9uTk="
+}
+{
+	"Path": "github.com/aws/aws-sdk-go-v2/service/s3",
+	"Version": "v1.114.0",
+	"Time": "2026-09-30T18:31:54Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/aws/aws-sdk-go-v2/service/s3@v1.114.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/aws/aws-sdk-go-v2/service/s3/@v/v1.114.0.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:VMAdYqr4Jn/8ATs9BHC5riwrs0d6m1Z2ohFriSwZwm0=",
+	"GoModSum": "h1:9APRWGLFITKD+xzWSIyT9V7QV4bNlEuIieWlzXgGFlI="
+}
+{
+	"Path": "github.com/aws/smithy-go",
+	"Version": "v1.28.2",
+	"Time": "2026-09-18T21:40:48Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/aws/smithy-go@v1.28.2",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/aws/smithy-go/@v/v1.28.2.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:myhcykQcatTul2B/zITjDk203G7t0awUAs1hVry5Bvg=",
+	"GoModSum": "h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc="
+}
+{
+	"Path": "github.com/bsm/ginkgo/v2",
+	"Version": "v2.12.0",
+	"Time": "2023-08-31T08:29:34Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/bsm/ginkgo/v2@v2.12.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/bsm/ginkgo/v2/@v/v2.12.0.mod",
+	"GoVersion": "1.18",
+	"Sum": "h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=",
+	"GoModSum": "h1:SwYbGRRDovPVboqFv0tPTcG1sN61LM1Z4ARdbAV9g4c="
+}
+{
+	"Path": "github.com/bsm/gomega",
+	"Version": "v1.27.10",
+	"Time": "2023-08-31T08:30:31Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/bsm/gomega@v1.27.10",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/bsm/gomega/@v/v1.27.10.mod",
+	"GoVersion": "1.18",
+	"Sum": "h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=",
+	"GoModSum": "h1:JyEr/xRbxbtgWNi8tIEVPUYZ5Dzef52k01W3YH0H+O0="
+}
+{
+	"Path": "github.com/cespare/xxhash/v2",
+	"Version": "v2.3.0",
+	"Time": "2024-04-04T20:00:10Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/cespare/xxhash/v2@v2.3.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/cespare/xxhash/v2/@v/v2.3.0.mod",
+	"GoVersion": "1.11",
+	"Sum": "h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=",
+	"GoModSum": "h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs="
+}
+{
+	"Path": "github.com/cncf/xds/go",
+	"Version": "v0.0.0-20260202195803-dba9d589def2",
+	"Time": "2026-02-02T19:58:03Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/davecgh/go-spew",
+	"Version": "v1.1.1",
+	"Time": "2018-02-21T23:26:28Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/davecgh/go-spew@v1.1.1",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/davecgh/go-spew/@v/v1.1.1.mod",
+	"Sum": "h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=",
+	"GoModSum": "h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38="
+}
+{
+	"Path": "github.com/envoyproxy/go-control-plane",
+	"Version": "v0.14.0",
+	"Time": "2025-11-04T22:01:44Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/envoyproxy/go-control-plane/envoy",
+	"Version": "v1.37.0",
+	"Time": "2026-01-13T06:26:49Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/envoyproxy/go-control-plane/ratelimit",
+	"Version": "v0.1.0",
+	"Time": "2024-12-23T15:25:59Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/envoyproxy/protoc-gen-validate",
+	"Version": "v1.3.3",
+	"Time": "2026-02-18T16:13:16Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/felixge/httpsnoop",
+	"Version": "v1.1.0",
+	"Time": "2026-06-11T18:42:32Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/go-jose/go-jose/v4",
+	"Version": "v4.1.4",
+	"Time": "2026-03-31T23:33:50Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/go-logr/logr",
+	"Version": "v1.4.4",
+	"Time": "2026-07-20T18:51:02Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/go-logr/logr@v1.4.4",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/go-logr/logr/@v/v1.4.4.mod",
+	"GoVersion": "1.18",
+	"Sum": "h1:tG4xh9yMsRCAiodLVTxyrkzSZ9+o0L1Kg/+cPVcbP/8=",
+	"GoModSum": "h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY="
+}
+{
+	"Path": "github.com/go-logr/stdr",
+	"Version": "v1.2.2",
+	"Time": "2021-12-14T08:00:35Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/go-logr/stdr@v1.2.2",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/go-logr/stdr/@v/v1.2.2.mod",
+	"GoVersion": "1.16",
+	"Sum": "h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=",
+	"GoModSum": "h1:mMo/vtBO5dYbehREoey6XUKy/eSumjCCveDpRre4VKE="
+}
+{
+	"Path": "github.com/golang/glog",
+	"Version": "v1.2.5",
+	"Time": "2025-04-29T08:43:26Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/golang/protobuf",
+	"Version": "v1.5.4",
+	"Time": "2024-03-06T06:45:40Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/golang/protobuf@v1.5.4",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/golang/protobuf/@v/v1.5.4.mod",
+	"GoVersion": "1.17",
+	"Sum": "h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=",
+	"GoModSum": "h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps="
+}
+{
+	"Path": "github.com/golang/snappy",
+	"Version": "v1.0.0",
+	"Time": "2023-12-25T22:57:46Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/golang/snappy@v1.0.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/golang/snappy/@v/v1.0.0.mod",
+	"Sum": "h1:Oy607GVXHs7RtbggtPBnr2RmDArIsAefDwvrdWvRhGs=",
+	"GoModSum": "h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q="
+}
+{
+	"Path": "github.com/google/go-cmp",
+	"Version": "v0.7.0",
+	"Time": "2025-01-14T18:15:44Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/google/go-cmp@v0.7.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/google/go-cmp/@v/v0.7.0.mod",
+	"GoVersion": "1.21",
+	"Sum": "h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=",
+	"GoModSum": "h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU="
+}
+{
+	"Path": "github.com/google/s2a-go",
+	"Version": "v0.1.9",
+	"Time": "2025-01-06T17:53:46Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/google/uuid",
+	"Version": "v1.6.0",
+	"Time": "2024-01-23T18:54:04Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/google/uuid@v1.6.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/google/uuid/@v/v1.6.0.mod",
+	"Sum": "h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=",
+	"GoModSum": "h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo="
+}
+{
+	"Path": "github.com/googleapis/enterprise-certificate-proxy",
+	"Version": "v0.3.15",
+	"Time": "2026-04-15T18:05:21Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/googleapis/gax-go/v2",
+	"Version": "v2.22.0",
+	"Time": "2026-04-14T19:15:00Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/klauspost/compress",
+	"Version": "v1.20.1",
+	"Time": "2026-09-25T08:00:35Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/klauspost/compress@v1.20.1",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/klauspost/compress/@v/v1.20.1.mod",
+	"GoVersion": "1.25",
+	"Sum": "h1:T7kKElXUMXrUJ2E9QhQhxFtcK5rPyLdsGZvdbLMPdiQ=",
+	"GoModSum": "h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI="
+}
+{
+	"Path": "github.com/klauspost/cpuid/v2",
+	"Version": "v2.2.10",
+	"Time": "2025-02-24T19:37:05Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/klauspost/cpuid/v2@v2.2.10",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/klauspost/cpuid/v2/@v/v2.2.10.mod",
+	"GoVersion": "1.22",
+	"Sum": "h1:tBs3QSyvjDyFTq3uoc/9xFpCuOsJQFNPiAhYdw2skhE=",
+	"GoModSum": "h1:hqwkgyIinND0mEev00jJYCxPNVRVXFQeu1XKlok6oO0="
+}
+{
+	"Path": "github.com/montanaflynn/stats",
+	"Version": "v0.12.7",
+	"Time": "2026-09-19T19:23:05Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/montanaflynn/stats@v0.12.7",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/montanaflynn/stats/@v/v0.12.7.mod",
+	"GoVersion": "1.13",
+	"Sum": "h1:NiiPEuigflz3Jja6pzDlCrMRI8MxUThKF/XHQBZfSv0=",
+	"GoModSum": "h1:etXPPgVO6n31NxCd9KQUMvCM+ve0ruNzt6R8Bnaayow="
+}
+{
+	"Path": "github.com/pierrec/lz4/v4",
+	"Version": "v4.1.33",
+	"Time": "2026-10-02T20:07:03Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/pierrec/lz4/v4@v4.1.33",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/pierrec/lz4/v4/@v/v4.1.33.mod",
+	"GoVersion": "1.22",
+	"Sum": "h1:GjG1TJ1V4IzKP8L96muuuDNpTwd7D+l2ccXrjAbe014=",
+	"GoModSum": "h1:7SE9MC2STkNtL4PIwGhjmyVwvILaGI9/COYQNBhKM/c="
+}
+{
+	"Path": "github.com/planetscale/vtprotobuf",
+	"Version": "v0.6.1-0.20240319094008-0393e58bdf10",
+	"Time": "2024-03-19T09:40:08Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/pmezard/go-difflib",
+	"Version": "v1.0.0",
+	"Time": "2016-01-10T10:55:54Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/redis/go-redis/v9",
+	"Version": "v9.22.0",
+	"Time": "2026-08-03T17:39:49Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/redis/go-redis/v9@v9.22.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/redis/go-redis/v9/@v/v9.22.0.mod",
+	"GoVersion": "1.24",
+	"Sum": "h1:laDvpYXTJtZLloinw1fA5Kqd6HAEH2XKxOkG/PDq2F0=",
+	"GoModSum": "h1:y2g0Wj8rQvuK0ELM+oxSudcLtC09JScs98I/X9gRWY4="
+}
+{
+	"Path": "github.com/segmentio/kafka-go",
+	"Version": "v0.4.51",
+	"Time": "2026-04-23T20:28:47Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/segmentio/kafka-go@v0.4.51",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/segmentio/kafka-go/@v/v0.4.51.mod",
+	"GoVersion": "1.23",
+	"Sum": "h1:JgDPPG75tC1rWIS2Me6MwcvXJ6f49UQ4HjAOef71Hno=",
+	"GoModSum": "h1:Y1gn60kzLEEaW28YshXyk2+VCUKbJ3Qr6DrnT3i4+9E="
+}
+{
+	"Path": "github.com/skosovsky/routery",
+	"Version": "v0.6.0-task13",
+	"Time": "2026-10-06T00:00:00Z",
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/skosovsky/routery@v0.6.0-task13",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/skosovsky/routery/@v/v0.6.0-task13.mod",
+	"GoVersion": "1.27.1",
+	"Sum": "h1:APP3HcvbLfvY7EhYFazWrXmYEnbG0oyGIcorgvFVtdQ=",
+	"GoModSum": "h1:DKQEElgXtr5UREipdLc5uoK6dFgpisdlNUyXuKJ16js="
+}
+{
+	"Path": "github.com/skosovsky/routery/ext/grpc",
+	"Version": "v0.6.0-task13",
+	"Time": "2026-10-06T00:00:00Z",
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/skosovsky/routery/ext/grpc@v0.6.0-task13",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/skosovsky/routery/ext/grpc/@v/v0.6.0-task13.mod",
+	"GoVersion": "1.27.1",
+	"Sum": "h1:ZSIpnLyT5o5VCp3UJMy7L0k7/Iy+i/q9DQ87yTfTXJQ=",
+	"GoModSum": "h1:lAV+71n5qD3L4wo+FE5TSGwiBaO35VyA4dJTmvtNiVE="
+}
+{
+	"Path": "github.com/skosovsky/routery/ext/http",
+	"Version": "v0.6.0-task13",
+	"Time": "2026-10-06T00:00:00Z",
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/skosovsky/routery/ext/http@v0.6.0-task13",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/skosovsky/routery/ext/http/@v/v0.6.0-task13.mod",
+	"GoVersion": "1.27.1",
+	"Sum": "h1:d68WtdXFMVwJJSNWh7Um2x+J/Sf4aB3xnAdlexgzUTM=",
+	"GoModSum": "h1:QrRFYsFMlaL/fpew2ilo5gTXaV3y/tWf1UAkbBFlmJI="
+}
+{
+	"Path": "github.com/skosovsky/routery/ext/kafka",
+	"Version": "v0.6.0-task13",
+	"Time": "2026-10-06T00:00:00Z",
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/skosovsky/routery/ext/kafka@v0.6.0-task13",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/skosovsky/routery/ext/kafka/@v/v0.6.0-task13.mod",
+	"GoVersion": "1.27.1",
+	"Sum": "h1:YWpJeZrq3PPwjHTrjdpHSIPAI8AfJwCFmV74+5jt38o=",
+	"GoModSum": "h1:HoMTA6lq62MBL+0hNE9Lu6RA9f/pX+5X8ewcYu0tGMg="
+}
+{
+	"Path": "github.com/skosovsky/routery/ext/mongo",
+	"Version": "v0.6.0-task13",
+	"Time": "2026-10-06T00:00:00Z",
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/skosovsky/routery/ext/mongo@v0.6.0-task13",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/skosovsky/routery/ext/mongo/@v/v0.6.0-task13.mod",
+	"GoVersion": "1.27.1",
+	"Sum": "h1:DP98URnUldEhw+duYgJRPnXdY+XtyhfphJ9jtC9gE3A=",
+	"GoModSum": "h1:wh8SETkxiHfnGvFQZcap+G9Vmvc0tkUJfs/MM+6XCT0="
+}
+{
+	"Path": "github.com/skosovsky/routery/ext/otel",
+	"Version": "v0.6.0-task13",
+	"Time": "2026-10-06T00:00:00Z",
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/skosovsky/routery/ext/otel@v0.6.0-task13",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/skosovsky/routery/ext/otel/@v/v0.6.0-task13.mod",
+	"GoVersion": "1.27.1",
+	"Sum": "h1:ANGQZrRRWuBSkxLOngFtq1t9HtuuDrxxXT22Em2yoWc=",
+	"GoModSum": "h1:r6P5Rodam1JibC/yl1NvZdGaClvj5Nz3SzC20y2c8w0="
+}
+{
+	"Path": "github.com/skosovsky/routery/ext/redis",
+	"Version": "v0.6.0-task13",
+	"Time": "2026-10-06T00:00:00Z",
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/skosovsky/routery/ext/redis@v0.6.0-task13",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/skosovsky/routery/ext/redis/@v/v0.6.0-task13.mod",
+	"GoVersion": "1.27.1",
+	"Sum": "h1:1kbXeTG8MQHkt7MO1/ra5CTmwS2Vc6rEKF4PHbD91GA=",
+	"GoModSum": "h1:AUkIS9Q4mseJymCoeBuQidiRB6XH/6O+eobzL4HMu/o="
+}
+{
+	"Path": "github.com/skosovsky/routery/ext/s3",
+	"Version": "v0.6.0-task13",
+	"Time": "2026-10-06T00:00:00Z",
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/skosovsky/routery/ext/s3@v0.6.0-task13",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/skosovsky/routery/ext/s3/@v/v0.6.0-task13.mod",
+	"GoVersion": "1.27.1",
+	"Sum": "h1:ozVFFMKgXgXJ69wFmM24skwQNT+czldiouHMntd1xM4=",
+	"GoModSum": "h1:tY9945fQJEsisukxQgWVlg0yeO6BNXyMfrDp4ECi1qc="
+}
+{
+	"Path": "github.com/skosovsky/routery/ext/sql",
+	"Version": "v0.6.0-task13",
+	"Time": "2026-10-06T00:00:00Z",
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/skosovsky/routery/ext/sql@v0.6.0-task13",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/skosovsky/routery/ext/sql/@v/v0.6.0-task13.mod",
+	"GoVersion": "1.27.1",
+	"Sum": "h1:AFsVzJJouXNdOuFhv+GCMD5nOL1J2j6D5yagdBauY9o=",
+	"GoModSum": "h1:KseJE2HL+h4wFOOy/cn27xJPjf7Fk9aUFqz23kWvBtk="
+}
+{
+	"Path": "github.com/spiffe/go-spiffe/v2",
+	"Version": "v2.8.1",
+	"Time": "2026-06-19T13:39:21Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/stretchr/testify",
+	"Version": "v1.12.1",
+	"Time": "2026-08-17T08:24:05Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/stretchr/testify@v1.12.1",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/stretchr/testify/@v/v1.12.1.mod",
+	"GoVersion": "1.17",
+	"Sum": "h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=",
+	"GoModSum": "h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg="
+}
+{
+	"Path": "github.com/xdg-go/pbkdf2",
+	"Version": "v1.0.0",
+	"Time": "2021-03-28T18:46:53Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/xdg-go/pbkdf2@v1.0.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/xdg-go/pbkdf2/@v/v1.0.0.mod",
+	"GoVersion": "1.9",
+	"Sum": "h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=",
+	"GoModSum": "h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI="
+}
+{
+	"Path": "github.com/xdg-go/scram",
+	"Version": "v1.2.0",
+	"Time": "2025-11-24T13:40:20Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/xdg-go/scram@v1.2.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/xdg-go/scram/@v/v1.2.0.mod",
+	"GoVersion": "1.18",
+	"Sum": "h1:bYKF2AEwG5rqd1BumT4gAnvwU/M9nBp2pTSxeZw7Wvs=",
+	"GoModSum": "h1:3dlrS0iBaWKYVt2ZfA4cj48umJZ+cAEbR6/SjLA88I8="
+}
+{
+	"Path": "github.com/xdg-go/stringprep",
+	"Version": "v1.0.4",
+	"Time": "2022-12-07T14:57:11Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/xdg-go/stringprep@v1.0.4",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/xdg-go/stringprep/@v/v1.0.4.mod",
+	"GoVersion": "1.11",
+	"Sum": "h1:XLI/Ng3O1Atzq0oBs3TWm+5ZVgkq2aqdlvP9JtoZ6c8=",
+	"GoModSum": "h1:mPGuuIYwz7CmR2bT9j4GbQqutWS1zV24gijq1dTyGkM="
+}
+{
+	"Path": "github.com/youmark/pkcs8",
+	"Version": "v0.0.0-20240726163527-a2c0da244d78",
+	"Time": "2024-07-26T16:35:27Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/youmark/pkcs8@v0.0.0-20240726163527-a2c0da244d78",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/youmark/pkcs8/@v/v0.0.0-20240726163527-a2c0da244d78.mod",
+	"GoVersion": "1.17",
+	"Sum": "h1:ilQV1hzziu+LLM3zUTJ0trRztfwgjqKnBWNtSRkbmwM=",
+	"GoModSum": "h1:aL8wCCfTfSfmXjznFBSZNN13rSJjlIOI1fUNAtF7rmI="
+}
+{
+	"Path": "github.com/yuin/goldmark",
+	"Version": "v1.4.13",
+	"Time": "2022-07-09T07:22:17Z",
+	"Indirect": true,
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/yuin/goldmark/@v/v1.4.13.mod",
+	"GoVersion": "1.18",
+	"GoModSum": "h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY="
+}
+{
+	"Path": "github.com/yuin/gopher-lua",
+	"Version": "v1.1.2",
+	"Time": "2026-04-01T00:48:02Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/yuin/gopher-lua@v1.1.2",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/yuin/gopher-lua/@v/v1.1.2.mod",
+	"GoVersion": "1.23",
+	"Sum": "h1:yF/FjE3hD65tBbt0VXLE13HWS9h34fdzJmrWRXwobGA=",
+	"GoModSum": "h1:7aRmXIWl37SqRf0koeyylBEzJ+aPt8A+mmkQ4f1ntR8="
+}
+{
+	"Path": "github.com/zeebo/xxh3",
+	"Version": "v1.1.0",
+	"Time": "2026-01-23T19:18:08Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/github.com/zeebo/xxh3@v1.1.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/github.com/zeebo/xxh3/@v/v1.1.0.mod",
+	"GoVersion": "1.22",
+	"Sum": "h1:s7DLGDK45Dyfg7++yxI0khrfwq9661w9EN78eP/UZVs=",
+	"GoModSum": "h1:IisAie1LELR4xhVinxWS5+zf1lA4p0MW4T+w+W07F5s="
+}
+{
+	"Path": "go.mongodb.org/mongo-driver",
+	"Version": "v1.17.10",
+	"Time": "2026-09-10T15:15:28Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/go.mongodb.org/mongo-driver@v1.17.10",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/go.mongodb.org/mongo-driver/@v/v1.17.10.mod",
+	"GoVersion": "1.18",
+	"Sum": "h1:kdAgQvu8TROXZpSkJQd5wzfaNCCrMbpZyKFtQ6qkPCE=",
+	"GoModSum": "h1:LlOhpH5NUEfhxcAwG0UEkMqwYcc4JU18gtCdGudk/tQ="
+}
+{
+	"Path": "go.opentelemetry.io/auto/sdk",
+	"Version": "v1.2.1",
+	"Time": "2025-09-15T16:53:44Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/go.opentelemetry.io/auto/sdk@v1.2.1",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/go.opentelemetry.io/auto/sdk/@v/v1.2.1.mod",
+	"GoVersion": "1.24.0",
+	"Sum": "h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=",
+	"GoModSum": "h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y="
+}
+{
+	"Path": "go.opentelemetry.io/contrib/detectors/gcp",
+	"Version": "v1.44.0",
+	"Time": "2026-05-28T05:28:14Z",
+	"Indirect": true
+}
+{
+	"Path": "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
+	"Version": "v0.69.0",
+	"Time": "2026-05-28T05:28:14Z",
+	"Indirect": true
+}
+{
+	"Path": "go.opentelemetry.io/otel",
+	"Version": "v1.47.0",
+	"Time": "2026-10-02T08:10:46Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/go.opentelemetry.io/otel@v1.47.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/go.opentelemetry.io/otel/@v/v1.47.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:j7ALJ/zgkS7Z6aeJW09p8VC9804bC+PpeTfCD4XPnOM=",
+	"GoModSum": "h1:8wS9O2qfXrYrzp6hIF/HOYJJf/wIhFPhR2xLuP+iXQU="
+}
+{
+	"Path": "go.opentelemetry.io/otel/log",
+	"Version": "v1.47.0",
+	"Time": "2026-10-02T08:10:46Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/go.opentelemetry.io/otel/log@v1.47.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/go.opentelemetry.io/otel/log/@v/v1.47.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:cOTS1CcLbSQeZKanGJ+0JpF/+t4PELi3O3bbl2lqCcI=",
+	"GoModSum": "h1:9byitSQ5pLC6PpqwGXjqdMKya6ZTswHRZh2vvXT33nw="
+}
+{
+	"Path": "go.opentelemetry.io/otel/metric",
+	"Version": "v1.47.0",
+	"Time": "2026-10-02T08:10:46Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/go.opentelemetry.io/otel/metric@v1.47.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/go.opentelemetry.io/otel/metric/@v/v1.47.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:4PptaldXx3Eat1XjMZ68pPJEs5wrhlemctZE9a3UdWY=",
+	"GoModSum": "h1:ADGSXxRrXM6bjbvLo535EstVFlPpPYZm4LBKixjDHwU="
+}
+{
+	"Path": "go.opentelemetry.io/otel/sdk",
+	"Version": "v1.47.0",
+	"Time": "2026-10-02T08:10:46Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/go.opentelemetry.io/otel/sdk@v1.47.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/go.opentelemetry.io/otel/sdk/@v/v1.47.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:zWXEr4j2lFefG87TU6Yg8a7ngfohIKFZHKp0Hf5hC6I=",
+	"GoModSum": "h1:VUc24kiOeoGsxG8G9ULx3fWKvB7jMhnGE8Oi607lgR0="
+}
+{
+	"Path": "go.opentelemetry.io/otel/sdk/metric",
+	"Version": "v1.44.0",
+	"Time": "2026-05-27T16:42:37Z",
+	"Indirect": true
+}
+{
+	"Path": "go.opentelemetry.io/otel/trace",
+	"Version": "v1.47.0",
+	"Time": "2026-10-02T08:10:46Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/go.opentelemetry.io/otel/trace@v1.47.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/go.opentelemetry.io/otel/trace/@v/v1.47.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:JOjX/Oci8K94QHddo+bbfya/Ai/nf6/dt9ZfrFNWSrM=",
+	"GoModSum": "h1:jNaSLa2PZEYFG6fRjJABAu+bw4FS08uDmPg28lTghu0="
+}
+{
+	"Path": "go.uber.org/atomic",
+	"Version": "v1.12.0",
+	"Time": "2026-09-17T21:29:09Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/go.uber.org/atomic@v1.12.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/go.uber.org/atomic/@v/v1.12.0.mod",
+	"GoVersion": "1.18",
+	"Sum": "h1:BvcXdFKuviU4fTL/f+SxdQ5qJX/Jix8pAkgdUcb3XOE=",
+	"GoModSum": "h1:I6c4cg+6HCxRjfjSsYtApoFILnpc0CGUdGkXVqbYVNk="
+}
+{
+	"Path": "go.yaml.in/yaml/v3",
+	"Version": "v3.0.5",
+	"Time": "2026-07-26T14:51:55Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/go.yaml.in/yaml/v3@v3.0.5",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/go.yaml.in/yaml/v3/@v/v3.0.5.mod",
+	"GoVersion": "1.16",
+	"Sum": "h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=",
+	"GoModSum": "h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg="
+}
+{
+	"Path": "golang.org/x/crypto",
+	"Version": "v0.57.0",
+	"Time": "2026-09-08T18:05:01Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/golang.org/x/crypto@v0.57.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/golang.org/x/crypto/@v/v0.57.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:3ZVCjf8Ggz7zneR/EHRVx68Ctf+2pmIMP2UFhh9cC6M=",
+	"GoModSum": "h1:Fdz0i5U6CoizGwLda9DttjSk6qlZo25zYNtR+ycvuZA="
+}
+{
+	"Path": "golang.org/x/mod",
+	"Version": "v0.41.0",
+	"Time": "2026-08-24T20:56:42Z",
+	"Indirect": true
+}
+{
+	"Path": "golang.org/x/net",
+	"Version": "v0.59.0",
+	"Time": "2026-09-08T19:18:02Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/golang.org/x/net@v0.59.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/golang.org/x/net/@v/v0.59.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:5zfYln+w5XCxwrnMMJPufRgNoXEaGxl0wo5GqPXyues=",
+	"GoModSum": "h1:2DA/G1UfVbCpQPeWTmMPGY7Cs2PkBkwu743bVX5PIVg="
+}
+{
+	"Path": "golang.org/x/oauth2",
+	"Version": "v0.36.0",
+	"Time": "2026-02-11T19:14:10Z",
+	"Indirect": true
+}
+{
+	"Path": "golang.org/x/sync",
+	"Version": "v0.23.0",
+	"Time": "2026-08-31T03:04:41Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/golang.org/x/sync@v0.23.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/golang.org/x/sync/@v/v0.23.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk=",
+	"GoModSum": "h1:sUUOizhqBxiL6pEWpqNLUiaJn1ShEbZ6BBqskPbjZm0="
+}
+{
+	"Path": "golang.org/x/sys",
+	"Version": "v0.48.0",
+	"Time": "2026-08-31T19:43:43Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/golang.org/x/sys@v0.48.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/golang.org/x/sys/@v/v0.48.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=",
+	"GoModSum": "h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og="
+}
+{
+	"Path": "golang.org/x/term",
+	"Version": "v0.46.0",
+	"Time": "2026-09-08T16:27:41Z",
+	"Indirect": true
+}
+{
+	"Path": "golang.org/x/text",
+	"Version": "v0.42.0",
+	"Time": "2026-09-08T16:29:55Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/golang.org/x/text@v0.42.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/golang.org/x/text/@v/v0.42.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:JbOZXgfeCPU9gacVtYliJqOhD+zhrEqK4LfdpmlUZqI=",
+	"GoModSum": "h1:ojzP1Z+2QtioaF8DTtO8K5q7JWVVYwZKenzujK0Zd0E="
+}
+{
+	"Path": "golang.org/x/tools",
+	"Version": "v0.49.0",
+	"Time": "2026-08-13T14:53:26Z",
+	"Indirect": true
+}
+{
+	"Path": "golang.org/x/xerrors",
+	"Version": "v0.0.0-20190717185122-a985d3407aa7",
+	"Time": "2019-07-17T18:51:22Z",
+	"Indirect": true,
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/golang.org/x/xerrors/@v/v0.0.0-20190717185122-a985d3407aa7.mod",
+	"GoVersion": "1.11",
+	"GoModSum": "h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0="
+}
+{
+	"Path": "gonum.org/v1/gonum",
+	"Version": "v0.17.0",
+	"Time": "2025-12-29T19:16:44Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/gonum.org/v1/gonum@v0.17.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/gonum.org/v1/gonum/@v/v0.17.0.mod",
+	"GoVersion": "1.24.0",
+	"Sum": "h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=",
+	"GoModSum": "h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E="
+}
+{
+	"Path": "google.golang.org/api",
+	"Version": "v0.278.0",
+	"Time": "2026-05-05T19:10:26Z",
+	"Indirect": true
+}
+{
+	"Path": "google.golang.org/genproto/googleapis/api",
+	"Version": "v0.0.0-20260706201446-f0a921348800",
+	"Time": "2026-07-06T20:14:46Z",
+	"Indirect": true
+}
+{
+	"Path": "google.golang.org/genproto/googleapis/rpc",
+	"Version": "v0.0.0-20260928230214-8a89bd6388cc",
+	"Time": "2026-09-28T23:02:14Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/google.golang.org/genproto/googleapis/rpc@v0.0.0-20260928230214-8a89bd6388cc",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/google.golang.org/genproto/googleapis/rpc/@v/v0.0.0-20260928230214-8a89bd6388cc.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:4bNTbnb44EqGVy9HaQxSY2jnafSUdgV3qHtedvNpDKg=",
+	"GoModSum": "h1:OaIUM3+LpYcK2GXM4FTmhWoIq371Owdr+Cc7/BsYHHc="
+}
+{
+	"Path": "google.golang.org/grpc",
+	"Version": "v1.84.0",
+	"Time": "2026-09-17T20:03:25Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/google.golang.org/grpc@v1.84.0",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/google.golang.org/grpc/@v/v1.84.0.mod",
+	"GoVersion": "1.25.0",
+	"Sum": "h1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=",
+	"GoModSum": "h1:ljCht0DrxQrXBDRTZp52Qxh3Ffk8CdYm2sj4O2QN2C0="
+}
+{
+	"Path": "google.golang.org/protobuf",
+	"Version": "v1.36.12",
+	"Time": "2026-08-10T13:29:45Z",
+	"Indirect": true,
+	"Dir": "/tmp/routery-consumer-zdo2sqgc/modcache/google.golang.org/protobuf@v1.36.12",
+	"GoMod": "/tmp/routery-consumer-zdo2sqgc/modcache/cache/download/google.golang.org/protobuf/@v/v1.36.12.mod",
+	"GoVersion": "1.23",
+	"Sum": "h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=",
+	"GoModSum": "h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco="
+}
+{
+	"Path": "gopkg.in/yaml.v3",
+	"Version": "v3.0.1",
+	"Time": "2022-05-27T08:35:30Z",
+	"Indirect": true
+}
+PASS: all nine current modules consumed as release-layout ZIPs with GOWORK=off, no local replace

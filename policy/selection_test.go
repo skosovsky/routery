@@ -234,7 +234,7 @@ func TestNoEligibleQualityAndStaleDescriptor(t *testing.T) {
 	candidates[1].Descriptor.Fresh = false
 	_, staleErr := fixtureSelector().Select(t.Context(), evaluation, candidates, Affinity[string, string, descriptorFacts]{})
 	// Assert.
-	if err != nil || dispatchErr != nil || selected.Status != NoEligible || calls != 0 {
+	if err != nil || !errors.Is(dispatchErr, ErrNoSelection) || selected.Status != NoEligible || calls != 0 {
 		t.Fatal("no-eligible must not dispatch")
 	}
 	if !errors.Is(staleErr, routery.ErrStaleSnapshot) {
@@ -306,5 +306,103 @@ func TestAffinityScopeExpiryAndPortabilityAreExplicit(t *testing.T) {
 	}
 	if preferredErr != nil || preferred.Status != Selected || preferred.Affinity != PreferenceBypassed {
 		t.Fatal("expired preference was treated as required")
+	}
+}
+
+func TestCallbacksReceiveEffectiveDeadline(t *testing.T) {
+	for _, mode := range []string{"zero", "context-first", "explicit-first"} {
+		t.Run(mode, func(t *testing.T) {
+			// Arrange.
+			now := time.Now()
+			contextDeadline := now.Add(time.Hour)
+			explicit := time.Time{}
+			want := contextDeadline
+			if mode == "context-first" {
+				explicit = now.Add(2 * time.Hour)
+			}
+			if mode == "explicit-first" {
+				explicit = now.Add(time.Minute)
+				want = explicit
+			}
+			ctx, cancel := context.WithDeadline(t.Context(), contextDeadline)
+			defer cancel()
+			evaluation := fixtureEvaluation()
+			evaluation.Now = now
+			evaluation.Deadline = explicit
+			selector := fixtureSelector()
+			observed := 0
+			check := func(e Evaluation[requestFacts]) {
+				observed++
+				if !e.Deadline.Equal(want) {
+					t.Errorf("deadline=%v want=%v", e.Deadline, want)
+				}
+			}
+			selector.Validate = func(e Evaluation[requestFacts]) error { check(e); return nil }
+			eligible, rank := selector.Eligible, selector.Rank
+			selector.Eligible = func(e Evaluation[requestFacts], c Candidate[string, string, descriptorFacts]) (Eligibility[decisionReason], error) {
+				check(e)
+				return eligible(e, c)
+			}
+			selector.Rank = func(e Evaluation[requestFacts], c Candidate[string, string, descriptorFacts]) (float64, error) {
+				check(e)
+				return rank(e, c)
+			}
+			candidates := fixtureCandidates()
+			affinity := Affinity[string, string, descriptorFacts]{}
+			// Act.
+			selection, err := selector.Select(ctx, evaluation, candidates, affinity)
+			if err == nil {
+				err = selector.ValidatePinned(ctx, evaluation, selection, candidates[1], affinity)
+			}
+			// Assert.
+			if err != nil || observed < 2 {
+				t.Fatalf("observed=%d err=%v", observed, err)
+			}
+		})
+	}
+}
+
+func TestAffinityRejectionExplainsPolicyStage(t *testing.T) {
+	// Arrange.
+	evaluation := fixtureEvaluation()
+	evaluation.Input.Schema = false
+	affinity := Affinity[string, string, descriptorFacts]{
+		Strength:         Required,
+		Key:              "compatible",
+		Scope:            "A",
+		TrustedScope:     "A",
+		ScopePresent:     true,
+		Fingerprint:      "affinity",
+		StateFingerprint: "state",
+		Compatible:       func(Candidate[string, string, descriptorFacts]) bool { return true },
+	}
+	// Act.
+	result, err := fixtureSelector().Select(t.Context(), evaluation, fixtureCandidates(), affinity)
+	// Assert.
+	if err != nil {
+		t.Fatal(err)
+	}
+	rejected := result.Explanation[0]
+	if rejected.Eligible || rejected.Reason != compatibleReason {
+		t.Fatalf("unexpected domain facts: %+v", rejected)
+	}
+	if !rejected.DomainEligible || rejected.Rejection != AffinityRejected {
+		t.Fatalf("affinity not explained: %+v", rejected)
+	}
+}
+
+func TestDomainRejectionHasSeparateStage(t *testing.T) {
+	// Arrange.
+	evaluation := fixtureEvaluation()
+	// Act.
+	result, err := fixtureSelector().Select(t.Context(), evaluation, fixtureCandidates(), Affinity[string, string, descriptorFacts]{})
+	// Assert.
+	if err != nil {
+		t.Fatal(err)
+	}
+	rejected := result.Explanation[0]
+	if rejected.DomainEligible || rejected.Eligible || rejected.Rejection != DomainRejected ||
+		rejected.Reason != unsupportedReason {
+		t.Fatalf("domain rejection=%+v", rejected)
 	}
 }

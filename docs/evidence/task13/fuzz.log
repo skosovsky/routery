@@ -1,0 +1,57 @@
+fuzz - .
+fuzz - ./ext/s3
+fuzz - ./ext/grpc
+fuzz target - github.com/skosovsky/routery/ext/grpc/FuzzIsTransientErrorNoPanics
+fuzz: elapsed: 0s, gathering baseline coverage: 0/5 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 5/5 completed, now fuzzing with 2 workers
+fuzz: elapsed: 1s, execs: 12477 (11711/sec), new interesting: 0 (total: 5)
+PASS
+ok  	github.com/skosovsky/routery/ext/grpc	1.563s
+fuzz - ./ext/redis
+fuzz target - github.com/skosovsky/routery/ext/redis/FuzzIsTransientErrorNoPanics
+fuzz: elapsed: 0s, gathering baseline coverage: 0/47 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 47/47 completed, now fuzzing with 2 workers
+fuzz: elapsed: 2s, execs: 12278 (6721/sec), new interesting: 5 (total: 52)
+PASS
+ok  	github.com/skosovsky/routery/ext/redis	2.295s
+fuzz - ./ext/otel
+fuzz - ./ext/http
+fuzz target - github.com/skosovsky/routery/ext/http/FuzzDefaultRetryPolicyNoPanics
+fuzz: elapsed: 0s, gathering baseline coverage: 0/55 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 55/55 completed, now fuzzing with 2 workers
+fuzz: elapsed: 1s, execs: 16183 (15668/sec), new interesting: 5 (total: 60)
+PASS
+ok  	github.com/skosovsky/routery/ext/http	1.509s
+fuzz target - github.com/skosovsky/routery/ext/http/FuzzCloneForAttemptNoPanics
+fuzz: elapsed: 0s, gathering baseline coverage: 0/4 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 4/4 completed, now fuzzing with 2 workers
+fuzz: elapsed: 1s, execs: 18532 (18032/sec), new interesting: 0 (total: 4)
+PASS
+ok  	github.com/skosovsky/routery/ext/http	1.260s
+fuzz - ./ext/kafka
+fuzz target - github.com/skosovsky/routery/ext/kafka/FuzzIsTransientErrorNoPanics
+fuzz: elapsed: 0s, gathering baseline coverage: 0/3 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 3/3 completed, now fuzzing with 2 workers
+fuzz: elapsed: 1s, execs: 21540 (20722/sec), new interesting: 0 (total: 3)
+PASS
+ok  	github.com/skosovsky/routery/ext/kafka	1.470s
+fuzz - ./ext/mongo
+fuzz target - github.com/skosovsky/routery/ext/mongo/FuzzIsTransientErrorNoPanics
+fuzz: elapsed: 0s, gathering baseline coverage: 0/3 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 3/3 completed, now fuzzing with 2 workers
+fuzz: elapsed: 1s, execs: 17364 (16533/sec), new interesting: 0 (total: 3)
+PASS
+ok  	github.com/skosovsky/routery/ext/mongo	1.509s
+fuzz - ./ext/sql
+fuzz target - github.com/skosovsky/routery/ext/sql/FuzzDefaultRetryPolicyNoPanics
+fuzz: elapsed: 0s, gathering baseline coverage: 0/5 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 5/5 completed, now fuzzing with 2 workers
+fuzz: elapsed: 1s, execs: 75830 (74469/sec), new interesting: 0 (total: 5)
+PASS
+ok  	github.com/skosovsky/routery/ext/sql	1.411s
+fuzz target - github.com/skosovsky/routery/ext/sql/FuzzExecutionErrorNoPanics
+fuzz: elapsed: 0s, gathering baseline coverage: 0/3 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 3/3 completed, now fuzzing with 2 workers
+fuzz: elapsed: 1s, execs: 49708 (47684/sec), new interesting: 0 (total: 3)
+PASS
+ok  	github.com/skosovsky/routery/ext/sql	1.215s

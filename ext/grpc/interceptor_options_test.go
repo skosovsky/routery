@@ -2,9 +2,12 @@ package routerygrpc
 
 import (
 	"context"
+	"errors"
 	"net"
 	"sync/atomic"
 	"testing"
+
+	"github.com/skosovsky/routery"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -37,7 +40,7 @@ func TestRetryUnaryInterceptorNormalizesAttempts(t *testing.T) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(RetryUnaryInterceptor(InterceptorOptions{
 			Attempts: 0,
-			Backoff:  -1,
+			Backoff:  0,
 		})),
 	)
 	if err != nil {
@@ -107,4 +110,39 @@ type alwaysFailEmpty struct {
 func (s *alwaysFailEmpty) EmptyCall(context.Context, *grpc_testing.Empty) (*grpc_testing.Empty, error) {
 	s.calls.Add(1)
 	return nil, status.Error(codes.InvalidArgument, "fail")
+}
+
+func TestNegativeInterceptorOptionsRejectBeforeDispatch(t *testing.T) {
+	for _, options := range []InterceptorOptions{{Attempts: -1}, {Backoff: -1}} {
+		// Arrange.
+		calls := 0
+		unary := RetryUnaryInterceptor(options)
+		stream := RetryStreamInterceptor(options)
+		// Act.
+		err := unary(
+			t.Context(),
+			"method",
+			nil,
+			nil,
+			nil,
+			func(context.Context, string, any, any, *grpc.ClientConn, ...grpc.CallOption) error {
+				calls++
+				return nil
+			},
+		)
+		_, streamErr := stream(
+			t.Context(),
+			nil,
+			nil,
+			"method",
+			func(context.Context, *grpc.StreamDesc, *grpc.ClientConn, string, ...grpc.CallOption) (grpc.ClientStream, error) {
+				calls++
+				return nil, errors.New("unexpected transport invocation")
+			},
+		)
+		// Assert.
+		if !errors.Is(err, routery.ErrInvalidConfig) || !errors.Is(streamErr, routery.ErrInvalidConfig) || calls != 0 {
+			t.Fatalf("calls=%d errors=%v %v", calls, err, streamErr)
+		}
+	}
 }

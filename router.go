@@ -2,7 +2,9 @@ package routery
 
 import "context"
 
-// Router is the immutable dispatch entry point for a built route table.
+// Router is the immutable, sealed dispatch entry point compiled by RouteTable.Build.
+// Its private snapshot type prevents external implementations; extend routing with
+// RouteHandler, RouteMiddleware or caller-owned dispatch interfaces.
 type Router[Req any, Kind comparable, Reason comparable, Payload any] interface {
 	Dispatch(ctx context.Context, req Req) (RouteResult[Kind, Reason, Payload], error)
 	DispatchWithSink(
@@ -77,9 +79,8 @@ func dispatchTable[Req any, Kind comparable, Reason comparable, Payload any](
 			return result, nil
 		}
 		if result.Action == ActionNext {
-			if closeErr := result.Lifetime.Close(); closeErr != nil {
-				result.Action = ActionAbort
-				return result, closeErr
+			if closed, closeErr := discardResult(result, nil); closeErr != nil {
+				return closed, closeErr
 			}
 			lastNext = result
 			hasNext = true

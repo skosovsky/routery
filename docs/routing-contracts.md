@@ -30,3 +30,18 @@ Optional model quality and defaults reach ranking only for the nonempty current 
 with valid measurement provenance/freshness. Defaults never satisfy mandatory quality.
 A stale mandatory descriptor still fails the whole selection; ranking weights and
 external evaluation/datasets remain host-owned.
+
+## Task13 validation and identity
+
+Decision thresholds and classifier confidence use the finite domain [0,1], inclusive.
+Build rejects malformed thresholds with ErrInvalidConfig; dispatch rejects malformed
+classifier confidence with InvalidConfidenceError before executing a route, even if
+Matched is false or the key differs. Mount uses builder-identity ancestry detection:
+cycles return ErrInvalidConfig with the route path; shared acyclic subtrees remain legal.
+
+Binding fingerprints frame the path segment count and each segment independently.
+Slash-containing RouteIDs are valid. Stored fingerprints from the earlier encoding
+must be regenerated; a fingerprint is not a business identifier or code-behavior proof.
+
+A panic in a half-open handler or failure classifier releases its probe admission and
+propagates. Later calls can probe again; no artificial success/failure is recorded.

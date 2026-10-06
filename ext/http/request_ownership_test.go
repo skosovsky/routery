@@ -82,7 +82,11 @@ func checkFanoutRequestReaders(t *testing.T, readyFactory bool) {
 	})}
 	leaf := NewRouteHandler(client)
 	// Act.
-	result, err := routery.InvokeRouteHandler(t.Context(), prepared, routery.FirstCompleted(leaf, leaf, leaf, leaf))
+	result, err := routery.InvokeRouteHandler(
+		t.Context(),
+		prepared,
+		routery.FirstSuccessfulPayload(leaf, leaf, leaf, leaf),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

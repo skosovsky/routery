@@ -21,7 +21,8 @@ func NewLifetime(cleanup func() error) *Lifetime {
 	}
 }
 
-// OnClose attaches a release callback; registrations after closing run immediately.
+// OnClose attaches a callback after resource cleanup completes.
+// Registrations during cleanup are queued; registrations after cleanup run immediately.
 func (life *Lifetime) OnClose(fn func()) {
 	if life == nil || fn == nil {
 		return
@@ -42,13 +43,13 @@ func (life *Lifetime) Close() error {
 		return nil
 	}
 	life.once.Do(func() {
-		life.mu.Lock()
-		life.closed = true
-		hooks := life.hooks
-		life.hooks = nil
-		life.mu.Unlock()
-		// Cancellation must run even when cleanup panics.
+		// Mark completion and collect hooks after cleanup, including on panic.
 		defer func() {
+			life.mu.Lock()
+			life.closed = true
+			hooks := life.hooks
+			life.hooks = nil
+			life.mu.Unlock()
 			for _, fn := range hooks {
 				fn()
 			}

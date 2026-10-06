@@ -1,0 +1,6 @@
+PASS: none
+PASS: one
+PASS: multi
+PASS: list-fail
+PASS: build-fail
+PASS: target-fail

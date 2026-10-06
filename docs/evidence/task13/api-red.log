@@ -1,0 +1,12 @@
+--- FAIL: TestLateOnCloseWaitsForCleanupCompletion (0.00s)
+    remediation_test.go:175: release hook ran before cleanup completed
+    remediation_test.go:177: hooks=1 want=2
+--- FAIL: TestHalfOpenPanicReleasesProbe (0.00s)
+    remediation_test.go:193: panic=true calls=2 result={Action:abort Kind: Reason: Payload: HasPayload:false Match:{RouteID: Path:[] Priority:0 Depth:0 Kind: Key: Prefix: Remainder: DecisionReason:<nil> HasDecisionReason:false} Lifetime:<nil>} err=routery: circuit breaker open
+--- FAIL: TestObserverCannotMutateCanonicalMetadata (0.00s)
+    remediation_test.go:205: observer changed dispatch: {Action:stop Kind:handled Reason: Payload:ok HasPayload:true Match:{RouteID:leaf Path:[changed changed] Priority:0 Depth:1 Kind:predicate Key: Prefix: Remainder: DecisionReason:<nil> HasDecisionReason:false} Lifetime:<nil>} <nil>
+--- FAIL: TestNegativeMiddlewareConfigurationDoesNotExecute (0.00s)
+    remediation_test.go:215: calls=1 err=<nil>
+FAIL
+FAIL	github.com/skosovsky/routery	0.566s
+FAIL

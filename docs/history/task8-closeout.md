@@ -27,7 +27,7 @@ The root module remains dependency-free and caller types remain authoritative.
 ## Author-facing comment draft
 
 Реализация подготовлена для приёмки. Полная карта требований и доказательств:
-`docs/task8-checklist.md`; публичные контракты: `docs/execution-contracts.md`;
+`docs/history/task8-checklist.md`; публичные контракты: `docs/execution-contracts.md`;
 миграция с примерами «было → стало»: `docs/migration.md`.
 
 Что требуется изменить в вашем коде:

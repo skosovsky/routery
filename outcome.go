@@ -84,23 +84,6 @@ func Ignored[Kind comparable, Reason comparable, Payload any](
 	}
 }
 
-// Async returns a terminal asynchronous result with payload.
-func Async[Kind comparable, Reason comparable, Payload any](
-	kind Kind,
-	reason Reason,
-	payload Payload,
-) RouteResult[Kind, Reason, Payload] {
-	return RouteResult[Kind, Reason, Payload]{
-		Action:     ActionStop,
-		Kind:       kind,
-		Reason:     reason,
-		Payload:    payload,
-		HasPayload: true,
-		Match:      zeroRouteMatch(),
-		Lifetime:   nil,
-	}
-}
-
 // Next returns a non-terminal result that delegates to the next route.
 func Next[Kind comparable, Reason comparable, Payload any](
 	reason Reason,
@@ -176,11 +159,6 @@ func BasicHandled[Payload any](payload Payload) BasicRouteResult[Payload] {
 // BasicIgnored returns a basic terminal result without payload.
 func BasicIgnored[Payload any](reason BasicReason) BasicRouteResult[Payload] {
 	return Ignored[BasicKind, BasicReason, Payload](BasicKindIgnored, reason)
-}
-
-// BasicAsync returns a basic asynchronous result with payload.
-func BasicAsync[Payload any](payload Payload, reason BasicReason) BasicRouteResult[Payload] {
-	return Async(BasicKindAsync, reason, payload)
 }
 
 // BasicNext returns a basic non-terminal result.

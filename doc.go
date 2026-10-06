@@ -11,6 +11,6 @@
 // Disposition semantics:
 //   - Next — continue to the next route or fallback; use in RouteTable when declining without terminating.
 //   - Ignored — terminal stop without payload; does not invoke fallback in RouteTable.
-//   - Stop / Async — terminal stop with payload.
+//   - Handled — terminal stop with caller-defined Kind and payload.
 //   - Handler error — abort; [RouteResult].Action is [ActionAbort]; check err before payload.
 package routery

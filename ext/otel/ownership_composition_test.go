@@ -13,7 +13,7 @@ import (
 	"github.com/skosovsky/routery/policy/execution"
 )
 
-func TestTracingOwnershipThroughBoundaryBulkheadAndFirstCompleted(t *testing.T) {
+func TestTracingOwnershipThroughBoundaryBulkheadAndFirstSuccessfulPayload(t *testing.T) {
 	// Arrange.
 	provider := sdktrace.NewTracerProvider()
 	t.Cleanup(func() { _ = provider.Shutdown(t.Context()) })
@@ -46,19 +46,19 @@ func TestTracingOwnershipThroughBoundaryBulkheadAndFirstCompleted(t *testing.T) 
 	}
 	_, blocked := handler(call)
 	// Assert.
-	if !errors.Is(blocked, routery.ErrTooManyRequests) || calls.Load() != 1 || closes.Load() != 0 || hooks.Load() != 0 {
+	if !errors.Is(blocked, routery.ErrBulkheadFull) || calls.Load() != 1 || closes.Load() != 0 || hooks.Load() != 0 {
 		t.Fatal("tracing released an owned partial permit or resource early")
 	}
 	_ = partial.Route.Lifetime.Close()
 	checkTracingReceipt(t, partial.Receipt)
-	// Act: FirstCompleted must clean a discarded observed error and release its permit.
+	// Act: FirstSuccessfulPayload must clean a discarded observed error and release its permit.
 	receipts := make(chan *execution.Receipt, 1)
 	branch := func(call routery.RouteCall[int]) (routery.BasicRouteResult[string], error) {
 		result, runErr := boundary.Run(call, coordinator, attempt.Identity{Operation: "operation", Attempt: "race"})
 		receipts <- result.Receipt
 		return result.Route, runErr
 	}
-	_, err = routery.FirstCompleted(branch)(call)
+	_, err = routery.FirstSuccessfulPayload(branch)(call)
 	// Assert.
 	if !errors.Is(err, failure) || closes.Load() != 2 || hooks.Load() != 2 {
 		t.Fatal("tracing lost discarded error resource or hooks")

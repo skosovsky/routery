@@ -28,7 +28,8 @@ const (
 )
 
 // Affinity carries caller-owned continuation constraints without storing opaque state.
-// Compatible is authoritative; matching key alone never proves state portability.
+// Key and Scope pin an exact endpoint; Compatible adds a further restriction.
+// Compatible cannot permit another Key/Scope. Matching identity alone does not prove portability.
 // For required affinity the caller must pass a trusted scope independent of provider state.
 type Affinity[Key comparable, Scope comparable, Descriptor any] struct {
 	Strength         Strength

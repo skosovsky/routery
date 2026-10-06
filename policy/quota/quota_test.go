@@ -223,7 +223,7 @@ func TestBackendFailurePolicyAndCancellation(t *testing.T) {
 		reservation, session, err := Admit(t.Context(), backend, testRequest("A"), FailOpen)
 		_, _, closedErr := Admit(t.Context(), backend, testRequest("A"), FailClosed)
 		// Assert.
-		if unknown && err == nil {
+		if unknown && (err == nil || session != nil || backend.releaseCalls != 0) {
 			t.Fatal("uncertain reservation masked")
 		}
 		if !unknown && (err != nil || reservation.Admission != Unreserved || session != nil) {

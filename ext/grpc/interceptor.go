@@ -10,6 +10,8 @@ import (
 )
 
 // InterceptorOptions configures retrying client interceptors.
+// Attempts zero means one total call; nil Predicate denies retries. Negative
+// Attempts/Backoff return routery.ErrInvalidConfig before invoking the transport.
 type InterceptorOptions struct {
 	Attempts  int
 	Backoff   time.Duration
@@ -93,8 +95,11 @@ func clientStreamFromResult(result routery.BasicRouteResult[grpc.ClientStream]) 
 }
 
 func normalizeInterceptorOpts(opts InterceptorOptions) (int, time.Duration, routery.RetryPredicate[any]) {
-	attempts := max(opts.Attempts, 1)
-	backoff := max(opts.Backoff, 0)
+	attempts := opts.Attempts
+	if attempts == 0 {
+		attempts = 1
+	}
+	backoff := opts.Backoff
 	pred := opts.Predicate
 	if pred == nil {
 		pred = func(context.Context, any, error) bool { return false }

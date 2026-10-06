@@ -21,7 +21,7 @@ const (
 	VerifiedDeduplication
 )
 
-// RetryPolicy adds explicit replay evidence for non-idempotent requests.
+// RetryPolicy classifies replay permission for non-idempotent requests without closing bodies.
 // A header or status code alone is not evidence. The callback belongs to the host.
 func RetryPolicy(
 	evidence func(context.Context, *stdhttp.Request, error) ReplaySafety,
@@ -34,8 +34,7 @@ func RetryPolicy(
 			errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return false
 		}
-		var statusErr *StatusError
-		if errors.As(err, &statusErr) {
+		if statusErr, ok := errors.AsType[*StatusError](err); ok {
 			if !IsRetryableStatus(statusErr.Code) {
 				return false
 			}
@@ -45,9 +44,6 @@ func RetryPolicy(
 		safety := evidence(ctx, request, err)
 		if safety != ProvenNotExecuted && safety != VerifiedDeduplication {
 			return false
-		}
-		if statusErr != nil && statusErr.Response != nil && statusErr.Response.Body != nil {
-			_ = statusErr.Response.Body.Close()
 		}
 		return true
 	}
@@ -66,7 +62,8 @@ func IsRetryableStatus(code int) bool {
 	}
 }
 
-// DefaultRetryPolicy is a conservative retry policy for HTTP execution.
+// DefaultRetryPolicy is a conservative, side-effect-free retry policy for HTTP execution.
+// The executor closes intermediate Lifetime only after every retry gate permits repetition.
 //
 // It retries transport failures and selected HTTP status codes while keeping
 // request-method and request-body replay safety checks. The original request
@@ -101,10 +98,6 @@ func shouldRetryStatus(req *stdhttp.Request, err *StatusError) bool {
 
 	if !isStatusMethodRetryable(effective) || !isReplayableRequest(effective) {
 		return false
-	}
-
-	if err.Response != nil && err.Response.Body != nil {
-		_ = err.Response.Body.Close()
 	}
 
 	return true

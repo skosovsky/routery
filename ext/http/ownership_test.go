@@ -14,7 +14,7 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-func TestFirstCompletedKeepsWinnerBodyAlive(t *testing.T) {
+func TestFirstSuccessfulPayloadKeepsWinnerBodyAlive(t *testing.T) {
 	for _, branches := range []int{1, 2} {
 		// Arrange.
 		release := make(chan struct{})
@@ -39,7 +39,7 @@ func TestFirstCompletedKeepsWinnerBodyAlive(t *testing.T) {
 			)
 		}
 		// Act.
-		result, err := routery.InvokeRouteHandler(t.Context(), request, routery.FirstCompleted(handlers...))
+		result, err := routery.InvokeRouteHandler(t.Context(), request, routery.FirstSuccessfulPayload(handlers...))
 		close(release)
 		if err != nil {
 			server.Close()
@@ -89,7 +89,11 @@ func TestPreparedFanoutUsesIndependentCompleteBodies(t *testing.T) {
 	})}
 	leaf := NewRouteHandler(client)
 	// Act.
-	result, err := routery.InvokeRouteHandler(t.Context(), prepared, routery.FirstCompleted(leaf, leaf, leaf, leaf))
+	result, err := routery.InvokeRouteHandler(
+		t.Context(),
+		prepared,
+		routery.FirstSuccessfulPayload(leaf, leaf, leaf, leaf),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +155,7 @@ func TestExplicitVerifiedReplayDeduplicatesCommittedPost(t *testing.T) {
 
 func (body *countedBody) Close() error { body.count.Add(1); body.events <- struct{}{}; return nil }
 
-func TestFirstCompletedCleansLateResultsAndParentCancel(t *testing.T) {
+func TestFirstSuccessfulPayloadCleansLateResultsAndParentCancel(t *testing.T) {
 	// Arrange.
 	ctx, cancel := context.WithCancel(t.Context())
 	late := make(chan struct{})
@@ -171,7 +175,7 @@ func TestFirstCompletedCleansLateResultsAndParentCancel(t *testing.T) {
 		return result, nil
 	}
 	// Act.
-	result, err := routery.InvokeRouteHandler(ctx, 0, routery.FirstCompleted(winner, loser))
+	result, err := routery.InvokeRouteHandler(ctx, 0, routery.FirstSuccessfulPayload(winner, loser))
 	close(late)
 	<-lateClosed
 	cancel()
@@ -180,7 +184,7 @@ func TestFirstCompletedCleansLateResultsAndParentCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 	result.Lifetime.Close()
-	_, err = routery.InvokeRouteHandler(ctx, 0, routery.FirstCompleted(winner))
+	_, err = routery.InvokeRouteHandler(ctx, 0, routery.FirstSuccessfulPayload(winner))
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("parent cancellation=%v", err)
 	}
