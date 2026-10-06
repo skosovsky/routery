@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/redis/go-redis/v9 v9.22.0
-	github.com/skosovsky/routery v0.0.0
+	github.com/skosovsky/routery v0.5.0
 )
 
 require (
@@ -14,5 +14,3 @@ require (
 	go.uber.org/atomic v1.12.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 )
-
-replace github.com/skosovsky/routery => ../..
