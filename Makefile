@@ -51,3 +51,7 @@ release-patch: lint test ## v0.5.0 -> v0.5.1
 release-break: lint test ## v0.5.1 -> v0.6.0
 	@chmod +x ./scripts/release.sh
 	@./scripts/release.sh break "$(MODULES)"
+
+.PHONY: stream-conformance
+stream-conformance:
+	@STREAM_SOURCE_DIR="$(STREAM_SOURCE_DIR)" STREAM_SOURCE_REF="$(STREAM_SOURCE_REF)" python3 scripts/stream-conformance.py

@@ -6,6 +6,7 @@ Start with the runnable [core quickstart](../README.md) and [root examples](../e
 | --- | --- |
 | [Routing and health](routing-contracts.md) | Deterministic tables, fingerprints, validation, breaker health |
 | [Execution and ownership](execution-contracts.md) | Canonical partial facts, lifetimes, retry, physical attempts, Sequence/Race |
+| [Lazy stream ownership](stream-lifetime-contracts.md) | Cancellation request, iterator unwind, callback-safe stop and conformance |
 | [Adapter replay](adapter-replay-contracts.md) | SDK retries and transport-specific ownership/replay evidence |
 | [API choices](api-choices.md) | Entry points and keep/change decisions from task13 |
 | [Migration](migration.md) | Versioned changes and caller actions |

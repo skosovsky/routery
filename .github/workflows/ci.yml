@@ -58,3 +58,13 @@ jobs:
         run: python3 scripts/test-fuzz.py
       - name: Fuzz smoke
         run: make fuzz FUZZTIME=1s FUZZ_MODULES="${{ matrix.module }}"
+
+  stream-conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Stream lifecycle conformance with audited source snapshot and published source
+        run: make stream-conformance

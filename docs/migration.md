@@ -346,3 +346,26 @@ even when dispatch failed, then inspect Receipt settlement errors separately and
 Receipt.Reconcile with stable identity when the host policy permits. Public contracts
 for execution authorization, adapter replay and routing topology are the final breaking
 APIs from tasks09–11; no legacy wrapper, order mode or implicit rebind is provided.
+
+## Lazy stream resource ownership
+
+Before: a bare lazy stream lost its timed context on handler return, while
+`NewLifetime(source.Close)` released middleware permits early when source Close
+only requested cancellation.
+
+Now: transfer exclusive consumption to `stream.New(events, cancel, discard)`,
+attach `owner.Lifetime()` to the RouteResult (also on partial handler errors), and
+consume `owner.Events()`. The cancel port must be callback-safe and nonblocking;
+discard synchronously frees an unused source without dispatch. For the optional
+concrete bridge use `ext/prompty.New(source)`. Do not consume the raw source too.
+
+Call `owner.Cancel()` from event callbacks and `owner.Close()` outside the iterator
+stack. The owner automatically closes its Lifetime after actual source unwind;
+Close waits for cleanup/hooks and exposes cleanup errors. Join dispatch, yielded
+consumption and Close errors rather than discarding a partial owned result.
+Cancellation or a terminal frame is not completed cleanup. An uncooperative source
+keeps its permit until it really returns.
+
+Keep one retry owner: consumption errors never trigger handler retry/fallback,
+and unknown outcome needs explicit host replay evidence. Invocation spans still
+end on handler return. See [the full contract](stream-lifetime-contracts.md).

@@ -5,11 +5,10 @@
 Requires **Go 1.27.1 or newer**. Install the root module:
 
 ```sh
-go get github.com/skosovsky/routery@v0.5.0
+go get github.com/skosovsky/routery@latest
 ```
 
-The published v0.5.0 precedes the task13 changes in this checkout. Select matching
-released versions for each separately versioned module; workspace `v0.0.0` plus
+Select matching released versions for each separately versioned module; workspace `v0.0.0` plus
 local `replace` directives are development configuration, not consumer releases.
 
 | Module | Purpose |
@@ -22,9 +21,10 @@ local `replace` directives are development configuration, not consumer releases.
 | `github.com/skosovsky/routery/ext/redis` | Caller-owned Redis command invocation |
 | `github.com/skosovsky/routery/ext/kafka` | Kafka delivery mapping |
 | `github.com/skosovsky/routery/ext/s3` | AWS S3 SDK mapping |
+| `github.com/skosovsky/routery/ext/prompty` | Optional lazy response stream ownership bridge |
 | `github.com/skosovsky/routery/ext/otel` | Optional OpenTelemetry integration |
 
-Install an adapter explicitly, e.g. `go get github.com/skosovsky/routery/ext/http@v0.5.0`.
+Install an adapter explicitly, e.g. `go get github.com/skosovsky/routery/ext/http@latest`.
 Start with this complete core program:
 
 ```go
@@ -83,7 +83,10 @@ does not accept a stream handle or first fragment. Late results remain in its jo
 
 Resource results carry an optional `Lifetime`. Close the canonical result Lifetime when done, including on errors. Adapter body
 Close follows its package contract; outer composition may add ownership hooks. Parallel handlers have independent contexts; the winner's context
-stays alive until its resource closes. Value payloads require no ownership hook.
+stays alive until its resource closes. Value payloads require no ownership hook. For lazy iterators, the opt-in
+`stream.Owner[Event]` binds cancellation and actual iterator unwind to the canonical
+Lifetime. Use `Cancel` inside consumer callbacks and `Close` outside consumption;
+see [the stream ownership contract](docs/stream-lifetime-contracts.md).
 HTTP requests with bodies lacking `GetBody` must pass through `PrepareRequest`
 before retry or fan-out; handlers never mutate the original request.
 POST/PATCH retries need an explicit `RetryPolicy` with verified replay evidence.
