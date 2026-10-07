@@ -4,7 +4,7 @@ go 1.27.1
 
 require (
 	github.com/skosovsky/prompty v0.15.0
-	github.com/skosovsky/routery v0.0.0
+	github.com/skosovsky/routery v0.7.0
 )
 
 require (
@@ -18,5 +18,3 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 )
-
-replace github.com/skosovsky/routery => ../..

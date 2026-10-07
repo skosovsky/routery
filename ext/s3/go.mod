@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.0
 	github.com/aws/smithy-go v1.28.2
-	github.com/skosovsky/routery v0.0.0
+	github.com/skosovsky/routery v0.7.0
 )
 
 require (
@@ -19,5 +19,3 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.4 // indirect
 )
-
-replace github.com/skosovsky/routery => ../..
