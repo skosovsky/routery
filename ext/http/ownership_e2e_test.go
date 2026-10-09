@@ -1,3 +1,5 @@
+//go:build e2e
+
 package routeryhttp
 
 import (
@@ -14,7 +16,7 @@ import (
 	"github.com/skosovsky/routery"
 )
 
-func TestFirstSuccessfulPayloadKeepsWinnerBodyAlive(t *testing.T) {
+func TestE2EFirstSuccessfulPayloadKeepsWinnerBodyAlive(t *testing.T) {
 	for _, branches := range []int{1, 2} {
 		// Arrange.
 		release := make(chan struct{})
@@ -59,7 +61,7 @@ func TestFirstSuccessfulPayloadKeepsWinnerBodyAlive(t *testing.T) {
 	}
 }
 
-func TestPreparedFanoutUsesIndependentCompleteBodies(t *testing.T) {
+func TestE2EPreparedFanoutUsesIndependentCompleteBodies(t *testing.T) {
 	// Arrange.
 	const branches = 4
 	source := &auditReadCloser{Reader: strings.NewReader("payload")}
@@ -118,7 +120,7 @@ type countedBody struct {
 	events chan<- struct{}
 }
 
-func TestExplicitVerifiedReplayDeduplicatesCommittedPost(t *testing.T) {
+func TestE2EExplicitVerifiedReplayDeduplicatesCommittedPost(t *testing.T) {
 	// Arrange.
 	var calls, effects atomic.Int32
 	var once sync.Once
@@ -155,7 +157,7 @@ func TestExplicitVerifiedReplayDeduplicatesCommittedPost(t *testing.T) {
 
 func (body *countedBody) Close() error { body.count.Add(1); body.events <- struct{}{}; return nil }
 
-func TestFirstSuccessfulPayloadCleansLateResultsAndParentCancel(t *testing.T) {
+func TestE2EFirstSuccessfulPayloadCleansLateResultsAndParentCancel(t *testing.T) {
 	// Arrange.
 	ctx, cancel := context.WithCancel(t.Context())
 	late := make(chan struct{})

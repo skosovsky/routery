@@ -4,6 +4,8 @@ Start with the runnable [core quickstart](../README.md) and [root examples](../e
 
 | Guide | Public contract |
 | --- | --- |
+| [Verification](verification.md) | Make gates, profiles and prerequisites |
+| [Release](release/runbook.md) | Source/candidate publication and recovery |
 | [Routing and health](routing-contracts.md) | Deterministic tables, fingerprints, validation, breaker health |
 | [Execution and ownership](execution-contracts.md) | Canonical partial facts, lifetimes, retry, physical attempts, Sequence/Race |
 | [Adapter replay](adapter-replay-contracts.md) | SDK retries and transport-specific ownership/replay evidence |
@@ -14,3 +16,6 @@ Start with the runnable [core quickstart](../README.md) and [root examples](../e
 
 Historical implementation diaries and reviews live under [history](history/).
 Task8–12 history is retained as evidence from its original implementation, not the current API reference.
+
+Commands recorded in task13 audits and closeout describe their original runs.
+Use [verification](verification.md) and the [release runbook](release/runbook.md) for current tooling.

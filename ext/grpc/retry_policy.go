@@ -34,7 +34,9 @@ func IsTransientError(err error) bool {
 		codes.PermissionDenied,
 		codes.AlreadyExists,
 		codes.NotFound,
-		codes.Unimplemented:
+		codes.Unimplemented,
+		codes.OK, codes.Canceled, codes.Unknown, codes.ResourceExhausted, codes.FailedPrecondition,
+		codes.Aborted, codes.OutOfRange, codes.Internal, codes.DataLoss:
 		return false
 	case codes.Unavailable, codes.DeadlineExceeded:
 		return true

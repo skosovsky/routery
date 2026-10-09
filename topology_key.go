@@ -49,6 +49,8 @@ func fingerprintValue(value reflect.Value) string {
 		)
 	case reflect.Pointer, reflect.Chan, reflect.UnsafePointer:
 		parts = append(parts, []byte(strconv.FormatUint(uint64(value.Pointer()), 16)))
+	case reflect.Invalid, reflect.Func, reflect.Map, reflect.Slice:
+		parts = append(parts, []byte("non-comparable"))
 	default:
 		parts = append(parts, []byte("non-comparable"))
 	}

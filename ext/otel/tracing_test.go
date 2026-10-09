@@ -213,12 +213,7 @@ func (s *spyExporter) ExportSpans(_ context.Context, spans []sdktrace.ReadOnlySp
 }
 
 func attrValueString(attr attribute.KeyValue) string {
-	switch attr.Value.Type() {
-	case attribute.STRING:
-		return attr.Value.AsString()
-	default:
-		return attr.Value.AsString()
-	}
+	return attr.Value.AsString()
 }
 
 func (s *spyExporter) Shutdown(context.Context) error { return nil }

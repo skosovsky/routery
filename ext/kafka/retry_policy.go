@@ -27,22 +27,13 @@ func IsTransientError(err error) bool {
 		return allTransient(batch)
 	}
 	if ke, ok := errors.AsType[kafka.Error](err); ok {
-		switch ke {
-		case kafka.MessageSizeTooLarge,
-			kafka.UnknownTopicOrPartition,
-			kafka.InvalidMessage,
-			kafka.InvalidMessageSize,
-			kafka.TopicAuthorizationFailed,
-			kafka.ClusterAuthorizationFailed,
-			kafka.InvalidTopic,
-			kafka.RecordListTooLarge:
-			return false
-		default:
-			if ke.Temporary() {
-				return true
-			}
+		if ke == kafka.MessageSizeTooLarge || ke == kafka.UnknownTopicOrPartition ||
+			ke == kafka.InvalidMessage || ke == kafka.InvalidMessageSize ||
+			ke == kafka.TopicAuthorizationFailed || ke == kafka.ClusterAuthorizationFailed ||
+			ke == kafka.InvalidTopic || ke == kafka.RecordListTooLarge {
 			return false
 		}
+		return ke.Temporary()
 	}
 
 	var ne net.Error

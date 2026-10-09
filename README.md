@@ -2,7 +2,7 @@
 
 `routery` is a zero-dependency, generic routing and resiliency library for Go.
 
-Requires **Go 1.27.1 or newer**. Install the root module:
+Requires **Go 1.27.2 or newer**. Install the root module:
 
 ```sh
 go get github.com/skosovsky/routery@v0.5.0
@@ -283,10 +283,16 @@ depend on neighboring package names, concrete clients, or external libraries.
 ## Quality Gates
 
 - `make lint`
-- `make test` (race-enabled)
+- `make test` (fresh, race-enabled)
+- `make test-integration` (HTTP local servers and Redis miniredis)
+- `make test-e2e` (composition and artifact consumer)
+- `make test-live` (reserved for live calls)
 - `make cover`
 - `make bench`
-- `make fuzz`
+- `make fuzz` (separate 30-second campaigns per target)
+
+See [verification](docs/verification.md) for prerequisites and profile conventions,
+and the [release runbook](docs/release/runbook.md) for exact-source publication and recovery.
 
 Routing order is explicit: priority first, then prefix group/length on priority ties,
 then declaration order. LongestPrefixWins moves the complete prefix group first,

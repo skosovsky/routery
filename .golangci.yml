@@ -35,6 +35,7 @@ formatters:
       # A list of prefixes, which, if set, checks import paths
       # with the given prefixes are grouped after 3rd-party packages.
       # Default: []
+      # Project-specific import grouping; keep shared lint rules unchanged.
       local-prefixes:
         - github.com/skosovsky/routery
 
@@ -126,7 +127,7 @@ linters:
     ## you may want to enable
     #- arangolint # opinionated best practices for arangodb client
     - decorder # checks declaration order and count of types, constants, variables and functions
-    - exhaustruct_v5 # checks if all structure fields are initialized
+    - exhaustruct_v5 # [highly recommend to enable] checks if all structure fields are initialized
     #- ginkgolinter # [if you use ginkgo/gomega] enforces standards of using ginkgo and gomega
     #- godox # detects usage of FIXME, TODO and other keywords inside comments
     #- goheader # checks is file header matches to pattern
@@ -238,13 +239,11 @@ linters:
       check:
         - switch
         - map
-      # A default branch is enough for switches over open sets (e.g. reflect.Kind).
-      default-signifies-exhaustive: true
 
     exhaustruct_v5:
       # List of regular expressions to match type names that should be excluded from processing.
       # Anonymous structs can be matched by '<anonymous>' alias.
-      # Has precedence over `enforce-patterns`.
+      # Has precedence over `include`.
       # Each regular expression must match the full type name, including package path.
       # For example, to match type `net/http.Cookie` regular expression should be `.*/http\.Cookie`,
       # but not `http\.Cookie`.
@@ -302,6 +301,11 @@ linters:
       # Default: 30 (but we recommend 10-20)
       min-complexity: 20
 
+    gomoddirectives:
+      # Nested ext/* modules use development `replace ... => ../..`;
+      # `make lint` runs golangci per module with cwd = that directory, so path-based issue excludes for go.mod do not apply.
+      replace-local: true
+
     gocritic:
       # Settings passed to gocritic.
       # The settings key is the name of a supported gocritic checker.
@@ -315,11 +319,6 @@ linters:
           # Whether to skip (*x).method() calls where x is a pointer receiver.
           # Default: true
           skipRecvDeref: false
-
-    gomoddirectives:
-      # Root go.work + nested modules (adapters/*, contracts/*) use `replace ... => ../..`;
-      # `make lint` runs golangci per module with cwd = that directory, so path-based issue excludes for go.mod do not apply.
-      replace-local: true
 
     godoclint:
       # List of rules to enable in addition to the default set.
@@ -377,7 +376,6 @@ linters:
         - os.WriteFile
         - prometheus.ExponentialBuckets.*
         - prometheus.LinearBuckets
-        - metric.WithExplicitBucketBoundaries
 
     nakedret:
       # Make an issue if func has more lines of code than this setting, and it has naked returns.
@@ -478,8 +476,6 @@ linters:
       # Examples and tests use fmt for // Output: and readable demos.
       - path: '.*_test\.go$'
         linters: [ forbidigo ]
-      - path: 'examples/'
-        linters: [ forbidigo, exhaustruct_v5 ]
       - path: '_test\.go'
         linters:
           - bodyclose
@@ -491,19 +487,3 @@ linters:
           - noctx
           - wrapcheck
           - exhaustruct_v5
-      # Adapter modules use replace github.com/skosovsky/ragy => ../.. for local workspace dev.
-      - path: '^adapters/.*/go\.mod$'
-        linters: [ gomoddirectives ]
-      # contracts/* submodules use replace github.com/skosovsky/toolsy => ../.. for local workspace dev.
-      - path: '^contracts/.*/go\.mod$'
-        linters: [ gomoddirectives ]
-      # Public OTel attribute.Key globals and init/session infrastructure are intentional API surface.
-      - path: '(genai|security)/attributes\.go$'
-        linters: [ gochecknoglobals ]
-      - path: 'init_session\.go$'
-        linters: [ gochecknoglobals ]
-      - path: 'internal/defaultslot/slot\.go$'
-        linters: [ gochecknoglobals ]
-      # Package name matches net/http import path; revive directives in tests are not a second package doc.
-      - path: 'middleware/http/'
-        linters: [ godoclint ]
