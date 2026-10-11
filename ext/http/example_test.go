@@ -131,3 +131,22 @@ func ExampleTimeout_withRetryIf() {
 	fmt.Println(response.StatusCode, attempts)
 	// Output: 200 2
 }
+
+func ExampleNewRoundTripper() {
+	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+		w.WriteHeader(stdhttp.StatusInternalServerError)
+	}))
+	defer server.Close()
+	// Keep the leaf client separate: using outer here would recurse.
+	leaf := server.Client()
+	outer := &stdhttp.Client{Transport: routeryhttp.NewRoundTripper(routeryhttp.NewRouteHandler(leaf))}
+	request, _ := stdhttp.NewRequestWithContext(context.Background(), stdhttp.MethodGet, server.URL, nil)
+	response, err := outer.Do(request)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer response.Body.Close()
+	fmt.Println(response.StatusCode)
+	// Output: 500
+}

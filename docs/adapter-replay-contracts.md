@@ -50,3 +50,42 @@ wins over the provider error, including the final attempt and a rejecting predic
 The partial result is retained for cleanup and errors.Join retains the provider error.
 Cancellation during the retry wait prevents the next call. Once a failed result has been
 closed for a permitted retry, cancellation returns an empty aborted result.
+
+## HTTP handler to RoundTripper
+
+`routeryhttp.NewRoundTripper(handler)` invokes a handler once per `RoundTrip`.
+It clones request fields and headers, forwards context and streaming bodies without
+buffering, and adds no retries, breaker, or application classification. A nil
+request or handler fails with `routery.ErrInvalidConfig`. Rejection and cancellation
+close the request body even when the leaf never runs.
+
+A sole `*StatusError`, optionally wrapped by single `Unwrap() error` wrappers,
+becomes its HTTP response with nil error, including 429/500. Joined causes remain
+failures; missing status responses and contradictory payload/status responses are
+rejected. Abandoned results are closed without draining; cleanup errors remain
+available through `errors.Is`. A result's lifetime is its canonical response owner;
+without a lifetime, the response body owns cleanup. Distinct conflicting responses
+are released separately, with shared body identity closed once. Handlers must
+supply one canonical owner, rather than an unrelated lifetime.
+
+Always close the returned response body, including HEAD/204 and zero-length
+responses. Close releases the canonical response owner, then the original request
+body, once each, retaining joined cleanup errors on repeated/concurrent Close.
+This covers successful middleware short-circuits and a `GetBody` factory whose
+attempt body differs from the original. Receiving headers does not close either
+owner: upload and response reading may still be active. Reader concurrency is
+subject to the underlying reader's contract.
+
+For composition with `NewRouteHandler`, use a separate leaf `http.Client` and an
+outer client with `NewRoundTripper` as its transport; never wire the outer client
+back into its own handler. `NewRouteHandler` requires replayable request bodies:
+call `PrepareRequest` explicitly before that composition when `GetBody` is absent.
+A handler wrapping a leaf `RoundTripper` directly can accept streaming POST without
+`GetBody`. HTTP status conversion happens after middleware, so a breaker/retry
+middleware around `NewRouteHandler` still sees `StatusError`. Applications retain
+responsibility for transport failure classification and retry/idempotency policy.
+
+`TestRoundTripperConsumerFixture` exercises a second standard `http.Client`
+consumer with GET 500 and delayed body. The external-package regressions use only
+public APIs and preserve the Kosmify host adapter's request, partial-result,
+lifetime and cleanup-error contracts without changing product wiring.

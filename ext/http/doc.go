@@ -1,4 +1,6 @@
-// Package routeryhttp adapts net/http clients to routery [RouteHandler] values.
+// Package routeryhttp adapts net/http clients and routery [RouteHandler] values.
+// NewRoundTripper provides the reverse adapter with caller-owned response lifetime;
+// it invokes once, does not prepare bodies, and maps sole StatusError to a response.
 //
 // The adapter returns *[http.Response] payloads for successful (2xx) calls. For non-2xx responses it returns *StatusError; inspect the
 // response body via StatusError.Response while using routery.RetryIf with DefaultRetryPolicy.
