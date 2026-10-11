@@ -713,3 +713,31 @@ func TestRoundTripperStatusWithoutLifetime(t *testing.T) {
 		})
 	}
 }
+
+func TestRoundTripperNoBodyComposition(t *testing.T) {
+	for _, method := range []string{http.MethodPost, http.MethodGet} {
+		t.Run(method, func(t *testing.T) {
+			// Arrange: preserve the existing empty-body sentinel without preparation.
+			var calls int
+			leaf := &http.Client{Transport: transportFunc(func(request *http.Request) (*http.Response, error) {
+				calls++
+				if request.Body != http.NoBody || request.GetBody != nil {
+					t.Fatal("empty-body sentinel changed")
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+			})}
+			request := requestFor(t, method, http.NoBody)
+			// Act.
+			response, err := routeryhttp.NewRoundTripper(routeryhttp.NewRouteHandler(leaf)).RoundTrip(request)
+			// Assert.
+			if err != nil {
+				t.Fatal(err)
+			}
+			firstClose, secondClose := response.Body.Close(), response.Body.Close()
+			if firstClose != nil || secondClose != nil || calls != 1 ||
+				request.Body != http.NoBody {
+				t.Fatal("empty-body composition failed")
+			}
+		})
+	}
+}

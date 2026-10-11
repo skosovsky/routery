@@ -34,7 +34,10 @@ func (transport *handlerTransport) RoundTrip(request *stdhttp.Request) (*stdhttp
 	var requestLife *routery.Lifetime
 	if request.Body != nil {
 		requestLife = routery.NewLifetime(request.Body.Close)
-		cloned.Body = &ownedBody{ReadCloser: request.Body, life: requestLife}
+		// Preserve the empty-body marker required by cloneForAttempt and net/http.
+		if request.Body != stdhttp.NoBody {
+			cloned.Body = &ownedBody{ReadCloser: request.Body, life: requestLife}
+		}
 	}
 	result, err := routery.InvokeRouteHandler(request.Context(), cloned, transport.handler)
 	handlerErr := err
