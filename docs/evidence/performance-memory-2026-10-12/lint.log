@@ -1,0 +1,4 @@
+WAITING_FOR_AUDIT_LOCK sh -ec export GOLANGCI_LINT_CACHE=/tmp/routery-performance-golangci-cache; GOGC=100 golangci-lint run --new-from-rev=HEAD --allow-serial-runners ./...
+AUDIT_LOCK_ACQUIRED 2026-10-12T09:33:20Z
+0 issues.
+AUDIT_LOCK_RELEASED 0

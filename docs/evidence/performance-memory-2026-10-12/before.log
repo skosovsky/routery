@@ -1,0 +1,50 @@
+WAITING_FOR_AUDIT_LOCK sh -ec cd /tmp/routery-performance-baseline-20261012-final; go version; go test . -run "^$" -bench "^(BenchmarkAuditMissDispatch|BenchmarkPerformanceDispatch)$" -benchmem -count=5 -benchtime=500ms
+AUDIT_LOCK_ACQUIRED 2026-10-12T09:27:50Z
+go version go1.27.2 darwin/arm64
+goos: darwin
+goarch: arm64
+pkg: github.com/skosovsky/routery
+cpu: Apple M1 Max
+BenchmarkAuditMissDispatch/1-10    	 3778593	       158.6 ns/op	      24 B/op	       2 allocs/op
+BenchmarkAuditMissDispatch/1-10    	 3810529	       158.2 ns/op	      24 B/op	       2 allocs/op
+BenchmarkAuditMissDispatch/1-10    	 3795794	       159.4 ns/op	      24 B/op	       2 allocs/op
+BenchmarkAuditMissDispatch/1-10    	 3692954	       163.6 ns/op	      24 B/op	       2 allocs/op
+BenchmarkAuditMissDispatch/1-10    	 3690700	       159.4 ns/op	      24 B/op	       2 allocs/op
+BenchmarkAuditMissDispatch/64-10   	  133291	      4763 ns/op	    1032 B/op	      65 allocs/op
+BenchmarkAuditMissDispatch/64-10   	  115630	      9685 ns/op	    1032 B/op	      65 allocs/op
+BenchmarkAuditMissDispatch/64-10   	  125455	      5103 ns/op	    1032 B/op	      65 allocs/op
+BenchmarkAuditMissDispatch/64-10   	  127395	      4571 ns/op	    1032 B/op	      65 allocs/op
+BenchmarkAuditMissDispatch/64-10   	  131034	      4681 ns/op	    1032 B/op	      65 allocs/op
+BenchmarkAuditMissDispatch/1024-10 	    8031	     72692 ns/op	   16392 B/op	    1025 allocs/op
+BenchmarkAuditMissDispatch/1024-10 	    8479	     71570 ns/op	   16392 B/op	    1025 allocs/op
+BenchmarkAuditMissDispatch/1024-10 	    8594	     71727 ns/op	   16392 B/op	    1025 allocs/op
+BenchmarkAuditMissDispatch/1024-10 	    8383	     72053 ns/op	   16392 B/op	    1025 allocs/op
+BenchmarkAuditMissDispatch/1024-10 	    8520	     72102 ns/op	   16392 B/op	    1025 allocs/op
+BenchmarkPerformanceDispatch/last-10         	  127778	      4747 ns/op	    1048 B/op	      66 allocs/op
+BenchmarkPerformanceDispatch/last-10         	  127044	      4766 ns/op	    1048 B/op	      66 allocs/op
+BenchmarkPerformanceDispatch/last-10         	  125227	      4767 ns/op	    1048 B/op	      66 allocs/op
+BenchmarkPerformanceDispatch/last-10         	  128394	      4748 ns/op	    1048 B/op	      66 allocs/op
+BenchmarkPerformanceDispatch/last-10         	  125710	      4724 ns/op	    1048 B/op	      66 allocs/op
+BenchmarkPerformanceDispatch/mixed-10        	 1259824	       477.9 ns/op	      72 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/mixed-10        	 1265152	       480.3 ns/op	      72 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/mixed-10        	 1240542	       484.1 ns/op	      72 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/mixed-10        	 1238216	       482.0 ns/op	      72 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/mixed-10        	 1238110	       481.8 ns/op	      72 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/nested-10       	 1358766	       453.3 ns/op	      88 B/op	       4 allocs/op
+BenchmarkPerformanceDispatch/nested-10       	 1320896	       449.8 ns/op	      88 B/op	       4 allocs/op
+BenchmarkPerformanceDispatch/nested-10       	 1348808	       465.8 ns/op	      88 B/op	       4 allocs/op
+BenchmarkPerformanceDispatch/nested-10       	 1364934	       460.1 ns/op	      88 B/op	       4 allocs/op
+BenchmarkPerformanceDispatch/nested-10       	 1336772	       443.8 ns/op	      88 B/op	       4 allocs/op
+BenchmarkPerformanceDispatch/error-10        	 1722027	       357.0 ns/op	     408 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/error-10        	 1751594	       344.3 ns/op	     408 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/error-10        	 1745060	       345.1 ns/op	     408 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/error-10        	 1733010	       343.2 ns/op	     408 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/error-10        	 1749564	       341.3 ns/op	     408 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/sink-10         	 1539866	       390.8 ns/op	      72 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/sink-10         	 1533651	       391.0 ns/op	      72 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/sink-10         	 1525278	       392.6 ns/op	      72 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/sink-10         	 1530904	       390.5 ns/op	      72 B/op	       5 allocs/op
+BenchmarkPerformanceDispatch/sink-10         	 1540569	       391.2 ns/op	      72 B/op	       5 allocs/op
+PASS
+ok  	github.com/skosovsky/routery	34.918s
+AUDIT_LOCK_RELEASED 0

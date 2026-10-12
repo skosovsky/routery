@@ -1,0 +1,9 @@
+WAITING_FOR_AUDIT_LOCK sh -ec cd /tmp/routery-performance-red-20261012; if go test . -run "^TestNestedMissSuccessHandlerAndSinkIsolation$" -count=1 -v; then exit 1; fi
+AUDIT_LOCK_ACQUIRED 2026-10-12T09:29:56Z
+=== RUN   TestNestedMissSuccessHandlerAndSinkIsolation
+    performance_regression_test.go:104: result={Action:stop Kind:1 Reason:1 Payload:1 HasPayload:true Match:{RouteID:leaf Path:[handler retained] Priority:0 Depth:1 Kind:predicate Key: Prefix: Remainder: DecisionReason:<nil> HasDecisionReason:false} Lifetime:<nil>} err=<nil> misses=1
+--- FAIL: TestNestedMissSuccessHandlerAndSinkIsolation (0.00s)
+FAIL
+FAIL	github.com/skosovsky/routery	0.415s
+FAIL
+AUDIT_LOCK_RELEASED 0

@@ -296,3 +296,27 @@ OutcomeSink events and Journal snapshots are raw borrowed in-process views. Deta
 paths/slices do not detach arbitrary payloads, errors, decision reason values, Receipts
 or Lifetime pointers. Observers must not mutate or close canonical data. Hosts project
 and redact before exporting telemetry; Journal snapshots are not completion barriers.
+
+## Cooldown state lifecycle
+
+`attempt.Cooldowns[Scope]` holds process-local scheduling bounds using caller-defined
+comparable scopes. `Extend` only increases a retained scope's deadline; `Until` returns
+that bound without consulting wall time, including expired values. Neither method
+implicitly expires entries. The zero value is usable; do not copy a Cooldowns after use.
+
+The caller owns cleanup cadence and supplies `PruneExpired(now time.Time) int` with a
+cutoff in the same clock domain as the stored deadlines. It removes deadlines **at or
+before** the cutoff and returns the number removed. Later deadlines and unrelated live
+scopes remain unchanged. `Until` returns zero after removal; a subsequent `Extend` starts
+a new history for that scope, so even a stale deadline can be inserted and later pruned.
+Moving the cutoff backwards cannot restore deleted history. No timestamp validation or
+implicit clock conversion is added to the existing state operations.
+
+Cleanup, Extend and Until serialize through the same mutex. A concurrent extension
+later than the cutoff survives regardless of their lock acquisition order. Cleanup
+scans O(stored scopes); when entries expire it rebuilds the map from the live set using
+O(live scopes) temporary space, releasing historical backing storage. An empty live set
+releases the map entirely. If nothing expires it does not rebuild. This is explicit
+cleanup, with no background goroutines/timers or distributed eviction guarantees.
+Releasing reachable entries/storage allows GC reclamation; it does not promise an
+immediate reduction in process RSS.

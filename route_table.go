@@ -295,6 +295,10 @@ func (entry routeEntry[Req, Kind, Reason, Payload]) matchRoute(
 	depth int,
 ) (RouteMatch, bool, error) {
 	data, ok, err := entry.matcher.match(call)
+	// Dispatch discards clean misses without observing their metadata.
+	if !ok && err == nil {
+		return RouteMatch{}, false, nil
+	}
 	match := RouteMatch{
 		RouteID:           entry.id,
 		Path:              appendRouteID(parentPath, entry.id),

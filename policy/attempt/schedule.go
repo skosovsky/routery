@@ -125,6 +125,7 @@ func waitInterval(ctx context.Context, notBefore time.Time, now func() time.Time
 
 // Cooldowns holds process-local not-before hints per caller-defined scope.
 // It is not a distributed admission backend or a circuit breaker.
+// The zero value is ready to use. Do not copy a Cooldowns after first use.
 type Cooldowns[Scope comparable] struct {
 	mu    sync.Mutex
 	until map[Scope]time.Time
@@ -140,6 +141,9 @@ func (cooldowns *Cooldowns[Scope]) Extend(scope Scope, until time.Time) {
 	cooldowns.mu.Lock()
 	defer cooldowns.mu.Unlock()
 	if until.After(cooldowns.until[scope]) {
+		if cooldowns.until == nil {
+			cooldowns.until = make(map[Scope]time.Time)
+		}
 		cooldowns.until[scope] = until
 	}
 }
@@ -149,4 +153,36 @@ func (cooldowns *Cooldowns[Scope]) Until(scope Scope) time.Time {
 	cooldowns.mu.Lock()
 	defer cooldowns.mu.Unlock()
 	return cooldowns.until[scope]
+}
+
+// PruneExpired removes deadlines at or before the caller-supplied cutoff and
+// returns the number removed. Supply the same clock domain used by Extend.
+// Until then returns zero for removed scopes; their next Extend starts a new
+// history, even if the supplied deadline is stale. No wall clock is consulted.
+// Concurrent Extend/Until calls serialize with cleanup; bounds after now survive.
+// Cleanup scans O(stored scopes) and, when entries expire, rebuilds using O(live
+// scopes) temporary space to reclaim historical map storage. Empty maps are released.
+func (cooldowns *Cooldowns[Scope]) PruneExpired(now time.Time) int {
+	cooldowns.mu.Lock()
+	defer cooldowns.mu.Unlock()
+	removed := 0
+	for _, until := range cooldowns.until {
+		if !until.After(now) {
+			removed++
+		}
+	}
+	if removed == 0 {
+		return 0
+	}
+	var retained map[Scope]time.Time
+	if live := len(cooldowns.until) - removed; live > 0 {
+		retained = make(map[Scope]time.Time, live)
+		for scope, until := range cooldowns.until {
+			if until.After(now) {
+				retained[scope] = until
+			}
+		}
+	}
+	cooldowns.until = retained
+	return removed
 }

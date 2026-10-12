@@ -1,0 +1,25 @@
+WAITING_FOR_AUDIT_LOCK sh -ec cd /tmp/routery-performance-red-20261012; if go test ./policy/attempt -run "^TestCooldown" -count=1; then exit 1; fi; if go test . -run "^(TestMissDispatchAllocationsBounded|TestPureMissMatcherExecutesOnceWithoutMetadata)$" -count=1 -v; then exit 1; fi
+AUDIT_LOCK_ACQUIRED 2026-10-12T09:17:30Z
+# github.com/skosovsky/routery/policy/attempt [github.com/skosovsky/routery/policy/attempt.test]
+policy/attempt/cooldowns_lifecycle_test.go:21:19: state.PruneExpired undefined (type *Cooldowns[string] has no field or method PruneExpired)
+policy/attempt/cooldowns_lifecycle_test.go:25:17: state.PruneExpired undefined (type *Cooldowns[string] has no field or method PruneExpired)
+policy/attempt/cooldowns_lifecycle_test.go:48:22: state.PruneExpired undefined (type *Cooldowns[int] has no field or method PruneExpired)
+policy/attempt/cooldowns_lifecycle_test.go:84:20: state.PruneExpired undefined (type *Cooldowns[int] has no field or method PruneExpired)
+policy/attempt/cooldowns_lifecycle_test.go:102:36: state.PruneExpired undefined (type *Cooldowns[int] has no field or method PruneExpired)
+policy/attempt/cooldowns_lifecycle_test.go:119:17: state.PruneExpired undefined (type Cooldowns[string] has no field or method PruneExpired)
+policy/attempt/cooldowns_lifecycle_test.go:121:17: state.PruneExpired undefined (type Cooldowns[string] has no field or method PruneExpired)
+policy/attempt/cooldowns_lifecycle_test.go:122:18: state.PruneExpired undefined (type Cooldowns[string] has no field or method PruneExpired)
+policy/attempt/cooldowns_lifecycle_test.go:160:21: state.PruneExpired undefined (type *Cooldowns[int] has no field or method PruneExpired)
+FAIL	github.com/skosovsky/routery/policy/attempt [build failed]
+FAIL
+=== RUN   TestMissDispatchAllocationsBounded
+    performance_memory_test.go:36: routes=1 allocs=2 routes=1024 allocs=1025
+    performance_memory_test.go:38: miss allocations must be constant and <=1: one=2 many=1025
+--- FAIL: TestMissDispatchAllocationsBounded (0.00s)
+=== RUN   TestPureMissMatcherExecutesOnceWithoutMetadata
+    performance_regression_test.go:19: calls=1 match={RouteID:miss Path:[parent miss] Priority:0 Depth:1 Kind:predicate Key: Prefix: Remainder: DecisionReason:<nil> HasDecisionReason:false} ok=false err=<nil>
+--- FAIL: TestPureMissMatcherExecutesOnceWithoutMetadata (0.00s)
+FAIL
+FAIL	github.com/skosovsky/routery	0.415s
+FAIL
+AUDIT_LOCK_RELEASED 0

@@ -1,0 +1,26 @@
+package routery
+
+import (
+ "context"
+ "fmt"
+ "testing"
+)
+
+func auditMissRouter(tb testing.TB, n int) Router[int,int,int,int] {
+ tb.Helper()
+ table := NewRouteTable[int,int,int,int]()
+ for i:=0;i<n;i++ { table.Route(RouteID(fmt.Sprint(i)),0,func(int)bool{return false},func(RouteCall[int])(RouteResult[int,int,int],error){return Handled(1,1,1),nil}) }
+ r,err:=table.Build();if err!=nil {tb.Fatal(err)};return r
+}
+func TestAuditMissAllocationGrowth(t *testing.T) {
+ // Arrange.
+ small,large:=auditMissRouter(t,1),auditMissRouter(t,1024)
+ ctx:=context.Background()
+ // Act.
+ measure:=func(r Router[int,int,int,int])float64{return testing.AllocsPerRun(10,func(){result,err:=r.Dispatch(ctx,0);if err!=nil||result.Action!=ActionNext{panic("invalid dispatch")}})}
+ one,many:=measure(small),measure(large)
+ // Assert: diagnostic characterization of rejected-route allocation growth.
+ t.Logf("routes=1 allocs=%g routes=1024 allocs=%g",one,many)
+ if many-one<1023 {t.Fatalf("expected current per-miss path allocations: one=%g many=%g",one,many)}
+}
+func BenchmarkAuditMissDispatch(b *testing.B){for _,n:=range []int{1,64,1024}{b.Run(fmt.Sprint(n),func(b *testing.B){r:=auditMissRouter(b,n);ctx:=context.Background();b.ReportAllocs();b.ResetTimer();for i:=0;i<b.N;i++{result,err:=r.Dispatch(ctx,0);if err!=nil||result.Action!=ActionNext{b.Fatal(result,err)}}})}}
